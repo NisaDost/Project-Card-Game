@@ -12,9 +12,10 @@ GameObject:
   - component: {fileID: 3636757487716383118}
   - component: {fileID: 6976349440421470003}
   - component: {fileID: 7026921332795976143}
+  - component: {fileID: 1068349651083283109}
   m_Layer: 0
   m_Name: Hand Card
-  m_TagString: Untagged
+  m_TagString: Card
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -28,8 +29,8 @@ Transform:
   m_GameObject: {fileID: 4445082916937488491}
   serializedVersion: 2
   m_LocalRotation: {x: 0.2164396, y: 0, z: 0, w: 0.97629607}
-  m_LocalPosition: {x: -0.35, y: 0.138, z: -1.449}
-  m_LocalScale: {x: 0.3, y: 0.5, z: 0.02}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 0.3, y: 0.5, z: 0.00001}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -103,5 +104,18 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
+  m_Size: {x: 1, y: 1, z: 0}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &1068349651083283109
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4445082916937488491}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7306c795edccb824c84298198ab17d49, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cardPanel: {fileID: 0}
