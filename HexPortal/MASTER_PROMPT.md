@@ -19,6 +19,7 @@
    - `/hooks`: 2 hook görünmeli (PreToolUse, Stop)
    - `/agents`: 4 ajan görünmeli
    - `/memory`: CLAUDE.md yüklenmiş olmalı
+6. Claude uygulamasında resmî Unity eklentisini (Unity Technologies) etkinleştir. Dev oturumu köprü paketini `unity pipeline install --project-path . --package-version 0.8.0-exp.1` ile kurar.
 
 ## 2. İlk oturum: bu prompt'u yapıştır
 
@@ -37,7 +38,7 @@ Hedef: GDD §17'deki M0–M6 kilometre taşlarını tamamlayıp Android'de oynan
    - gdd-reviewer ajanını çalıştır ve bulguları düzelt.
    - docs/PROGRESS.md dosyasını güncelle.
    - Commit et.
-   - Bana Türkçe kısa bir özet ve "Unity'de kontrol et" listesi ver, sonra dur.
+   - Unity doğrulamasını Unity CLI ile kendin yap. Kullanıcıya Türkçe kısa bir özet ver; yalnızca gerçek cihaz testi veya görsel/his değerlendirmesi gereken maddeleri sor. Sonra dur.
 5. GDD belirsizse varsayım yapma, bana sor. GDD'yi ve Catalog.cs'teki sayıları onayım olmadan değiştirme.
 6. Minimal kal: küçük ve tek sorumluluklu dosyalar yaz, gereksiz soyutlama ekleme.
 
@@ -49,7 +50,7 @@ Hedef: GDD §17'deki M0–M6 kilometre taşlarını tamamlayıp Android'de oynan
 - Core/Data/Catalog.cs dosyasını GDD tablolarındaki tüm sayılarla doldur. Catalog'u GDD'ye karşı doğrulayan testler yaz, örneğin: destek kartı toplamı 34, karakter havuzu 30, her sınıfın statları (Maliyet, Saldırı, Can, Hareket, Görüş), kule statları, Enerji (turda 3) ve Mana kuralları (T-01…T-03), Kontrol Alanı mesafesi (C-02), buff/debuff sınırı (C-05), görev ve pasif sayıları.
 - Dikkat: Oyunda iki ayrı kaynak var. Mana kart oynamak için (her kartın Maliyeti), Enerji birimleri hareket ettirmek/saldırtmak için. Kodda bunları asla tek bir alanda birleştirme.
 - Gerekiyorsa Packages/manifest.json dosyasına Input System paketini ekle.
-- Minimal istemci: runtime bootstrap ile boş sahnede "HexPortal M0" yazısı ve dikey kamera.
+- Minimal istemci: runtime bootstrap ile boş sahnede "HexPortal M0" yazısı ve yatay (landscape) kamera.
 
 Plan ile başla.
 ```
