@@ -18,6 +18,8 @@ namespace HexPortal.Tests
         public bool Full = true;
         public bool Quests = true;
         public bool Money = true;       // opponent Mana / Energy
+        public int MinMana;             // scrambled Mana is in [MinMana, MinMana + 8)
+        public int MinEnergy;           // scrambled Energy is in [MinEnergy, EnergyPerTurn]
         public bool PrePick = true;
         public bool MoveUnits = true;   // hidden enemy units
         public bool UnitState = true;   // Health, buff, debuff of hidden enemy units
@@ -28,6 +30,8 @@ namespace HexPortal.Tests
         public Func<Unit, bool> KeepUnit = u => false;
         /// <summary>Cells no hidden enemy unit may be moved into.</summary>
         public Func<Hex, bool> NoEntry = h => false;
+        /// <summary>Extra cells a hidden enemy tower may not be moved to.</summary>
+        public Func<Hex, bool> TowerNoEntry = h => false;
         /// <summary>Opponent hand cards whose identity is kept.</summary>
         public HashSet<int> KeepCards = new HashSet<int>();
     }
@@ -229,8 +233,8 @@ namespace HexPortal.Tests
             }
             if (spec.Money)
             {
-                s.SetMana(o, rng.NextInt(0, 8));
-                s.SetEnergy(o, rng.NextInt(0, Catalog.EnergyPerTurn + 1));
+                s.SetMana(o, rng.NextInt(spec.MinMana, spec.MinMana + 8));
+                s.SetEnergy(o, rng.NextInt(spec.MinEnergy, Catalog.EnergyPerTurn + 1));
             }
             if (spec.PrePick && !setup)
             {
@@ -267,7 +271,7 @@ namespace HexPortal.Tests
             var tower = s.GetTower(o);
             if (spec.MoveTower && tower.IsPlaced && !visible.Contains(tower.Pos))
             {
-                var cells = Board.Cells.Where(h => Free(h) && Board.IsHomeZone(h, o)).ToList();
+                var cells = Board.Cells.Where(h => Free(h) && Board.IsHomeZone(h, o) && !spec.TowerNoEntry(h)).ToList();
                 if (cells.Count > 0) tower.Pos = cells[rng.NextInt(cells.Count)];
             }
 

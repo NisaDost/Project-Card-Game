@@ -141,8 +141,9 @@ namespace HexPortal.Tests
         /// <summary>Card secrets never appear; every enemy unit id mentioned was Visible to p before or after the
         /// command, or was introduced earlier in the same filtered list (UnitAppeared, Revealed, UnitDeployed).
         /// Every cell that locates an enemy unit or the enemy tower is Visible to p before or after the command, or is
-        /// the cell of a V-08 reveal (checked separately: the revealed piece really attacks in this list). The only
-        /// exceptions are TrapTriggered.Cell (C-33) and the stop cell of a push (V-11 physical collision).</summary>
+        /// the cell of a V-08 reveal for events about that piece (checked separately: the revealed piece really attacks in
+        /// this list). The only exception is TrapTriggered.Cell (C-33). (The V-11 push collision is an inference, handled
+        /// in Leak test B; a push stop cell is only ever emitted when Visible.)</summary>
         static int ScanEvents(GameState before, GameState after, List<GameEvent> full, List<GameEvent> events, PlayerId p, ICommand c)
         {
             var o = p.Opponent();
@@ -157,10 +158,16 @@ namespace HexPortal.Tests
             }
             var visBefore = before.Phase == GamePhase.Setup ? new HashSet<Hex>() : Visibility.VisibleCells(before, p);
             var visAfter = after.Phase == GamePhase.Setup ? new HashSet<Hex>() : Visibility.VisibleCells(after, p);
-            var revealedCells = new HashSet<Hex>();
+            var revealedCells = new Dictionary<Hex, int>(); // V-08 reveal cell -> the revealed piece (unit id or DamageDealt.Tower)
             bool Enemy(int id) => !owner.TryGetValue(id, out var ow) || ow == o;
+            // A reveal cell only covers events about the revealed piece itself.
+            bool AboutRevealed(Hex h, GameEvent ev) =>
+                revealedCells.TryGetValue(h, out int piece)
+                && (piece == DamageDealt.Tower
+                    ? ev is TowerShot || (ev is DamageDealt td && td.TargetUnitId == DamageDealt.Tower)
+                    : UnitIds(ev).Contains(piece));
             void Seen(Hex h, GameEvent ev) =>
-                Assert.That(visBefore.Contains(h) || visAfter.Contains(h) || revealedCells.Contains(h), Is.True,
+                Assert.That(visBefore.Contains(h) || visAfter.Contains(h) || AboutRevealed(h, ev), Is.True,
                     "hidden cell " + h + " in " + Serialize(ev) + " after " + c);
             bool setup = before.Phase == GamePhase.Setup;
             var enemyHand = new HashSet<int>(before.GetHand(o).Concat(after.GetHand(o)).Select(x => x.Id));
@@ -213,7 +220,7 @@ namespace HexPortal.Tests
                                 Is.True, "revealed without attacking: " + Serialize(e));
                             known.Add(r.UnitId);
                         }
-                        revealedCells.Add(r.Cell);
+                        revealedCells[r.Cell] = r.UnitId;
                         break;
                     case UnitDeployed ud:
                         if (Enemy(ud.UnitId)) Seen(ud.Cell, e);
@@ -221,7 +228,7 @@ namespace HexPortal.Tests
                         break;
                     case UnitMoved m when Enemy(m.UnitId): Seen(m.From, e); Seen(m.To, e); break;
                     case UnitTeleported m when Enemy(m.UnitId): Seen(m.From, e); Seen(m.To, e); break;
-                    case UnitPushed m when Enemy(m.UnitId): Seen(m.From, e); break; // To: the push stop cell (V-11)
+                    case UnitPushed m when Enemy(m.UnitId): Seen(m.From, e); Seen(m.To, e); break;
                     case DamageDealt dd:
                         if (dd.TargetUnitId == DamageDealt.Tower ? dd.Target == after.GetTower(o).Pos : Enemy(dd.TargetUnitId)) Seen(dd.Target, e);
                         break;
@@ -268,7 +275,7 @@ namespace HexPortal.Tests
         public void Leak_B_ScramblingHiddenDataChangesNothingThePlayerSees()
         {
             var rng = new Rng(99);
-            int compared = 0, observerCompares = 0, observerSkipped = 0, actorCompares = 0, skippedPush = 0;
+            int compared = 0, observerCompares = 0, observerSkipped = 0, actorCompares = 0, pushes = 0;
             RandomMatches((before, c, after, ev) =>
             {
                 foreach (var p in Players)
@@ -281,23 +288,28 @@ namespace HexPortal.Tests
                 }
                 var actor = c.Player;
                 var observer = actor.Opponent();
-                // Excluded: Push. V-11 physical collision: the stop cell depends on units the pusher cannot see.
-                if (c is PlayCardCommand pc && before.FindInHand(actor, pc.CardId).Support.Effect == EffectKind.Push)
-                {
-                    skippedPush++;
-                    return;
-                }
+                // C-21: an untriggered Mirror Trap of the observer can send an actor unit to a random empty cell of the
+                // actor's home zone, so only then does home-zone occupancy (units, the actor's tower) legitimately matter.
+                bool mirror = before.Traps.Any(t => t.Owner == observer && t.Card.DefId == "C-21");
+                bool Home(Hex h) => mirror && Board.IsHomeZone(h, actor);
+                // V-11 physical collision: a push stops before any piece on its line, seen or not. Pieces on the line
+                // stay, and nothing is moved onto it; everything else is scrambled as usual.
+                var pushLine = PushLine(before, c);
+                bool unitAction = c is MoveCommand || c is AttackCommand || c is OverwatchCommand;
 
                 // Observer side: what the observer sees of the actor's command must not depend on the actor's hidden data.
                 var keepUnits = UnitsOf(before, c);
+                var actorTower = before.GetTower(actor);
                 var observerSpec = new ScrambleSpec
                 {
                     Full = false,   // D-05: a Market refill after a Market draw is a public outcome of the pools and the Rng
-                    Money = false,  // T-01, T-05: the actor's own Mana/Energy decide whether c is legal
+                    MinMana = before.GetMana(actor),     // T-01: never below what c costs (keeps c legal)
+                    MinEnergy = unitAction ? 1 : 0,      // T-05: a unit action needs 1 Energy
                     Quests = !(c is ChooseQuestsCommand || c is ChoosePassiveCommand), // c names ids from the actor's own offer
-                    MoveTower = false, // C-21: the Mirror Trap picks among the empty cells of the actor's home zone
-                    KeepUnit = u => keepUnits.Contains(u.Id) || Board.IsHomeZone(u.Pos, actor), // c's own unit; C-21 candidates
-                    NoEntry = h => Board.IsHomeZone(h, actor),                                   // C-21 candidates
+                    MoveTower = !(actorTower.IsPlaced && (Home(actorTower.Pos) || pushLine.Contains(actorTower.Pos))),
+                    MoveTraps = pushLine.Count == 0, // C-32: the pushed unit stops on the actor's trap (trap exception)
+                    KeepUnit = u => keepUnits.Contains(u.Id) || Home(u.Pos) || pushLine.Contains(u.Pos),
+                    NoEntry = h => Home(h) || pushLine.Contains(h),
                     KeepCards = CardsOf(c),
                 };
                 bool done = false;
@@ -321,33 +333,44 @@ namespace HexPortal.Tests
                 bool couldTrigger = arrival.HasValue && CouldTrigger(before, observer, arrival.Value);
                 var mageTarget = c is AttackCommand ma && before.GetUnit(ma.UnitId).Class == UnitClass.Mage ? ma.Target : (Hex?)null;
                 bool turnEnd = c is EndTurnCommand || c is TurnTimeoutCommand;
+                bool NearMage(Hex h) => mageTarget.HasValue && Hex.Distance(h, mageTarget.Value) <= 1; // U-04 splash cells
+                // U-27: a hidden tower that could reach the arrival cell still shoots (the shot reveals it, V-08).
+                bool TowerReach(Hex h) => arrival.HasValue && Hex.Distance(h, arrival.Value) <= Catalog.Tower.MaxRange;
+                var enemyTower = before.GetTower(observer);
                 var actorSpec = new ScrambleSpec
                 {
                     Full = false,      // the actor's own blind draws and public Market refills come from the pools and the Rng
-                    PrePick = false,   // T-11: at a turn end the opponent's pre-picked draw follows (a Market draw is public)
-                    MoveTower = false, // U-27: a hidden tower in range still shoots (the shot reveals it, V-08)
+                    PrePick = !turnEnd, // T-11: at a turn end the opponent's pre-picked draw follows (a Market draw is public)
+                    // The tower stays when it could shoot (U-27), when its sight decides an overwatch shot (V-11, couldTrigger),
+                    // when splash reaches it (V-09: public tower Health), or when it stands on the push line (V-11).
+                    MoveTower = !couldTrigger && !(enemyTower.IsPlaced && (TowerReach(enemyTower.Pos) || NearMage(enemyTower.Pos)
+                        || pushLine.Contains(enemyTower.Pos) || Home(enemyTower.Pos))),
+                    TowerNoEntry = h => TowerReach(h) || NearMage(h),
                     MoveTraps = false, // C-32, C-33: trap stops are the listed exception
                     Overwatch = false, // U-28: hidden overwatch still fires
                     MoveUnits = !couldTrigger, // U-27/U-28 with V-11: whether a shot fires depends on the shooter side's sight
-                    UnitState = !turnEnd,      // C-17, C-12: poison/Shield on hidden units decide a death whose U-23 draw count is public
-                    KeepUnit = u => u.OnOverwatch                                    // U-28
-                        || Board.IsHomeZone(u.Pos, actor)                           // C-21 candidates
-                        || (mageTarget.HasValue && Hex.Distance(u.Pos, mageTarget.Value) <= 1) // U-04 splash: public U-23 draw count
-                        || (turnEnd && u.Class == UnitClass.Healer),                // U-05: a hidden Healer heals visible neighbours
-                    NoEntry = h => Board.IsHomeZone(h, actor) || (mageTarget.HasValue && Hex.Distance(h, mageTarget.Value) <= 1),
+                    KeepUnit = u => u.OnOverwatch                  // U-28
+                        || Home(u.Pos)                             // C-21 candidates
+                        || pushLine.Contains(u.Pos)                // V-11 push collision
+                        || NearMage(u.Pos)                         // U-04 splash: a death shows as a public U-23 draw count
+                        || (turnEnd && u.Class == UnitClass.Healer) // U-05: a hidden Healer heals visible neighbours
+                        || (turnEnd && u.Debuff != null && u.Debuff.Def.Id == "C-17"), // C-17: a poison death shows as a U-23 draw
+                    NoEntry = h => Home(h) || pushLine.Contains(h) || NearMage(h),
                 };
                 var scrA = Scramble(before, actor, rng, actorSpec);
                 Assert.That(StillLegal(scrA, c), Is.True, "legality of " + c + " depended on hidden data");
                 Assert.That(Serialize(EventFilter.For(Engine.Apply(scrA, c), actor)), Is.EqualTo(Serialize(EventFilter.For(ev, actor))),
                     "actor events of " + c);
                 actorCompares++;
+                if (pushLine.Count > 0) pushes++;
             });
             TestContext.Out.WriteLine("observer compares " + observerCompares + " (redrawn out " + observerSkipped + "), actor compares "
-                + actorCompares + ", push skipped " + skippedPush);
+                + actorCompares + ", pushes compared " + pushes);
             Assert.That(compared, Is.GreaterThan(1000));
             Assert.That(observerCompares, Is.GreaterThan(500));
             Assert.That(observerSkipped, Is.LessThan(observerCompares / 10));
             Assert.That(actorCompares, Is.GreaterThan(500));
+            Assert.That(pushes, Is.GreaterThan(0));
         }
 
         static bool StillLegal(GameState s, ICommand c)
@@ -365,6 +388,22 @@ namespace HexPortal.Tests
             if (c is OverwatchCommand w) ids.Add(w.UnitId);
             if (c is PlayCardCommand pc && s.UnitAt(pc.Target) != null) ids.Add(s.UnitAt(pc.Target).Id);
             return ids;
+        }
+
+        /// <summary>C-18: the cells a Push may move its target through (up to the card's Amount), empty if c is no Push.</summary>
+        static HashSet<Hex> PushLine(GameState s, ICommand c)
+        {
+            var line = new HashSet<Hex>();
+            if (!(c is PlayCardCommand pc)) return line;
+            var card = s.FindInHand(pc.Player, pc.CardId);
+            if (card == null || card.IsCharacter || card.Support.Effect != EffectKind.Push) return line;
+            var h = pc.Target;
+            for (int k = 0; k < card.Support.Amount; k++)
+            {
+                h = h.Neighbor(pc.Direction);
+                line.Add(h);
+            }
+            return line;
         }
 
         static HashSet<int> CardsOf(ICommand c)
