@@ -24,7 +24,7 @@ Milestone definitions and "done" criteria: GDD §17.
 **Uncommitted, not ours:** `Packages/manifest.json` and `packages-lock.json` add `com.unity.ai.assistant` 2.20.0-pre.1 and `com.unity.ai.inference` 2.6.1, and there is a new file `ProjectSettings/Packages/com.unity.ai.assistant/Settings.json`. These appeared while the Unity plugin was being installed. The M2 commit leaves them out. Ask HexPortal PM whether to commit them as the `[tools]` package commit.
 
 **Next work:**
-1. Unity plugin smoke test (unity-cli skill). Before any action that drives the Editor, `git status` must be clean. Do not change scenes or settings during the test. Report each item as works / fails / not supported:
+1. ✅ DONE (see Session log). Unity plugin smoke test (unity-cli skill). Before any action that drives the Editor, `git status` must be clean. Do not change scenes or settings during the test. Report each item as works / fails / not supported:
    a. Asset refresh and triggering a compile
    b. Reading Console errors and warnings
    c. Running a small C# snippet in the Editor (e.g. return `Application.unityVersion`)
@@ -73,6 +73,7 @@ Milestone definitions and "done" criteria: GDD §17.
 - 2026-09-29 — `Tools/Core.Build` (netstandard2.1) is built by `dotnet test`, so Core API use that Unity doesn't have fails the test run.
 
 ## Session log
+- 2026-09-30 — (Dev 2) Unity CLI bridge: AI packages removed, `com.unity.pipeline` 0.8.0-exp.1 installed (35f9d3a). Smoke test, Editor unfocused the whole time: refresh (`eval AssetDatabase.Refresh()`) + `recompile`/`recompile_status` pick up disk edits and compile without a user click (verified with a temporary comment in Bootstrap.cs, then reverted); `console_status` (groundTruth counts, compilationFailed) works, `console` entry buffer only holds logs from after the session starts; `eval` works; `editor_play`/`editor_stop` work, UIDocument label reads "HexPortal M0"; `capture_game_view` includes UI (`screenshot` renders the camera only, no overlay UI); `list_tests`/`run_tests` work (0 Unity tests in the project; `unity test` can't run while the Editor has the project open); `get_player_settings` + eval read Portrait, activeInputHandler=1 (New), IL2CPP, Android. From now on the Unity compile check is: `recompile` → `recompile_status` = completed → `console_status` compilationFailed=false, consoleErrors=0.
 <!-- Newest first. One line per session: date — what was done — what is next -->
 - 2026-09-30 — M2 implemented (rules-engineer) + V-11 change; gdd-reviewer two rounds, no blocking issues. 197 tests green. Unity plugin (unity-cli) not visible in this session. Next: M3 (cards) plan.
 - 2026-09-30 — M1 implemented (rules-engineer): Hex, Board, HexSearch (canPass/canStop), Rng (xorshift64*, unbiased), GameMap, MapGenerator, MapValidator; 130 tests green. gdd-reviewer: no blocking issues; fixed stream salt, internal Set, strict distinct test, retry-stream test, comments. Next: Unity check → M1 commit → M2 plan.
