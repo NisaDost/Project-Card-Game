@@ -96,9 +96,10 @@ namespace HexPortal.Core
         }
 
         /// <summary>A normal attack or an overwatch shot on a validated target, then the Mage splash (U-04).
-        /// U-21: no counter-attack.</summary>
-        internal static void ResolveAttack(GameState state, Unit attacker, Hex target, DamageKind kind, List<GameEvent> events)
+        /// U-21: no counter-attack. V-08: the attacker is revealed to the opponent first; splash victims are not.</summary>
+        internal static void ResolveAttack(GameState state, Unit attacker, Hex target, DamageKind kind, EventLog events)
         {
+            Visibility.Reveal(state, attacker, events);
             int amount = AttackDamage(state, attacker, kind == DamageKind.Overwatch);
             DealDamage(state, attacker.Owner, attacker.Id, target, amount, kind, events);
             if (attacker.Class != UnitClass.Mage) return;
@@ -116,7 +117,7 @@ namespace HexPortal.Core
         /// C-12: a Shield takes the whole hit and ends (a 0 hit lowers no Health, so it is not damage and keeps the Shield).
         /// U-22: a unit at 0 is removed at once (with its effects); U-23: its owner draws. W-02: a tower at 0 ends the game.</summary>
         internal static void DealDamage(GameState state, PlayerId sourcePlayer, int sourceUnitId, Hex target, int amount,
-            DamageKind kind, List<GameEvent> events)
+            DamageKind kind, EventLog events)
         {
             var u = state.UnitAt(target);
             if (u != null)
@@ -131,8 +132,8 @@ namespace HexPortal.Core
                 events.Add(new DamageDealt(sourcePlayer, sourceUnitId, target, u.Id, amount, kind));
                 if (u.Health == 0)
                 {
+                    events.Add(new UnitDied(u.Id, u.Owner, sourcePlayer)); // tagged while the unit is still on its cell
                     state.RemoveUnit(u);
-                    events.Add(new UnitDied(u.Id, u.Owner, sourcePlayer));
                     Pools.DeathDraw(state, u.Owner, events);
                 }
                 return;

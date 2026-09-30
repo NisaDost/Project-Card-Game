@@ -322,7 +322,7 @@ namespace HexPortal.Tests
                 s => s.ActivePlayer = B,
                 s => s.SetEnergy(A, 1),
                 s => s.SetEnergy(B, 1),
-                s => s.Winner = A,
+                s => s.Result = new GameResult(A, WinReason.Tower),
                 s => s.SetTowerShotAvailable(A, false),
                 s => s.SetTowerShotAvailable(B, false),
                 s => s.GetTower(A).Health = 9,

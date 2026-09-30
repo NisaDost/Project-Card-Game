@@ -15,6 +15,31 @@ namespace HexPortal.Core
             Add(ref h, s.Round);
             Add(ref h, (int)s.ActivePlayer);
             Add(ref h, s.Winner.HasValue ? (int)s.Winner.Value + 1 : 0);
+            Add(ref h, s.Result == null ? -1 : (int)s.Result.Reason * 16 + s.Result.Criterion);
+            Add(ref h, s.InSetup ? 1 : 0);
+            foreach (var p in new[] { PlayerId.A, PlayerId.B })
+            {
+                Add(ref h, s.IsSetupFinished(p) ? 1 : 0);
+                Add(ref h, s.GetConsecutiveTimeouts(p));
+                Add(ref h, s.GetDealtHandCount(p));
+                AddIds(ref h, s.GetQuestOffer(p));
+                AddIds(ref h, s.GetQuestChoices(p));
+                AddIds(ref h, s.GetPassiveOffer(p));
+                AddString(ref h, s.GetPassiveChoice(p) == null ? "" : s.GetPassiveChoice(p).Id);
+                var tw = s.GetTower(p);
+                Add(ref h, (tw.IsPlaced ? 1 : 0) + 2 * (tw.RevealedUntilTurn + 1));
+                var fog = s.GetFog(p);
+                foreach (var c in Board.Cells)
+                {
+                    var seen = fog.GetLastSeen(c);
+                    Add(ref h, (int)fog.Get(c));
+                    Add(ref h, (int)seen.Tile.Biome * 8 + (int)seen.Tile.Marker);
+                    Add(ref h, seen.UnitId);
+                    Add(ref h, ((int)seen.UnitOwner * 8 + (int)seen.UnitClass) * 8 + (int)seen.UnitBiome);
+                    Add(ref h, seen.UnitHealth);
+                    Add(ref h, (seen.HasTower ? 1 : 0) + 2 * (int)seen.TowerOwner + 4 * seen.TowerHealth);
+                }
+            }
             foreach (var p in new[] { PlayerId.A, PlayerId.B })
             {
                 Add(ref h, s.GetEnergy(p));
@@ -42,6 +67,7 @@ namespace HexPortal.Core
                 Add(ref h, u.Health);
                 Add(ref h, (u.ActedThisTurn ? 1 : 0) | (u.MovedThisTurn ? 2 : 0) | (u.MovedLastOwnTurn ? 4 : 0) | (u.OnOverwatch ? 8 : 0));
                 Add(ref h, u.MoveBonus);
+                Add(ref h, u.RevealedUntilTurn);
                 AddEffect(ref h, u.Buff);
                 AddEffect(ref h, u.Debuff);
             }
@@ -76,6 +102,24 @@ namespace HexPortal.Core
         {
             Add(ref h, cards.Count);
             foreach (var c in cards) Add(ref h, c.Id);
+        }
+
+        static void AddIds(ref ulong h, IReadOnlyList<Data.QuestDef> defs)
+        {
+            Add(ref h, defs.Count);
+            foreach (var d in defs) AddString(ref h, d.Id);
+        }
+
+        static void AddIds(ref ulong h, IReadOnlyList<Data.PassiveDef> defs)
+        {
+            Add(ref h, defs.Count);
+            foreach (var d in defs) AddString(ref h, d.Id);
+        }
+
+        static void AddString(ref ulong h, string s)
+        {
+            Add(ref h, s.Length);
+            foreach (char ch in s) Add(ref h, ch);
         }
 
         static void AddEffect(ref ulong h, ActiveEffect e)

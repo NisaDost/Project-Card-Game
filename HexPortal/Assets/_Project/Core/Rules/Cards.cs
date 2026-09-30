@@ -85,7 +85,7 @@ namespace HexPortal.Core
             }
         }
 
-        internal static void Apply(GameState state, PlayCardCommand cmd, List<GameEvent> events)
+        internal static void Apply(GameState state, PlayCardCommand cmd, EventLog events)
         {
             var p = cmd.Player;
             var card = state.FindInHand(p, cmd.CardId);
@@ -131,7 +131,7 @@ namespace HexPortal.Core
         }
 
         // C-05, C-06: one buff slot and one debuff slot; a new card replaces the old one (same card: timer restarts).
-        static void SetSlot(Unit u, SupportCardDef d, List<GameEvent> events)
+        static void SetSlot(Unit u, SupportCardDef d, EventLog events)
         {
             bool buff = d.Pool == SupportPool.Buff;
             var old = buff ? u.Buff : u.Debuff;
@@ -146,7 +146,7 @@ namespace HexPortal.Core
         /// the pusher cannot see: V-11 physical collision), a tower, rock or the board edge. The Portal is fine.
         /// No damage. A push that moves the unit breaks its overwatch (U-28) and fires a trap on the stop cell (C-32);
         /// it never triggers tower or overwatch shots (U-27). A 0-cell push is still a played card.</summary>
-        static void Push(GameState state, Unit u, int dir, int cells, List<GameEvent> events)
+        static void Push(GameState state, Unit u, int dir, int cells, EventLog events)
         {
             var from = u.Pos;
             var pos = from;
@@ -156,16 +156,16 @@ namespace HexPortal.Core
                 if (!Movement.IsEmpty(state, next)) break;
                 pos = next;
             }
+            u.Pos = pos; // before the event: the filter expects the unit on its stop cell (From == To for 0 cells)
             events.Add(new UnitPushed(u.Id, from, pos));
             if (pos == from) return; // interim: a unit that did not move was not pushed (no overwatch break, no trap)
-            u.Pos = pos;
             Defense.BreakOverwatch(state, u, events);
             Traps.ResolveArrival(state, u, events);
         }
 
         /// <summary>T-04 step 2, C-17: each own poisoned unit loses Amount Health (a Shield blocks it). The poisoner is the
         /// opponent (debuffs only target enemies), so a poison kill counts for them; U-23 draw for the owner.</summary>
-        internal static void PoisonTicks(GameState state, PlayerId p, List<GameEvent> events)
+        internal static void PoisonTicks(GameState state, PlayerId p, EventLog events)
         {
             var poisoned = new List<Unit>();
             foreach (var u in state.Units)
@@ -175,7 +175,7 @@ namespace HexPortal.Core
         }
 
         /// <summary>T-08, C-04: at the end of the owner's turn, Wind Step ends and Timed effects count down.</summary>
-        internal static void EndOfTurn(GameState state, PlayerId p, List<GameEvent> events)
+        internal static void EndOfTurn(GameState state, PlayerId p, EventLog events)
         {
             foreach (var u in state.Units)
             {
@@ -186,7 +186,7 @@ namespace HexPortal.Core
             }
         }
 
-        static bool Tick(ActiveEffect e, Unit u, List<GameEvent> events)
+        static bool Tick(ActiveEffect e, Unit u, EventLog events)
         {
             if (e == null || !e.IsTimed) return false;
             e.TurnsLeft--;

@@ -9,6 +9,6 @@ namespace HexPortal.Core
         internal static int TrapBonusDamage(GameState state, PlayerId trapOwner) => 0;
 
         /// <summary>P-05 Merchant: one extra blind draw on the first Market buy. M4 hook: no-op for now.</summary>
-        internal static void OnMarketBuy(GameState state, PlayerId player, List<GameEvent> events) { }
+        internal static void OnMarketBuy(GameState state, PlayerId player, EventLog events) { }
     }
 }

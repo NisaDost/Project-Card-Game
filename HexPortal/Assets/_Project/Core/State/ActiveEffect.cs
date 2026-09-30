@@ -16,6 +16,8 @@ namespace HexPortal.Core
             TurnsLeft = def.Duration == DurationKind.Timed ? Catalog.TimedEffectTurns : 0;
         }
 
+        internal ActiveEffect Clone() => new ActiveEffect(Def) { TurnsLeft = TurnsLeft };
+
         public bool IsTimed => Def.Duration == DurationKind.Timed;
         public EffectKind Kind => Def.Effect;
     }

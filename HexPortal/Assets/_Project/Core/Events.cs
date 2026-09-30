@@ -1,7 +1,48 @@
+using System.Collections.Generic;
+
 namespace HexPortal.Core
 {
-    /// <summary>What happened during Engine.Apply, in order. Per-player filtering (fog) is M4.</summary>
-    public abstract class GameEvent { }
+    /// <summary>What happened during Engine.Apply, in order. Engine.Apply returns the full list (server, tests);
+    /// each event is tagged when it is emitted with what each player may see of it (EventFilter).</summary>
+    public abstract class GameEvent
+    {
+        GameEvent viewA, viewB;
+
+        /// <summary>The version of this event the player may see: this event, a redacted copy, or null (hidden).
+        /// Events not emitted by the engine are hidden from everyone.</summary>
+        public GameEvent ViewFor(PlayerId p) => p == PlayerId.A ? viewA : viewB;
+
+        internal void SetView(PlayerId p, GameEvent view)
+        {
+            if (p == PlayerId.A) viewA = view;
+            else viewB = view;
+        }
+    }
+
+    /// <summary>The event list of one Engine.Apply. Every Add tags the event with the players' current visibility
+    /// (V-10) and then updates both players' fog memory (V-03).</summary>
+    public sealed class EventLog
+    {
+        readonly GameState state;
+        internal readonly List<GameEvent> Items;
+
+        internal EventLog(GameState state) : this(state, new List<GameEvent>()) { }
+
+        internal EventLog(GameState state, List<GameEvent> items)
+        {
+            this.state = state;
+            Items = items;
+        }
+
+        internal void Add(GameEvent e)
+        {
+            var va = Visibility.VisibleCells(state, PlayerId.A);
+            var vb = Visibility.VisibleCells(state, PlayerId.B);
+            EventFilter.Tag(state, e, va, vb);
+            Items.Add(e);
+            Visibility.UpdateMemory(state, va, vb);
+        }
+    }
 
     public enum DamageKind { Attack, Splash, TowerShot, Overwatch, Trap, Poison }
 
@@ -94,7 +135,8 @@ namespace HexPortal.Core
 
     public enum DrawSource { Market, Blind }
 
-    /// <summary>D-05, D-06, U-23: a card went into the player's hand.</summary>
+    /// <summary>D-05, D-06, U-23: a card went into the player's hand. The opponent sees a blind draw with CardId 0
+    /// (V-09: only the hand count is public); a Market card was public already.</summary>
     public sealed class CardDrawn : GameEvent
     {
         public readonly PlayerId Player;
@@ -164,7 +206,7 @@ namespace HexPortal.Core
         public UnitTeleported(int unitId, Hex from, Hex to) { UnitId = unitId; From = from; To = to; }
     }
 
-    /// <summary>C-30. Hidden from the opponent (C-33); M4 filters it.</summary>
+    /// <summary>C-30, S-05. Owner only (C-33).</summary>
     public sealed class TrapPlaced : GameEvent
     {
         public readonly PlayerId Owner;
@@ -173,7 +215,8 @@ namespace HexPortal.Core
         public TrapPlaced(PlayerId owner, int cardId, Hex cell) { Owner = owner; CardId = cardId; Cell = cell; }
     }
 
-    /// <summary>C-32, C-33: shown to both players. The trap's effect events follow.</summary>
+    /// <summary>C-32, C-33: shown to both players; UnitId is 0 for a viewer who cannot see the triggering unit.
+    /// The trap's effect events follow.</summary>
     public sealed class TrapTriggered : GameEvent
     {
         public readonly PlayerId Owner;
@@ -205,9 +248,105 @@ namespace HexPortal.Core
         public ShieldBlocked(int unitId, int amount, DamageKind kind) { UnitId = unitId; Amount = amount; Kind = kind; }
     }
 
+    /// <summary>W-01…W-04. Public.</summary>
     public sealed class GameOver : GameEvent
     {
-        public readonly PlayerId Winner;
-        public GameOver(PlayerId winner) { Winner = winner; }
+        public readonly GameResult Result;
+        public GameOver(GameResult result) { Result = result; }
+        public PlayerId? Winner => Result.Winner;
+    }
+
+    // ---------- Setup (S), owner-only until SetupFinished ----------
+
+    /// <summary>S-03. Owner only.</summary>
+    public sealed class QuestsChosen : GameEvent
+    {
+        public readonly PlayerId Player;
+        public readonly IReadOnlyList<string> QuestIds;
+        public QuestsChosen(PlayerId player, IReadOnlyList<string> questIds) { Player = player; QuestIds = questIds; }
+    }
+
+    /// <summary>S-04. Owner only.</summary>
+    public sealed class PassiveChosen : GameEvent
+    {
+        public readonly PlayerId Player;
+        public readonly string PassiveId;
+        public PassiveChosen(PlayerId player, string passiveId) { Player = player; PassiveId = passiveId; }
+    }
+
+    /// <summary>S-05. Owner only (setup placements of units use UnitDeployed, traps TrapPlaced).</summary>
+    public sealed class TowerPlaced : GameEvent
+    {
+        public readonly PlayerId Player;
+        public readonly Hex Cell;
+        public TowerPlaced(PlayerId player, Hex cell) { Player = player; Cell = cell; }
+    }
+
+    /// <summary>S-05, S-08: the only setup event the opponent sees.</summary>
+    public sealed class SetupFinished : GameEvent
+    {
+        public readonly PlayerId Player;
+        public SetupFinished(PlayerId player) { Player = player; }
+    }
+
+    // ---------- Turn (T) ----------
+
+    /// <summary>T-11: the waiting player's pre-pick. Owner only.</summary>
+    public sealed class PrePickSet : GameEvent
+    {
+        public readonly PlayerId Player;
+        public readonly int Slot;
+        public PrePickSet(PlayerId player, int slot) { Player = player; Slot = slot; }
+    }
+
+    /// <summary>T-09: an automatic turn end; Count = consecutive automatic ends (W-04). Public.</summary>
+    public sealed class TurnTimedOut : GameEvent
+    {
+        public readonly PlayerId Player;
+        public readonly int Count;
+        public TurnTimedOut(PlayerId player, int count) { Player = player; Count = count; }
+    }
+
+    // ---------- Fog (V): redacted views and reveals ----------
+
+    /// <summary>V-08: an attacking unit or tower (UnitId = DamageDealt.Tower) the opponent could not see is now Visible
+    /// to them. Opponent only.</summary>
+    public sealed class Revealed : GameEvent
+    {
+        public readonly PlayerId Owner;
+        public readonly int UnitId;
+        public readonly Hex Cell;
+        public Revealed(PlayerId owner, int unitId, Hex cell) { Owner = owner; UnitId = unitId; Cell = cell; }
+    }
+
+    /// <summary>Redacted move/push/teleport: an enemy unit came into view from an unseen cell.</summary>
+    public sealed class UnitAppeared : GameEvent
+    {
+        public readonly int UnitId;
+        public readonly PlayerId Owner;
+        public readonly Data.UnitClass Class;
+        public readonly Data.Biome Biome;
+        public readonly int Health;
+        public readonly Hex Cell;
+        public UnitAppeared(int unitId, PlayerId owner, Data.UnitClass cls, Data.Biome biome, int health, Hex cell)
+        {
+            UnitId = unitId; Owner = owner; Class = cls; Biome = biome; Health = health; Cell = cell;
+        }
+    }
+
+    /// <summary>Redacted move/push/teleport: an enemy unit left the viewer's sight to an unseen cell.</summary>
+    public sealed class UnitVanished : GameEvent
+    {
+        public readonly int UnitId;
+        public readonly Hex Cell;
+        public UnitVanished(int unitId, Hex cell) { UnitId = unitId; Cell = cell; }
+    }
+
+    /// <summary>V-09: redacted damage to a tower the viewer cannot see (tower Health is public).</summary>
+    public sealed class TowerHealthChanged : GameEvent
+    {
+        public readonly PlayerId Owner;
+        public readonly int Health;
+        public TowerHealthChanged(PlayerId owner, int health) { Owner = owner; Health = health; }
     }
 }

@@ -23,7 +23,7 @@ namespace HexPortal.Core
             }
         }
 
-        internal static void Apply(GameState state, DeployCommand cmd, List<GameEvent> events)
+        internal static void Apply(GameState state, DeployCommand cmd, EventLog events)
         {
             var p = cmd.Player;
             var card = state.FindInHand(p, cmd.CardId);

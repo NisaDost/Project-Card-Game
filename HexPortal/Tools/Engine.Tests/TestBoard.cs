@@ -162,7 +162,12 @@ namespace HexPortal.Tests
 
         public Core.Unit U(int id) => State.GetUnit(id);
 
-        public GameState Build() => State;
+        /// <summary>Also rebuilds both players' fog memory for the scenario as placed (V-04 start + current sight).</summary>
+        public GameState Build()
+        {
+            Visibility.ResetMemory(State);
+            return State;
+        }
 
         static PlayerId Opp(PlayerId p) => p == PlayerId.A ? PlayerId.B : PlayerId.A;
     }

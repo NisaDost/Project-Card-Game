@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace HexPortal.Core
 {
@@ -171,6 +172,175 @@ namespace HexPortal.Core
         public override string ToString() =>
             "PlayCard(" + Player + " card#" + CardId + " -> " + Target
             + (Dest.HasValue ? " to " + Dest.Value : "") + (Direction != NoDirection ? " dir " + Direction : "") + ")";
+    }
+
+    // ---------- Setup (§6). Fixed order per player, no undo (v2.8 S1). ActivePlayer is ignored during setup. ----------
+
+    /// <summary>S-03: exactly QuestPick distinct ids from the player's offer. Stored sorted (ordinal), so the
+    /// order the ids are given in does not matter.</summary>
+    public sealed class ChooseQuestsCommand : ICommand
+    {
+        public PlayerId Player { get; }
+        public readonly IReadOnlyList<string> QuestIds;
+
+        public ChooseQuestsCommand(PlayerId player, IEnumerable<string> questIds)
+        {
+            Player = player;
+            var ids = new List<string>(questIds ?? throw new ArgumentNullException(nameof(questIds)));
+            ids.Sort(string.CompareOrdinal);
+            QuestIds = ids;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (!(obj is ChooseQuestsCommand c) || c.Player != Player || c.QuestIds.Count != QuestIds.Count) return false;
+            for (int i = 0; i < QuestIds.Count; i++)
+                if (c.QuestIds[i] != QuestIds[i]) return false;
+            return true;
+        }
+
+        public override int GetHashCode()
+        {
+            int h = (int)Player ^ 0x6161;
+            unchecked
+            {
+                foreach (var id in QuestIds) // stable across processes (string.GetHashCode is randomized)
+                    if (id != null)
+                        foreach (char ch in id) h = h * 31 + ch;
+            }
+            return h;
+        }
+
+        public override string ToString() => "ChooseQuests(" + Player + " " + string.Join(",", QuestIds) + ")";
+    }
+
+    /// <summary>S-04: one passive id from the player's offer.</summary>
+    public sealed class ChoosePassiveCommand : ICommand
+    {
+        public PlayerId Player { get; }
+        public readonly string PassiveId;
+
+        public ChoosePassiveCommand(PlayerId player, string passiveId)
+        {
+            Player = player;
+            PassiveId = passiveId;
+        }
+
+        public override bool Equals(object obj) => obj is ChoosePassiveCommand c && c.Player == Player && c.PassiveId == PassiveId;
+        public override int GetHashCode()
+        {
+            int h = (int)Player ^ 0x6262;
+            unchecked
+            {
+                if (PassiveId != null)
+                    foreach (char ch in PassiveId) h = h * 31 + ch; // stable across processes
+            }
+            return h;
+        }
+        public override string ToString() => "ChoosePassive(" + Player + " " + PassiveId + ")";
+    }
+
+    /// <summary>S-05: the tower on an empty cell of the own home zone.</summary>
+    public sealed class PlaceTowerCommand : ICommand
+    {
+        public PlayerId Player { get; }
+        public readonly Hex Cell;
+
+        public PlaceTowerCommand(PlayerId player, Hex cell)
+        {
+            Player = player;
+            Cell = cell;
+        }
+
+        public override bool Equals(object obj) => obj is PlaceTowerCommand c && c.Player == Player && c.Cell == Cell;
+        public override int GetHashCode() => ((int)Player * 397 ^ Cell.GetHashCode()) ^ 0x6363;
+        public override string ToString() => "PlaceTower(" + Player + " -> " + Cell + ")";
+    }
+
+    /// <summary>S-05: a character card from the hand on an empty cell of the own home zone. No Mana.</summary>
+    public sealed class PlaceUnitCommand : ICommand
+    {
+        public PlayerId Player { get; }
+        public readonly int CardId;
+        public readonly Hex Cell;
+
+        public PlaceUnitCommand(PlayerId player, int cardId, Hex cell)
+        {
+            Player = player;
+            CardId = cardId;
+            Cell = cell;
+        }
+
+        public override bool Equals(object obj) => obj is PlaceUnitCommand c && c.Player == Player && c.CardId == CardId && c.Cell == Cell;
+        public override int GetHashCode() => ((int)Player * 31 + CardId) * 397 ^ Cell.GetHashCode() ^ 0x6464;
+        public override string ToString() => "PlaceUnit(" + Player + " card#" + CardId + " -> " + Cell + ")";
+    }
+
+    /// <summary>S-05: a trap card from the hand on an empty cell of the own half (B-06) and the Control Zone (C-02) of
+    /// the pieces placed so far. C-31 applies. No Mana.</summary>
+    public sealed class PlaceTrapCommand : ICommand
+    {
+        public PlayerId Player { get; }
+        public readonly int CardId;
+        public readonly Hex Cell;
+
+        public PlaceTrapCommand(PlayerId player, int cardId, Hex cell)
+        {
+            Player = player;
+            CardId = cardId;
+            Cell = cell;
+        }
+
+        public override bool Equals(object obj) => obj is PlaceTrapCommand c && c.Player == Player && c.CardId == CardId && c.Cell == Cell;
+        public override int GetHashCode() => ((int)Player * 31 + CardId) * 397 ^ Cell.GetHashCode() ^ 0x6565;
+        public override string ToString() => "PlaceTrap(" + Player + " card#" + CardId + " -> " + Cell + ")";
+    }
+
+    /// <summary>S-05: needs the tower and at least MinPlacedCharacters characters on the board.</summary>
+    public sealed class FinishSetupCommand : ICommand
+    {
+        public PlayerId Player { get; }
+
+        public FinishSetupCommand(PlayerId player)
+        {
+            Player = player;
+        }
+
+        public override bool Equals(object obj) => obj is FinishSetupCommand c && c.Player == Player;
+        public override int GetHashCode() => (int)Player ^ 0x6666;
+        public override string ToString() => "FinishSetup(" + Player + ")";
+    }
+
+    /// <summary>S-06 (v2.8 S2): sent by the client when the setup clock runs out. Completes the player's missing steps
+    /// at random and finishes. Legal while the player has not finished; never listed by GetLegalCommands.</summary>
+    public sealed class SetupTimeoutCommand : ICommand
+    {
+        public PlayerId Player { get; }
+
+        public SetupTimeoutCommand(PlayerId player)
+        {
+            Player = player;
+        }
+
+        public override bool Equals(object obj) => obj is SetupTimeoutCommand c && c.Player == Player;
+        public override int GetHashCode() => (int)Player ^ 0x6767;
+        public override string ToString() => "SetupTimeout(" + Player + ")";
+    }
+
+    /// <summary>T-09: sent by the client when the active player's turn time and time bank ran out. Legal for the active
+    /// player while playing; never listed by GetLegalCommands.</summary>
+    public sealed class TurnTimeoutCommand : ICommand
+    {
+        public PlayerId Player { get; }
+
+        public TurnTimeoutCommand(PlayerId player)
+        {
+            Player = player;
+        }
+
+        public override bool Equals(object obj) => obj is TurnTimeoutCommand c && c.Player == Player;
+        public override int GetHashCode() => (int)Player ^ 0x6868;
+        public override string ToString() => "TurnTimeout(" + Player + ")";
     }
 
     /// <summary>T-08. Legal for the active player while the game is running and no draw is pending (T-04).</summary>

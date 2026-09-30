@@ -28,7 +28,7 @@ namespace HexPortal.Core
             zone.Contains(h) && visible.Contains(h) && h != Board.Portal && Movement.IsEmpty(state, h)
             && !HasOwnTrap(state, owner, h);
 
-        internal static void Place(GameState state, PlayerId owner, CardInstance card, Hex h, List<GameEvent> events)
+        internal static void Place(GameState state, PlayerId owner, CardInstance card, Hex h, EventLog events)
         {
             state.TrapList.Add(new Trap(owner, h, card));
             events.Add(new TrapPlaced(owner, card.Id, h));
@@ -36,7 +36,7 @@ namespace HexPortal.Core
 
         /// <summary>C-32: the unit has stopped on its cell (move, push, teleport incl. Mirror Trap, deploy).
         /// Only an opponent's trap fires (C-34); it is used up. Passing through never calls this.</summary>
-        internal static void ResolveArrival(GameState state, Unit unit, List<GameEvent> events)
+        internal static void ResolveArrival(GameState state, Unit unit, EventLog events)
         {
             if (state.IsOver || state.GetUnit(unit.Id) == null) return;
             Trap trap = null;
@@ -68,7 +68,7 @@ namespace HexPortal.Core
 
         /// <summary>C-15, C-21: move the unit to an empty cell. Breaks its overwatch (U-28); triggers only traps
         /// (C-32, chains allowed), never tower or overwatch shots (U-27).</summary>
-        internal static void Teleport(GameState state, Unit unit, Hex dest, List<GameEvent> events)
+        internal static void Teleport(GameState state, Unit unit, Hex dest, EventLog events)
         {
             var from = unit.Pos;
             unit.Pos = dest;
@@ -78,7 +78,9 @@ namespace HexPortal.Core
         }
 
         /// <summary>C-35 hook for map events (M4): every trap on a cell that became rock is destroyed.</summary>
-        internal static void RemoveAt(GameState state, Hex h, List<GameEvent> events)
+        internal static void RemoveAt(GameState state, Hex h, List<GameEvent> events) => RemoveAt(state, h, new EventLog(state, events));
+
+        internal static void RemoveAt(GameState state, Hex h, EventLog events)
         {
             for (int i = 0; i < state.TrapList.Count; )
             {

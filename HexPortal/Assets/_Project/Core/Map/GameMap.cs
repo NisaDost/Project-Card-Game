@@ -21,6 +21,13 @@ namespace HexPortal.Core
         /// <summary>Engine-only: the client must not change terrain (map events go through the engine).</summary>
         internal void Set(Hex h, Tile tile) => tiles[Index(h)] = tile;
 
+        internal GameMap Clone()
+        {
+            var m = new GameMap(RequestedSeed, Attempts);
+            Array.Copy(tiles, m.tiles, tiles.Length);
+            return m;
+        }
+
         static int Index(Hex h)
         {
             int i = Board.IndexOf(h);

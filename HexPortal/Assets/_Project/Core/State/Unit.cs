@@ -27,6 +27,8 @@ namespace HexPortal.Core
         public ActiveEffect Debuff { get; internal set; }
         /// <summary>C-14: extra Move for the rest of the owner's current turn.</summary>
         public int MoveBonus { get; internal set; }
+        /// <summary>V-08: Visible to the opponent while RevealedUntilTurn >= GameState.TurnIndex. -1 = never.</summary>
+        public int RevealedUntilTurn { get; internal set; } = -1;
 
         /// <summary>C-19: cannot move (may still attack or go on overwatch).</summary>
         public bool IsRooted => Debuff != null && Debuff.Kind == EffectKind.Root;
@@ -41,6 +43,13 @@ namespace HexPortal.Core
             Pos = pos;
             Health = Def.Health;
         }
+
+        internal Unit Clone() => new Unit(Id, Owner, Class, Biome, Pos)
+        {
+            Health = Health, ActedThisTurn = ActedThisTurn, MovedThisTurn = MovedThisTurn, MovedLastOwnTurn = MovedLastOwnTurn,
+            OnOverwatch = OnOverwatch, Buff = Buff == null ? null : Buff.Clone(), Debuff = Debuff == null ? null : Debuff.Clone(),
+            MoveBonus = MoveBonus, RevealedUntilTurn = RevealedUntilTurn,
+        };
 
         public static UnitDef DefOf(UnitClass cls)
         {

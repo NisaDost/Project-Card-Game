@@ -54,13 +54,15 @@ namespace HexPortal.Core
         }
 
         /// <summary>D-05: fill the three slots, each from its own pool. Called by the setup phase after dealing.</summary>
-        public static void OpenMarket(GameState state, List<GameEvent> events)
+        public static void OpenMarket(GameState state, List<GameEvent> events) => OpenMarket(state, new EventLog(state, events));
+
+        public static void OpenMarket(GameState state, EventLog events)
         {
             foreach (var slot in Slots) Refill(state, slot, events);
         }
 
         // D-05: a random card of the slot's own pool; the slot stays empty if that pool is empty.
-        static void Refill(GameState state, CardPool slot, List<GameEvent> events)
+        static void Refill(GameState state, CardPool slot, EventLog events)
         {
             var pool = state.PoolList(slot);
             CardInstance card = null;
@@ -102,14 +104,14 @@ namespace HexPortal.Core
         public static bool IsHandFull(GameState state, PlayerId p) => state.GetHand(p).Count >= Catalog.HandLimit;
 
         /// <summary>A draw option (validated by the caller).</summary>
-        internal static void Draw(GameState state, PlayerId p, int slot, List<GameEvent> events)
+        internal static void Draw(GameState state, PlayerId p, int slot, EventLog events)
         {
             if (slot == DrawCommand.Blind) BlindDraw(state, p, events);
             else TakeFromMarket(state, p, (CardPool)slot, events);
         }
 
         // D-06: uniform over the union of the three pools. Market cards are not in the pools.
-        static void BlindDraw(GameState state, PlayerId p, List<GameEvent> events)
+        static void BlindDraw(GameState state, PlayerId p, EventLog events)
         {
             int total = 0;
             foreach (var slot in Slots) total += state.GetPool(slot).Count;
@@ -130,7 +132,7 @@ namespace HexPortal.Core
             }
         }
 
-        static void TakeFromMarket(GameState state, PlayerId p, CardPool slot, List<GameEvent> events)
+        static void TakeFromMarket(GameState state, PlayerId p, CardPool slot, EventLog events)
         {
             var card = state.GetMarket(slot);
             state.HandList(p).Add(card);
@@ -142,7 +144,7 @@ namespace HexPortal.Core
         /// <summary>T-04 step 4 and T-11. A valid pre-pick is applied; a Market pre-pick whose slot now holds another
         /// card (or nothing) is void. Otherwise the player must choose (IsDrawPending). Skipped when the hand is full
         /// or there is nothing to draw (D-07). The pre-pick is always cleared.</summary>
-        internal static void TurnStartDraw(GameState state, PlayerId p, List<GameEvent> events)
+        internal static void TurnStartDraw(GameState state, PlayerId p, EventLog events)
         {
             int slot = state.GetPrePickSlot(p);
             int cardId = state.GetPrePickCardId(p);
@@ -174,7 +176,7 @@ namespace HexPortal.Core
         }
 
         /// <summary>U-23: the owner of a unit that died draws Catalog.DeathDrawCount blind cards, unless the hand is full.</summary>
-        internal static void DeathDraw(GameState state, PlayerId owner, List<GameEvent> events)
+        internal static void DeathDraw(GameState state, PlayerId owner, EventLog events)
         {
             for (int k = 0; k < Catalog.DeathDrawCount; k++)
                 if (!IsHandFull(state, owner) && CanBlindDraw(state)) BlindDraw(state, owner, events);

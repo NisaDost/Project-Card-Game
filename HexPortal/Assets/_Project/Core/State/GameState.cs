@@ -7,7 +7,8 @@ namespace HexPortal.Core
     /// <summary>
     /// The whole match state. Read freely; change only through Engine.Apply (mutators are internal).
     /// Units are kept in ascending id order, so every iteration over Units is deterministic.
-    /// Hidden information (redacted by PlayerView in M4): hands, pool order, traps, pre-picks, the match Rng.
+    /// Hidden information (redacted by PlayerView): hands, pool order, traps, pre-picks, quests, passives,
+    /// Mana/Energy of the opponent, units outside the viewer's sight, the match Rng.
     /// </summary>
     public sealed class GameState
     {
@@ -24,15 +25,27 @@ namespace HexPortal.Core
         readonly CardInstance[] market = new CardInstance[Catalog.MarketSlots]; // D-05, index = (int)CardPool
         readonly List<CardInstance>[] hands = { new List<CardInstance>(), new List<CardInstance>() };
         readonly List<Trap> traps = new List<Trap>();
+        readonly List<QuestDef>[] questOffer = { new List<QuestDef>(), new List<QuestDef>() };     // S-03
+        readonly List<QuestDef>[] questChoices = { new List<QuestDef>(), new List<QuestDef>() };   // S-03, empty = not chosen
+        readonly List<PassiveDef>[] passiveOffer = { new List<PassiveDef>(), new List<PassiveDef>() }; // S-04
+        readonly PassiveDef[] passiveChoice = new PassiveDef[2];                                     // S-04, null = not chosen
+        readonly bool[] setupFinished = new bool[2];         // S-05
+        readonly int[] consecutiveTimeouts = new int[2];     // T-09, W-04
+        readonly int[] dealtHandCount = new int[2];          // S-02: hand size right after dealing (S-08 view)
+        readonly FogMemory[] fog = { new FogMemory(), new FogMemory() }; // V-10
 
-        /// <summary>The match stream (deals, draws, Market refills, Mirror Trap). Separate from the map stream.</summary>
-        internal readonly Rng Rng;
+        /// <summary>The match stream (deals, offers, draws, Market refills, Mirror Trap, setup auto-completion).
+        /// Separate from the map stream.</summary>
+        internal Rng Rng { get; set; }
+
+        /// <summary>True until both players finished setup (S-05…S-07).</summary>
+        internal bool InSetup { get; set; }
 
         public PlayerId ActivePlayer { get; internal set; }
         /// <summary>T-10: 1-based; increments when B ends its turn.</summary>
         public int Round { get; internal set; }
-        /// <summary>W-02. Null while the game is running.</summary>
-        public PlayerId? Winner { get; internal set; }
+        /// <summary>Null while the game is running.</summary>
+        public GameResult Result { get; internal set; }
         /// <summary>The id the next unit will get. Ids are sequential and never reused.</summary>
         public int NextUnitId { get; private set; } = 1;
         /// <summary>The id the next card instance will get. Ids are sequential and never reused.</summary>
@@ -42,22 +55,81 @@ namespace HexPortal.Core
         public GameState(GameMap map, Hex towerA, Hex towerB)
             : this(map, towerA, towerB, map == null ? 0UL : map.RequestedSeed) { }
 
-        /// <summary>Round 1, A's turn, A has full Energy and its T-01 Mana. Pools are full (D-01, D-02);
-        /// the Market and hands are empty. Dealing (D-03, D-04), opening the Market (D-05) and A's first
-        /// turn-start draw (T-04) are separate steps run by the setup phase (M4): Pools.Deal, Pools.OpenMarket.</summary>
+        /// <summary>A scenario already in play (tests, tools): towers placed, setup done, round 1, A's turn, A has full
+        /// Energy and its T-01 Mana. Pools are full (D-01, D-02); the Market and hands are empty.
+        /// Real matches start with Match.Create (setup phase).</summary>
         public GameState(GameMap map, Hex towerA, Hex towerB, ulong matchSeed)
+            : this(map, matchSeed, new Tower(PlayerId.A, towerA), new Tower(PlayerId.B, towerB))
+        {
+            InSetup = false;
+            setupFinished[0] = setupFinished[1] = true;
+            energy[(int)PlayerId.A] = Catalog.EnergyPerTurn;
+            mana[(int)PlayerId.A] = Mana.TurnStartMana(this, PlayerId.A);
+        }
+
+        /// <summary>S-01: the setup phase. Towers are not placed, nobody has Mana or Energy.</summary>
+        internal GameState(GameMap map, ulong matchSeed)
+            : this(map, matchSeed, new Tower(PlayerId.A), new Tower(PlayerId.B))
+        {
+            InSetup = true;
+        }
+
+        GameState(GameMap map, ulong matchSeed, Tower towerA, Tower towerB)
         {
             Map = map ?? throw new ArgumentNullException(nameof(map));
             Rng = new Rng(matchSeed ^ MapGenerator.MatchStreamSalt);
-            towers = new[] { new Tower(PlayerId.A, towerA), new Tower(PlayerId.B, towerB) };
+            towers = new[] { towerA, towerB };
             ActivePlayer = PlayerId.A;
             Round = 1;
-            energy[(int)PlayerId.A] = Catalog.EnergyPerTurn;
-            mana[(int)PlayerId.A] = Mana.TurnStartMana(this, PlayerId.A);
             ResetPools();
+            Visibility.InitMemory(this);
         }
 
-        public bool IsOver => Winner.HasValue;
+        /// <summary>Deep copy, including the Rng position and fog memory (AI search, leak tests).</summary>
+        public GameState Clone() => new GameState(this);
+
+        GameState(GameState o)
+        {
+            Map = o.Map.Clone();
+            foreach (var u in o.units) units.Add(u.Clone());
+            towers = new[] { o.towers[0].Clone(), o.towers[1].Clone() };
+            Array.Copy(o.energy, energy, 2);
+            Array.Copy(o.mana, mana, 2);
+            Array.Copy(o.towerShotAvailable, towerShotAvailable, 2);
+            Array.Copy(o.drawPending, drawPending, 2);
+            Array.Copy(o.prePickSlot, prePickSlot, 2);
+            Array.Copy(o.prePickCardId, prePickCardId, 2);
+            for (int i = 0; i < pools.Length; i++) pools[i].AddRange(o.pools[i]); // card instances are immutable
+            Array.Copy(o.market, market, market.Length);
+            traps.AddRange(o.traps);                                              // traps are immutable
+            for (int p = 0; p < 2; p++)
+            {
+                hands[p].AddRange(o.hands[p]);
+                questOffer[p].AddRange(o.questOffer[p]);
+                questChoices[p].AddRange(o.questChoices[p]);
+                passiveOffer[p].AddRange(o.passiveOffer[p]);
+                fog[p] = o.fog[p].Clone();
+            }
+            Array.Copy(o.passiveChoice, passiveChoice, 2);
+            Array.Copy(o.setupFinished, setupFinished, 2);
+            Array.Copy(o.consecutiveTimeouts, consecutiveTimeouts, 2);
+            Array.Copy(o.dealtHandCount, dealtHandCount, 2);
+            Rng = o.Rng.Clone();
+            InSetup = o.InSetup;
+            ActivePlayer = o.ActivePlayer;
+            Round = o.Round;
+            Result = o.Result;
+            NextUnitId = o.NextUnitId;
+            NextCardId = o.NextCardId;
+        }
+
+        public GamePhase Phase => Result != null ? GamePhase.Over : InSetup ? GamePhase.Setup : GamePhase.Playing;
+        public bool IsOver => Result != null;
+        /// <summary>Null while the game runs or after a draw (W-03).</summary>
+        public PlayerId? Winner => Result == null ? null : Result.Winner;
+
+        /// <summary>0-based count of turns: A's turn in round r = 2(r−1), B's = 2(r−1)+1. Used for V-08 reveal timers.</summary>
+        public int TurnIndex => 2 * (Round - 1) + (ActivePlayer == PlayerId.B ? 1 : 0);
 
         public IReadOnlyList<Unit> Units => units;
 
@@ -77,10 +149,11 @@ namespace HexPortal.Core
 
         public Tower GetTower(PlayerId p) => towers[(int)p];
 
+        /// <summary>The placed tower on h, or null.</summary>
         public Tower TowerAt(Hex h)
         {
             foreach (var t in towers)
-                if (t.Pos == h) return t;
+                if (t.IsPlaced && t.Pos == h) return t;
             return null;
         }
 
@@ -128,7 +201,43 @@ namespace HexPortal.Core
         public IReadOnlyList<Trap> Traps => traps;
         internal List<Trap> TrapList => traps;
 
-        /// <summary>Places a new unit with full Health (deploy and test setup). No rule checks here.</summary>
+        /// <summary>S-03: the 5 offered quests, in Catalog order.</summary>
+        public IReadOnlyList<QuestDef> GetQuestOffer(PlayerId p) => questOffer[(int)p];
+        internal void SetQuestOffer(PlayerId p, IEnumerable<QuestDef> offer) => Replace(questOffer[(int)p], offer);
+        /// <summary>S-03: the 3 chosen quests in offer order; empty until chosen.</summary>
+        public IReadOnlyList<QuestDef> GetQuestChoices(PlayerId p) => questChoices[(int)p];
+        internal void SetQuestChoices(PlayerId p, IEnumerable<QuestDef> choices) => Replace(questChoices[(int)p], choices);
+
+        /// <summary>S-04: the 3 offered passives, in Catalog order.</summary>
+        public IReadOnlyList<PassiveDef> GetPassiveOffer(PlayerId p) => passiveOffer[(int)p];
+        internal void SetPassiveOffer(PlayerId p, IEnumerable<PassiveDef> offer) => Replace(passiveOffer[(int)p], offer);
+        /// <summary>S-04: null until chosen.</summary>
+        public PassiveDef GetPassiveChoice(PlayerId p) => passiveChoice[(int)p];
+        internal void SetPassiveChoice(PlayerId p, PassiveDef d) => passiveChoice[(int)p] = d;
+
+        public bool IsSetupFinished(PlayerId p) => setupFinished[(int)p];
+        internal void SetSetupFinished(PlayerId p, bool value) => setupFinished[(int)p] = value;
+
+        /// <summary>T-09: automatic turn ends in a row (reset by a normal EndTurn).</summary>
+        public int GetConsecutiveTimeouts(PlayerId p) => consecutiveTimeouts[(int)p];
+        internal void SetConsecutiveTimeouts(PlayerId p, int value) => consecutiveTimeouts[(int)p] = value;
+
+        /// <summary>S-02: the hand size right after dealing. Shown as the opponent's hand count until both players
+        /// finished setup (S-08, PM decision), so placements do not leak through the public hand count.</summary>
+        public int GetDealtHandCount(PlayerId p) => dealtHandCount[(int)p];
+        internal void SetDealtHandCount(PlayerId p, int value) => dealtHandCount[(int)p] = value;
+
+        /// <summary>V-10: the player's exploration map and last-seen snapshots.</summary>
+        public FogMemory GetFog(PlayerId p) => fog[(int)p];
+
+        static void Replace<T>(List<T> list, IEnumerable<T> items)
+        {
+            var copy = new List<T>(items);
+            list.Clear();
+            list.AddRange(copy);
+        }
+
+        /// <summary>Places a new unit with full Health (deploy, setup placement and test setup). No rule checks here.</summary>
         internal Unit AddUnit(PlayerId owner, UnitClass cls, Biome biome, Hex pos)
         {
             var u = new Unit(NextUnitId++, owner, cls, biome, pos);

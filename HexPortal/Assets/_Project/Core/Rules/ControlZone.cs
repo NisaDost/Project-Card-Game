@@ -11,7 +11,8 @@ namespace HexPortal.Core
         public static HashSet<Hex> Cells(GameState state, PlayerId player)
         {
             var zone = new HashSet<Hex>();
-            AddWithin(zone, state.GetTower(player).Pos);
+            var tower = state.GetTower(player);
+            if (tower.IsPlaced) AddWithin(zone, tower.Pos); // setup: the tower may not be placed yet (S-05)
             foreach (var u in state.Units)
                 if (u.Owner == player) AddWithin(zone, u.Pos);
             return zone;
