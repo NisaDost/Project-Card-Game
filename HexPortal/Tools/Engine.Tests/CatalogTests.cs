@@ -5,7 +5,7 @@ using NUnit.Framework;
 
 namespace HexPortal.Tests
 {
-    // Verifies Catalog.cs against docs/GDD.md (v2.1). Consistency tests first, then per-row values.
+    // Verifies Catalog.cs against docs/GDD.md (v2.2). Consistency tests first, then per-row values.
     public class CatalogTests
     {
         static SupportCardDef Card(string id) => Catalog.SupportCards.Single(c => c.Id == id);
@@ -144,8 +144,8 @@ namespace HexPortal.Tests
         public void B22_MinEightPerBiome_ThreeToFiveSeeds()
         {
             Assert.That(Catalog.MinCellsPerBiome, Is.EqualTo(8));
-            Assert.That(Catalog.BiomeSeedsMin, Is.EqualTo(3));
-            Assert.That(Catalog.BiomeSeedsMax, Is.EqualTo(5));
+            Assert.That(Catalog.BiomeSeedsPerBiomeMin, Is.EqualTo(3));
+            Assert.That(Catalog.BiomeSeedsPerBiomeMax, Is.EqualTo(5));
             Assert.That(Catalog.MinCellsPerBiome * 3, Is.LessThanOrEqualTo(29));
         }
 

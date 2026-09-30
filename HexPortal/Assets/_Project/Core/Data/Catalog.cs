@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace HexPortal.Core.Data
 {
     /// <summary>
-    /// All game numbers. Must match docs/GDD.md (v2.1) exactly; change only with the user's approval.
+    /// All game numbers. Must match docs/GDD.md (v2.2) exactly; change only with the user's approval.
     /// </summary>
     public static class Catalog
     {
@@ -12,8 +12,8 @@ namespace HexPortal.Core.Data
         public const int CellCount = 59;             // B-01
         public const int HomeZoneRows = 2;           // B-03
         public const int MinCellsPerBiome = 8;       // B-22, per upper half
-        public const int BiomeSeedsMin = 3;          // B-22
-        public const int BiomeSeedsMax = 5;          // B-22
+        public const int BiomeSeedsPerBiomeMin = 3;  // B-22 (v2.2): seeds per biome
+        public const int BiomeSeedsPerBiomeMax = 5;  // B-22 (v2.2): seeds per biome
         public const int RuneStonesPerHalf = 2;      // B-23
         public const int WellspringsPerHalf = 1;     // B-23
         public const int SpecialTileRowMin = 3;      // B-23, GDD rows (1-based) of the upper half
@@ -39,7 +39,7 @@ namespace HexPortal.Core.Data
         //                                        hp  atk min max sight move
         public static readonly TowerDef Tower = new TowerDef(10, 2, 1, 2, 2, 0); // U-06
         public const int TowersPerPlayer = 1;        // U-06
-        // U-27 (v2.1): a tower shot always deals Tower.Attack damage, no biome/buff/debuff.
+        // U-27: a tower shot always deals Tower.Attack damage, no biome/buff/debuff.
         public const int TowerShotsPerOpponentTurn = 1; // U-27
 
         // ---------- Character cards (D-01) ----------
