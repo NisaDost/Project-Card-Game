@@ -11,7 +11,21 @@
       "Bash(git diff:*)",
       "Bash(git log:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(unity status:*)",
+      "Bash(unity command hexportal_refresh:*)",
+      "Bash(unity command recompile:*)",
+      "Bash(unity command recompile_status:*)",
+      "Bash(unity command console_status:*)",
+      "Bash(unity command console:*)",
+      "Bash(unity command editor_status:*)",
+      "Bash(unity command editor_play:*)",
+      "Bash(unity command editor_stop:*)",
+      "Bash(unity command capture_game_view:*)",
+      "Bash(unity command get_player_settings:*)",
+      "Bash(unity command list_tests:*)",
+      "Bash(unity command run_tests:*)",
+      "Bash(unity command test_status:*)"
     ],
     "deny": [
       "Bash(git push:*)",

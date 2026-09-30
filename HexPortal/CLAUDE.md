@@ -19,6 +19,7 @@ Assets/_Project/
   Core/            Pure C# rules engine. asmdef "HexPortal.Core", noEngineReferences: true
     Data/Catalog.cs  ALL numbers (units, cards, quests, passives, events, config). Must match the GDD exactly
   Game/            Unity client: views, input, UI, bootstrap. asmdef "HexPortal.Game" -> references Core
+  Editor/          Editor-only tools, e.g. Unity CLI commands. asmdef "HexPortal.Editor" (Editor platform only)
   Art/  Audio/     Assets only
 Tools/
   Engine.Tests/    NUnit test project. Compiles ../../Assets/_Project/Core/**/*.cs directly. Runs without Unity
@@ -32,7 +33,7 @@ docs/              GDD.md, PROGRESS.md
 - Run the tests (this is the main feedback loop): `dotnet test Tools/Engine.Tests --nologo`
 - Run the simulation: `dotnet run --project Tools/Sim -- --games 1000 --seed 1`
 - Always pass a project path to `dotnet`. The repo root also holds Unity-generated `.sln` and `.csproj` files.
-- **Unity Editor (live):** Claude drives the open Editor via the Unity CLI (`unity:unity-cli` skill; package `com.unity.pipeline` 0.8.0-exp.1). After Unity-side changes or new files: `unity command eval "UnityEditor.AssetDatabase.Refresh();"`, then in a separate call `unity command recompile`, poll `recompile_status` until `completed`, then `console_status` must show `compilationFailed=false` and `consoleErrors=0`. Visual checks: `editor_play` → `capture_game_view` (landscape) → inspect the image → `editor_stop`. `unity test` (batch mode) cannot run while the Editor is open; use `run_tests`. Fallback when the CLI is not `ready`: `Library/ScriptAssemblies/HexPortal.*.dll` newer than the newest `.cs` and no `error CS` in `Logs/Editor.log` after the last compile.
+- **Unity Editor (live):** Claude drives the open Editor via the Unity CLI (`unity:unity-cli` skill; package `com.unity.pipeline` 0.8.0-exp.1). After Unity-side changes or new files: `unity command hexportal_refresh` (allowlisted; `eval` always needs approval), then in a separate call `unity command recompile`, poll `recompile_status` until `completed`, then `console_status` must show `compilationFailed=false` and `consoleErrors=0`. Visual checks: `editor_play` → `capture_game_view` (landscape) → inspect the image → `editor_stop`. `unity test` (batch mode) cannot run while the Editor is open; use `run_tests`. Fallback when the CLI is not `ready`: `Library/ScriptAssemblies/HexPortal.*.dll` newer than the newest `.cs` and no `error CS` in `Logs/Editor.log` after the last compile.
 
 ## Working loop (every task)
 
