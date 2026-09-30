@@ -1,6 +1,6 @@
 # HexPortal — Oyun Tasarım Dokümanı (GDD)
 
-> Sürüm: 2.1 · Tarih: 2026-09-29 · Durum: Prototip (Faz 1) kapsamı onaylandı
+> Sürüm: 2.2 · Tarih: 2026-09-30 · Durum: Prototip (Faz 1) kapsamı onaylandı
 > "HexPortal" çalışma adıdır, sonra değişebilir.
 
 Bu doküman oyunun **tek doğruluk kaynağıdır**. Her kuralın kalıcı bir kimliği vardır (ör. `U-04`). Kod, testler ve commit mesajları bu kimliklere referans verir. Kimlikler **asla yeniden numaralandırılmaz**. Bir kural kalkarsa "KALDIRILDI" diye işaretlenir, yeni kural yeni numara alır. Değişiklikler en alttaki **Değişiklik Günlüğü**'ne yazılır.
@@ -75,9 +75,12 @@ Rün Taşı ve Kaynak, biyomun üstünde duran bir **işarettir**. Karonun biyom
 
 - **B-20** Harita tek bir tohum (seed) değerinden deterministik olarak üretilir. Aynı tohum her zaman aynı haritayı verir.
 - **B-21** Önce "üst yarı" üretilir: 1–4. sıralar ve 5. sıranın portalın solundaki 3 karosu, toplam 29 karo. Alt yarı, eş karolardan kopyalanır.
-- **B-22** Biyom dağılımı: Üst yarının 29 karosunda her biyom **en az 8** karo alır. Biyomlar küçük kümeler halinde dağılsın: rastgele 3–5 çekirdek karodan komşulara yayılma.
-- **B-23** Özel karolar (her yarıda): **2 Rün Taşı** 3–4. sıralarda, **1 Kaynak** 3–4. sıralarda. Başlangıç bölgesinde özel karo olmaz. İki rün taşı birbirine komşu olmaz.
-- **B-24** Üretilen harita doğrulanır: Simetri tam olmalı, sayılar B-22 ve B-23'e uymalı. Uymazsa bir sonraki tohumla yeniden üretilir.
+- **B-22** Biyom dağılımı: Üst yarının 29 karosunda her biyom **en az 8** karo alır. Biyomlar küçük kümeler halinde dağılır:
+  1. **Çekirdekler:** Her biyom için ayrı ayrı rastgele **3–5 çekirdek karo** seçilir (toplam 9–15), üst yarının rastgele, birbirinden farklı karolarına konur.
+  2. **Yayılma:** Tüm karolar dolana kadar her adımda, boş komşusu olan biyomlar arasından **o an en az karoya sahip olan** seçilir (eşitlikte rastgele). Bu biyom, kendisine komşu boş karolardan rastgele birine yayılır.
+  3. Amaç: Her bölgede her biyomdan birkaç karo bulunması ve B-24'teki yeniden üretimin nadir olması.
+- **B-23** Özel karolar (her yarıda): **2 Rün Taşı** 3–4. sıralarda, **1 Kaynak** 3–4. sıralarda. Başlangıç bölgesinde özel karo olmaz. İki rün taşı birbirine komşu olmaz. **Kaynak hiçbir Rün Taşı'na komşu olmaz** (hedefler tek bir noktada toplanmasın).
+- **B-24** Üretilen harita doğrulanır: Simetri tam olmalı, sayılar B-22 ve B-23'e uymalı. Uymazsa **aynı tohumun rastgele sayı akışına devam edilerek** yeniden üretilir (2. deneme, 3. deneme…). Böylece farklı tohumlar asla aynı haritayı vermez. Harita, istenen tohumu ve deneme sayısını saklar.
 
 ---
 
@@ -407,3 +410,4 @@ Detaylar `CLAUDE.md` ve `.claude/rules/` altındadır.
 | 1.0 | 2026-09-25 | İlk sürüm. Kararlar: Pazar 3 slot (Karakter/Buff/Debuff-Tuzak), online Faz 3'e ertelendi, kule saldırmaz |
 | 2.0 | 2026-09-29 | **Kaynaklar:** Enerji ikiye ayrıldı: kart oynamak için **Mana** (T-01…T-03, C-01, T-06) ve hareket/saldırı için **Enerji** (T-05, turda 3). Her karakterin kendi **Maliyeti** var (§3.1, T-07). **Aksiyon:** "Turda 2 aksiyon" kalktı; her birim turda ya hareket eder ya saldırır ya nöbet tutar, her biri 1 Enerji (T-05). **Hareket:** Düz/çapraz/sıçrama kalıpları yerine tek kural: komşu karolar üzerinden Hareket kadar adım (U-07). U-08 KALDIRILDI. Süvari: Hareket 3, birimlerin üstünden geçer, Hücum bir önceki turdaki harekete bağlandı (U-02, U-09). **Yakınlık:** Tüm kartlar yalnızca Kontrol Alanında oynanır (C-02, C-30, C-15, T-07, S-05). **Buff/debuff sınırı:** 1 buff + 1 debuff, yenisi eskisinin yerini alır (C-05, C-06). **Kule:** Birimler rakip kuleye saldırabilir (U-26). Kule rakip turunda 1 kez, tek birime otomatik savunma atışı yapar (U-06, U-27). Yeni **Nöbet** aksiyonu (U-28, U-29). **Sis:** 3 görünürlük durumu ve Görüş statı (§11 V-*, U-12). Açılışta rakip yarısı gizli (S-07, V-04). Portal her zaman görünür (V-06). **Bekleme:** Rakibin turunda ön seçim, canlı izleme, planlama ve savunma tepkileri (§7.1 T-11…T-13, UX-10). Tur süresi 45 → 30 sn (T-09). Tuzak yalnızca durulan karoda tetiklenir (C-32). Oyuncu yarıları tanımlandı (B-06). Unity 6.6. Bölüm numaraları kaydı: Görünürlük §11 olarak eklendi, sonraki bölümler bir kaydı |
 | 2.1 | 2026-09-29 | Netleştirme: Kule atışı her zaman 2 hasar, biyom/buff/debuff yok, hedefin Kalkan'ı geçerli (U-27). Karakter kartlarında nadirlik yok, çerçeve biyom rengi (UX-07) |
+| 2.2 | 2026-09-30 | Netleştirme (M1 soruları): Çekirdekler biyom başına 3–5 olur, yayılmada en az karosu olan biyom büyür (B-22). Kaynak, Rün Taşı'na komşu olmaz (B-23). Yeniden üretim, aynı tohumun rastgele sayı akışıyla devam eder, "sonraki tohum" kullanılmaz (B-24). Gerekçe: 1000 tohumluk ön simülasyonda eski yorum (toplam 3–5 çekirdek, rastgele yayılma) ile haritaların yalnızca ~%7'si geçerliydi ve kümeler çok büyüktü (en büyüğü ortalama 16 karo). Yeni kuralla ~%96'sı geçerli, kümeler ortalama ~4 karo |
