@@ -4,7 +4,7 @@ using HexPortal.Core.Data;
 
 namespace HexPortal.Core
 {
-    /// <summary>§7 unit part (T-04, T-05, T-08, T-10) and the tower win (W-02). Mana, cards and quests are M3/M4.</summary>
+    /// <summary>§7 turn flow (T-01…T-05, T-08, T-10) and the tower win (W-02). Quests (T-08) and W-01 (T-04 step 3) are M4.</summary>
     public static class Turn
     {
         /// <summary>T-05: the owner is active, the game runs, the unit has not acted, and there is Energy for an action.</summary>
@@ -29,24 +29,31 @@ namespace HexPortal.Core
                     u.MovedLastOwnTurn = u.MovedThisTurn; // U-02
                     u.MovedThisTurn = false;
                 }
+            Cards.EndOfTurn(state, p, events); // C-04, C-14
             foreach (var u in state.Units)
                 if (u.Owner == opp) Defense.BreakOverwatch(state, u, events); // U-28, T-08
             state.SetEnergy(p, 0); // T-05: unspent Energy is not carried
+            state.SetMana(p, 0);   // T-01: unspent Mana is not carried
             if (p == PlayerId.B) state.Round++; // T-10
             state.ActivePlayer = opp;
             StartTurn(state, events);
         }
 
-        /// <summary>T-04 unit part: refill Energy, reset action flags and the opponent's tower shot, then heal (U-05).</summary>
+        /// <summary>T-04: 1. refill Mana and Energy, reset action flags and the opponent's tower shot; 2. heal (U-05), then
+        /// poison (C-17); (3. W-01 is M4); 4. the draw (pre-pick applied, else the player must draw first).
+        /// Also used by the setup phase (M4) to start A's first turn.</summary>
         internal static void StartTurn(GameState state, List<GameEvent> events)
         {
             var p = state.ActivePlayer;
+            state.SetMana(p, Mana.TurnStartMana(state, p));
             state.SetEnergy(p, Catalog.EnergyPerTurn);
             state.SetTowerShotAvailable(p.Opponent(), true); // U-27: once per opponent turn
             foreach (var u in state.Units)
                 if (u.Owner == p) u.ActedThisTurn = false;
             events.Add(new TurnStarted(p, state.Round));
             Heal(state, p, events);
+            Cards.PoisonTicks(state, p, events);
+            if (!state.IsOver) Pools.TurnStartDraw(state, p, events);
         }
 
         // U-05, U-24: each own Healer gives HealerHealAmount to each adjacent own unit (not itself, never towers); stacks.

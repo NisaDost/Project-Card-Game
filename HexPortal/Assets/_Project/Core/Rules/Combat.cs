@@ -82,15 +82,17 @@ namespace HexPortal.Core
         /// <summary>U-20: attack + bonuses − penalties, at least 0.</summary>
         public static int Damage(int attack, int bonuses, int penalties) => Math.Max(0, attack + bonuses - penalties);
 
-        /// <summary>U-20 biome bonus (attacker on a tile of its own biome) and U-02 charge (not on overwatch shots).
-        /// Buffs/debuffs arrive in M3.</summary>
+        /// <summary>U-20 biome bonus (attacker on a tile of its own biome), U-02 charge (not on overwatch shots),
+        /// the buff (C-10, C-11) and the debuff (C-16).</summary>
         public static int AttackDamage(GameState state, Unit attacker, bool overwatchShot)
         {
-            int bonus = 0;
+            int bonus = 0, penalty = 0;
             if (state.Map.Get(attacker.Pos).Biome == attacker.Biome) bonus += Catalog.BiomeAttackBonus;
             if (!overwatchShot && attacker.Class == UnitClass.Rider && attacker.MovedLastOwnTurn)
                 bonus += Catalog.RiderChargeBonus;
-            return Damage(attacker.Def.Attack, bonus, 0);
+            if (attacker.Buff != null && attacker.Buff.Kind == EffectKind.AttackBonus) bonus += attacker.Buff.Def.Amount;
+            if (attacker.Debuff != null && attacker.Debuff.Kind == EffectKind.AttackPenalty) penalty += attacker.Debuff.Def.Amount;
+            return Damage(attacker.Def.Attack, bonus, penalty);
         }
 
         /// <summary>A normal attack or an overwatch shot on a validated target, then the Mage splash (U-04).
@@ -110,20 +112,28 @@ namespace HexPortal.Core
             }
         }
 
-        /// <summary>Damages the unit or tower on <paramref name="target"/>. U-22: a unit at 0 is removed at once.
-        /// W-02: a tower at 0 ends the game at once.</summary>
+        /// <summary>Damages the unit or tower on <paramref name="target"/> (every damage source, U-20 v2.6).
+        /// C-12: a Shield takes the whole hit and ends (a 0 hit lowers no Health, so it is not damage and keeps the Shield).
+        /// U-22: a unit at 0 is removed at once (with its effects); U-23: its owner draws. W-02: a tower at 0 ends the game.</summary>
         internal static void DealDamage(GameState state, PlayerId sourcePlayer, int sourceUnitId, Hex target, int amount,
             DamageKind kind, List<GameEvent> events)
         {
             var u = state.UnitAt(target);
             if (u != null)
             {
+                if (amount > 0 && u.Buff != null && u.Buff.Kind == EffectKind.BlockNextDamage)
+                {
+                    u.Buff = null;
+                    events.Add(new ShieldBlocked(u.Id, amount, kind));
+                    return;
+                }
                 u.Health = Math.Max(0, u.Health - amount);
                 events.Add(new DamageDealt(sourcePlayer, sourceUnitId, target, u.Id, amount, kind));
                 if (u.Health == 0)
                 {
                     state.RemoveUnit(u);
                     events.Add(new UnitDied(u.Id, u.Owner, sourcePlayer));
+                    Pools.DeathDraw(state, u.Owner, events);
                 }
                 return;
             }

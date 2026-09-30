@@ -5,7 +5,8 @@ namespace HexPortal.Core
 {
     /// <summary>
     /// Commands in, events out. Apply validates with the same rule functions GetLegalCommands uses
-    /// (Turn.CanAct, Movement.Destinations, Combat.LegalTargets), fully before any change.
+    /// (Turn.CanAct, Movement.Destinations, Combat.LegalTargets, Deploy.IsLegal, Cards.IsLegal, Pools.DrawOptions),
+    /// fully before any change.
     /// </summary>
     public static class Engine
     {
@@ -14,26 +15,50 @@ namespace HexPortal.Core
         {
             if (command == null) throw new ArgumentNullException(nameof(command));
             if (state.IsOver) throw new IllegalCommandException("The game is over: " + command);
-            if (command.Player != state.ActivePlayer) throw new IllegalCommandException("Not your turn: " + command);
-
             var events = new List<GameEvent>();
+            if (command is PrePickCommand pre) // T-11: the only command of the waiting player
+            {
+                if (pre.Player == state.ActivePlayer || !Pools.PrePickOptions(state).Contains(pre.Slot))
+                    throw new IllegalCommandException("Illegal pre-pick: " + command);
+                Pools.SetPrePick(state, pre.Player, pre.Slot);
+                return events;
+            }
+            if (command.Player != state.ActivePlayer) throw new IllegalCommandException("Not your turn: " + command);
+            // T-04 step 4: the draw comes first and is mandatory.
+            if (state.IsDrawPending(command.Player) != (command is DrawCommand))
+                throw new IllegalCommandException((command is DrawCommand ? "No draw pending: " : "Draw first: ") + command);
+
             switch (command)
             {
+                case DrawCommand d: Draw(state, d, events); break;
                 case MoveCommand m: Move(state, m, events); break;
                 case AttackCommand a: Attack(state, a, events); break;
                 case OverwatchCommand o: Overwatch(state, o, events); break;
+                case DeployCommand dep: Deploy.Apply(state, dep, events); break;
+                case PlayCardCommand pc: Cards.Apply(state, pc, events); break;
                 case EndTurnCommand _: Turn.EndTurn(state, events); break;
                 default: throw new IllegalCommandException("Unknown command: " + command);
             }
             return events;
         }
 
-        /// <summary>All legal commands for the player, in a fixed order: units by id (moves, attacks, overwatch), then EndTurn.
-        /// Empty when it is not the player's turn or the game is over.</summary>
+        /// <summary>All legal commands for the player, in a fixed order. Empty when the game is over.
+        /// Waiting player: pre-pick options only (T-11). Active player with a pending draw: draw options only (T-04).
+        /// Otherwise: units by id (moves, attacks, overwatch), deploys, card plays, then EndTurn.</summary>
         public static List<ICommand> GetLegalCommands(GameState state, PlayerId player)
         {
             var list = new List<ICommand>();
-            if (state.IsOver || player != state.ActivePlayer) return list;
+            if (state.IsOver) return list;
+            if (player != state.ActivePlayer)
+            {
+                foreach (int slot in Pools.PrePickOptions(state)) list.Add(new PrePickCommand(player, slot));
+                return list;
+            }
+            if (state.IsDrawPending(player))
+            {
+                foreach (int slot in Pools.DrawOptions(state)) list.Add(new DrawCommand(player, slot));
+                return list;
+            }
             var visible = Visibility.VisibleCells(state, player);
             foreach (var u in state.Units)
             {
@@ -42,8 +67,18 @@ namespace HexPortal.Core
                 foreach (var h in Combat.LegalTargets(state, u, visible)) list.Add(new AttackCommand(player, u.Id, h));
                 list.Add(new OverwatchCommand(player, u.Id));
             }
+            var zone = ControlZone.Cells(state, player);
+            Deploy.AddLegal(state, player, visible, zone, list);
+            Cards.AddLegal(state, player, visible, zone, list);
             list.Add(new EndTurnCommand(player));
             return list;
+        }
+
+        static void Draw(GameState state, DrawCommand cmd, List<GameEvent> events)
+        {
+            if (!Pools.DrawOptions(state).Contains(cmd.Slot)) throw new IllegalCommandException("Illegal draw: " + cmd);
+            state.SetDrawPending(cmd.Player, false);
+            Pools.Draw(state, cmd.Player, cmd.Slot, events);
         }
 
         static Unit ActingUnit(GameState state, ICommand command, int unitId)

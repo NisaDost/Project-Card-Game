@@ -1,6 +1,6 @@
 # Progress
 
-Current milestone: **M3**
+Current milestone: **M4**
 
 Milestone definitions and "done" criteria: GDD §17.
 
@@ -9,43 +9,28 @@ Milestone definitions and "done" criteria: GDD §17.
 | M0 Skeleton | ✅ Done (2026-09-30) | 82 tests green; Unity 6000.6.3f1 compiles, Play shows "HexPortal M0". Commit 4c32ad7 |
 | M1 Board | ✅ Done (2026-09-30) | 130 tests green, Unity compiles. Seeds 1–1000: 96.2% valid on first attempt, max 3 attempts, 100% distinct, mean cluster 4.03 |
 | M2 Units | ✅ Done (2026-09-30) | 197 tests green. Movement, combat, cover (V-11), tower shot, overwatch, Energy/actions, V-02/V-07, W-02, replay + random legal/illegal command tests |
-| M3 Cards | ⏳ | |
+| M3 Cards | ✅ Done (2026-09-30) | 287 tests green, Unity compiles. Mana, Control Zone, deploy, 12 support cards, traps, pools/Market/hands, mandatory first draw, T-11 pre-pick (engine), U-23, U-27 deploy trigger, U-29 trap-before-shots. GDD v2.7 |
 | M4 Match | ⏳ | |
 | M5 AI + Sim | ⏳ | |
 | M6 Graybox client | ⏳ | |
 | M7 Demo polish (Faz 2) | ⏳ | |
 
-## Handoff (2026-09-30, to a new Dev session)
+## Handoff (2026-09-30)
 
-**State:** M0, M1 and M2 are done. GDD v2.4. `dotnet test Tools/Engine.Tests --nologo` → 197 green (Core also builds for netstandard2.1 via Tools/Core.Build). Latest commits:
-- `97f288f` [M2] Units: movement, combat, tower defense, overwatch, energy/actions, visibility, W-02
-- `9a26429` [docs] GDD v2.4 · `b5bb5b1` [docs] GDD v2.3 · `9524641` [M1] Board · `3a0d97b` [docs] GDD v2.2 · `4c32ad7` [M0] Skeleton
+**State:** M0–M3 done. GDD v2.7. `dotnet test Tools/Engine.Tests --nologo` → 287 green. The Unity CLI bridge (`com.unity.pipeline` 0.8.0-exp.1) drives the open Editor; the game is landscape (GDD v2.5).
 
-**Uncommitted, not ours:** `Packages/manifest.json` and `packages-lock.json` add `com.unity.ai.assistant` 2.20.0-pre.1 and `com.unity.ai.inference` 2.6.1, and there is a new file `ProjectSettings/Packages/com.unity.ai.assistant/Settings.json`. These appeared while the Unity plugin was being installed. The M2 commit leaves them out. Ask HexPortal PM whether to commit them as the `[tools]` package commit.
-
-**Next work:**
-1. ✅ DONE (see Session log). Unity plugin smoke test (unity-cli skill). Before any action that drives the Editor, `git status` must be clean. Do not change scenes or settings during the test. Report each item as works / fails / not supported:
-   a. Asset refresh and triggering a compile
-   b. Reading Console errors and warnings
-   c. Running a small C# snippet in the Editor (e.g. return `Application.unityVersion`)
-   d. Entering and leaving Play mode; while in Play, confirm the "HexPortal M0" Label text is in the UIDocument
-   e. Game view screenshot (save it, report the path)
-   f. Running Unity Test Framework EditMode tests (whether it is supported is enough for now)
-   g. Reading Player settings (Default Orientation, Active Input Handling), read only
-   If the plugin adds a bridge package, commit it separately: "[tools] Unity CLI editor bridge package".
-2. Then the M3 (Cards) plan, sent to HexPortal PM for approval. Proposed scope:
-   - C-01…C-06, C-10…C-21, C-30…C-35; D-01…D-07
-   - T-01…T-03, T-06, T-07, and the engine part of T-11 (pre-pick command)
-   - U-23 card draw; U-27 "deployed" trigger (`ArrivalKind.Deployed` hook exists); U-28 overwatch broken by push/teleport (`Defense.BreakOverwatch` hook exists)
-   - The match Rng uses its own salt, separate from the map stream (`MapGenerator` uses `seed ^ MapStreamSalt`)
-   - Pool order is hidden information, ready for M4's PlayerView
-   - Debuff targets follow V-07 and V-11
-   - Trap arrivals by push/teleport are trap-specific only (C-32); towers and overwatch ignore them (v2.4)
+**Next work: M4 (Match)** — plan to HexPortal PM first. Scope per GDD §17: setup (S-*), fog/visibility + `PlayerView` and per-player event filtering (V-*), quests (Q-*), passives (P-*), map events (E-*), win conditions W-01/W-03/W-04. Hooks and notes from M3:
+- Setup must call `Pools.Deal`, `Pools.OpenMarket`, then `Turn.StartTurn` (A's first turn draws, T-04 v2.6).
+- `Rules/Passives.cs` has no-op hooks for P-02 (trap +1) and P-05 (market bonus); P-01, P-03, P-04, P-06 are new. P-06: a pushed or teleported unit also "enters" the Portal (every arrival counts, v2.7).
+- C-35: `Traps.RemoveAt` exists for E-10; the `TrapRemoved` event must be shown to the trap's OWNER only (v2.7).
+- Hidden info already in GameState per player: hands, pool order, Market, traps, pre-picks, match Rng. `TrapPlaced`/`CardDrawn` etc. are unfiltered until PlayerView.
+- Q-12 kill credit: `UnitDied.Killer` is set for attack, splash, tower, overwatch, trap and poison kills.
+- `TestBoard` starts with empty pools/Market/hands; use `FullPools()` for draw scenarios.
 
 **Working rules:**
 - Plan approvals and GDD decisions come from the "HexPortal PM" session via SendMessage. GDD/skill updates arrive as `C:\Users\Dev\Documents\GDD.md` + `HexPortal-kit.zip`; copy them, check the diff, and commit separately as `[docs] ...`.
 - Flow per milestone: plan → approval → tests first → implement (rules-engineer) → `dotnet test` green → gdd-reviewer → PROGRESS → Unity check → commit → summary to PM and the user.
-- **Unity compile check** until the plugin works: `Library/ScriptAssemblies/HexPortal.*.dll` must be newer than the newest `.cs` under `Assets/_Project`, and `Logs/Editor.log` must have no `error CS` after the last compile. Every new file needs its `.meta` (Unity makes them; never write .meta by hand). If they are missing, ask PM to have the user click Unity once.
+- **Unity check:** see CLAUDE.md → Commands (`hexportal_refresh` → `recompile` → `console_status` clean). New `.cs` files get their `.meta` from Unity automatically; commit them.
 - Git identity is `ehza1` (repo-local config, set by the user); never change git config. No push. Python is not installed on this machine.
 
 **Open notes:**
@@ -75,6 +60,7 @@ Milestone definitions and "done" criteria: GDD §17.
 - 2026-09-29 — `Tools/Core.Build` (netstandard2.1) is built by `dotnet test`, so Core API use that Unity doesn't have fails the test run.
 
 ## Session log
+- 2026-09-30 — (Dev 2) M3 implemented (rules-engineer, 88 new tests), GDD v2.6/v2.7 clarifications (S1–S8, A1–A7, Mirror → no shots). gdd-reviewer: no blocking; major (Mirror-teleported unit drew overwatch) fixed with two U-29 tests; nits: unused `ArrivalKind` parameter kept as the U-27 hook, redundant Visible checks in Control Zone kept as a guard. 287 green, Unity compile clean.
 - 2026-09-30 — (Dev 2) Process docs moved to live Editor verification (3510e35), GDD v2.5 landscape (ee21bba), landscape switch + AI leftover cleanup (a28e36f), CLI allowlist + hexportal_refresh. Next: M3 plan.
 - 2026-09-30 — (Dev 2) Unity CLI bridge: AI packages removed, `com.unity.pipeline` 0.8.0-exp.1 installed (35f9d3a). Smoke test, Editor unfocused the whole time: refresh (`eval AssetDatabase.Refresh()`) + `recompile`/`recompile_status` pick up disk edits and compile without a user click (verified with a temporary comment in Bootstrap.cs, then reverted); `console_status` (groundTruth counts, compilationFailed) works, `console` entry buffer only holds logs from after the session starts; `eval` works; `editor_play`/`editor_stop` work, UIDocument label reads "HexPortal M0"; `capture_game_view` includes UI (`screenshot` renders the camera only, no overlay UI); `list_tests`/`run_tests` work (0 Unity tests in the project; `unity test` can't run while the Editor has the project open); `get_player_settings` + eval read Portrait, activeInputHandler=1 (New), IL2CPP, Android. From now on the Unity compile check is: `recompile` → `recompile_status` = completed → `console_status` compilationFailed=false, consoleErrors=0.
 <!-- Newest first. One line per session: date — what was done — what is next -->

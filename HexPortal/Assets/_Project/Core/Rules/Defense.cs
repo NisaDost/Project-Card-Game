@@ -11,15 +11,22 @@ namespace HexPortal.Core
     /// Runs inside Engine.Apply of the opponent's command; never a player command.</summary>
     public static class Defense
     {
-        /// <summary>Trigger (a): the unit now stands on its final cell. M2 uses Move; Deployed is the T-07 hook (M3).</summary>
-        public static void ResolveArrivalTriggers(GameState state, Unit unit, ArrivalKind kind, List<GameEvent> events) =>
+        /// <summary>Trigger (a): the unit ended a move or was deployed (T-07) on its cell. U-29 (v2.6): the trap on that
+        /// cell resolves first (C-32); the shots then look at the unit as the trap left it: dead, or moved to another
+        /// cell by the Mirror Trap (v2.7; a teleport never triggers, U-27), means no shots.</summary>
+        public static void ResolveArrivalTriggers(GameState state, Unit unit, ArrivalKind kind, List<GameEvent> events)
+        {
+            var arrival = unit.Pos;
+            Traps.ResolveArrival(state, unit, events);
+            if (unit.Pos != arrival) return;
             ResolveTriggers(state, unit, events);
+        }
 
         /// <summary>Trigger (b): the unit made an attack. Call after that attack and its splash fully resolved (U-29).</summary>
         public static void ResolveAttackTriggers(GameState state, Unit attacker, List<GameEvent> events) =>
             ResolveTriggers(state, attacker, events);
 
-        /// <summary>U-28: overwatch ends without firing (end of the opponent's turn; push/teleport in M3).</summary>
+        /// <summary>U-28: overwatch ends without firing (end of the opponent's turn, pushed, teleported).</summary>
         public static void BreakOverwatch(GameState state, Unit unit, List<GameEvent> events)
         {
             if (!unit.OnOverwatch) return;

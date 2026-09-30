@@ -16,14 +16,16 @@ namespace HexPortal.Core
         public static List<Hex> Destinations(GameState state, Unit unit) =>
             Destinations(state, unit, Visibility.VisibleCells(state, unit.Owner));
 
+        /// <summary>C-19: a rooted unit has none. C-14: Wind Step adds to Move this turn.</summary>
         internal static List<Hex> Destinations(GameState state, Unit unit, ISet<Hex> visible)
         {
+            if (unit.IsRooted) return new List<Hex>();
             Func<Hex, bool> canStop = h => visible.Contains(h) && IsEmpty(state, h);
             // U-09: the Rider passes through units and towers of either side, never rock. It still stops only on empty cells.
             Func<Hex, bool> canPass = unit.Class == UnitClass.Rider
                 ? h => visible.Contains(h) && state.Map.Get(h).Marker != Marker.Rock
                 : canStop;
-            return HexSearch.Reachable(unit.Pos, unit.Def.Move, canPass, canStop);
+            return HexSearch.Reachable(unit.Pos, unit.Def.Move + unit.MoveBonus, canPass, canStop);
         }
     }
 }

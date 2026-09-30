@@ -9,7 +9,9 @@ namespace HexPortal.Core
     {
         const int MaxAttempts = 1000;
         // Separates the map stream from other streams seeded from the same match seed (deals, draws).
-        const ulong MapStreamSalt = 0x4D41505F53545245UL; // "MAP_STRE"
+        internal const ulong MapStreamSalt = 0x4D41505F53545245UL; // "MAP_STRE"
+        /// <summary>The match stream (GameState.Rng): deals, draws, Market refills, Mirror Trap.</summary>
+        internal const ulong MatchStreamSalt = 0x4D415443485F5354UL; // "MATCH_ST"
         static readonly Biome[] Biomes = { Biome.Forest, Biome.Desert, Biome.Snow };
 
         public static GameMap Generate(ulong seed)

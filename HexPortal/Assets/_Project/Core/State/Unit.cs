@@ -21,6 +21,15 @@ namespace HexPortal.Core
         public bool MovedLastOwnTurn { get; internal set; }
         /// <summary>U-28.</summary>
         public bool OnOverwatch { get; internal set; }
+        /// <summary>C-05: the one buff slot (null = none).</summary>
+        public ActiveEffect Buff { get; internal set; }
+        /// <summary>C-05: the one debuff slot (null = none).</summary>
+        public ActiveEffect Debuff { get; internal set; }
+        /// <summary>C-14: extra Move for the rest of the owner's current turn.</summary>
+        public int MoveBonus { get; internal set; }
+
+        /// <summary>C-19: cannot move (may still attack or go on overwatch).</summary>
+        public bool IsRooted => Debuff != null && Debuff.Kind == EffectKind.Root;
 
         internal Unit(int id, PlayerId owner, UnitClass cls, Biome biome, Hex pos)
         {
