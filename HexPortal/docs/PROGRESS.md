@@ -15,6 +15,43 @@ Milestone definitions and "done" criteria: GDD §17.
 | M6 Graybox client | ⏳ | |
 | M7 Demo polish (Faz 2) | ⏳ | |
 
+## Handoff (2026-09-30, to a new Dev session)
+
+**State:** M0, M1 and M2 are done. GDD v2.4. `dotnet test Tools/Engine.Tests --nologo` → 197 green (Core also builds for netstandard2.1 via Tools/Core.Build). Latest commits:
+- `97f288f` [M2] Units: movement, combat, tower defense, overwatch, energy/actions, visibility, W-02
+- `9a26429` [docs] GDD v2.4 · `b5bb5b1` [docs] GDD v2.3 · `9524641` [M1] Board · `3a0d97b` [docs] GDD v2.2 · `4c32ad7` [M0] Skeleton
+
+**Uncommitted, not ours:** `Packages/manifest.json` and `packages-lock.json` add `com.unity.ai.assistant` 2.20.0-pre.1 and `com.unity.ai.inference` 2.6.1, and there is a new file `ProjectSettings/Packages/com.unity.ai.assistant/Settings.json`. These appeared while the Unity plugin was being installed. The M2 commit leaves them out. Ask HexPortal PM whether to commit them as the `[tools]` package commit.
+
+**Next work:**
+1. Unity plugin smoke test (unity-cli skill). Before any action that drives the Editor, `git status` must be clean. Do not change scenes or settings during the test. Report each item as works / fails / not supported:
+   a. Asset refresh and triggering a compile
+   b. Reading Console errors and warnings
+   c. Running a small C# snippet in the Editor (e.g. return `Application.unityVersion`)
+   d. Entering and leaving Play mode; while in Play, confirm the "HexPortal M0" Label text is in the UIDocument
+   e. Game view screenshot (save it, report the path)
+   f. Running Unity Test Framework EditMode tests (whether it is supported is enough for now)
+   g. Reading Player settings (Default Orientation, Active Input Handling), read only
+   If the plugin adds a bridge package, commit it separately: "[tools] Unity CLI editor bridge package".
+2. Then the M3 (Cards) plan, sent to HexPortal PM for approval. Proposed scope:
+   - C-01…C-06, C-10…C-21, C-30…C-35; D-01…D-07
+   - T-01…T-03, T-06, T-07, and the engine part of T-11 (pre-pick command)
+   - U-23 card draw; U-27 "deployed" trigger (`ArrivalKind.Deployed` hook exists); U-28 overwatch broken by push/teleport (`Defense.BreakOverwatch` hook exists)
+   - The match Rng uses its own salt, separate from the map stream (`MapGenerator` uses `seed ^ MapStreamSalt`)
+   - Pool order is hidden information, ready for M4's PlayerView
+   - Debuff targets follow V-07 and V-11
+   - Trap arrivals by push/teleport are trap-specific only (C-32); towers and overwatch ignore them (v2.4)
+
+**Working rules:**
+- Plan approvals and GDD decisions come from the "HexPortal PM" session via SendMessage. GDD/skill updates arrive as `C:\Users\Dev\Documents\GDD.md` + `HexPortal-kit.zip`; copy them, check the diff, and commit separately as `[docs] ...`.
+- Flow per milestone: plan → approval → tests first → implement (rules-engineer) → `dotnet test` green → gdd-reviewer → PROGRESS → Unity check → commit → summary to PM and the user.
+- **Unity compile check** until the plugin works: `Library/ScriptAssemblies/HexPortal.*.dll` must be newer than the newest `.cs` under `Assets/_Project`, and `Logs/Editor.log` must have no `error CS` after the last compile. Every new file needs its `.meta` (Unity makes them; never write .meta by hand). If they are missing, ask PM to have the user click Unity once.
+- Git identity is `ehza1` (repo-local config, set by the user); never change git config. No push. Python is not installed on this machine.
+
+**Open notes:**
+- U-28 "görüşünde" is implemented as the owner's Visible set (V-11). With the current Catalog every unit's range is within its own Sight, so both readings behave the same. No GDD change for now; revisit if Sight or range values change.
+- The main scene is `Assets/Scenes/Main.unity` (not under `_Project/`); it stays there.
+
 ## Open items / blockers
 - The template assets (`Assets/TutorialInfo`, `Assets/Readme.asset`, `Assets/Scenes/SampleScene.unity`) are still in the project; they can be deleted.
 - Repo layout: the git root is the parent folder `Project-Card-Game/`. This Unity project is `HexPortal/`; `Project Card Game/` is the old 2022.3 prototype and is not used.
