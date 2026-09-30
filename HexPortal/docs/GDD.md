@@ -1,6 +1,6 @@
 # HexPortal — Oyun Tasarım Dokümanı (GDD)
 
-> Sürüm: 2.4 · Tarih: 2026-09-30 · Durum: Prototip (Faz 1) kapsamı onaylandı
+> Sürüm: 2.5 · Tarih: 2026-09-30 · Durum: Prototip (Faz 1) kapsamı onaylandı
 > "HexPortal" çalışma adıdır, sonra değişebilir.
 
 Bu doküman oyunun **tek doğruluk kaynağıdır**. Her kuralın kalıcı bir kimliği vardır (ör. `U-04`). Kod, testler ve commit mesajları bu kimliklere referans verir. Kimlikler **asla yeniden numaralandırılmaz**. Bir kural kalkarsa "KALDIRILDI" diye işaretlenir, yeni kural yeni numara alır. Değişiklikler en alttaki **Değişiklik Günlüğü**'ne yazılır.
@@ -10,7 +10,7 @@ Bu doküman oyunun **tek doğruluk kaynağıdır**. Her kuralın kalıcı bir ki
 ## 0. Özet
 
 - **Tür:** Sıra tabanlı, 1v1, altıgen tahtada kart + taktik strateji.
-- **Platform:** Mobil (önce Android), dikey (portre) ekran.
+- **Platform:** Mobil (önce Android), **yatay (landscape)** ekran.
 - **Görsel stil:** Renkli, sevimli, canlı; low poly 3D tahta ve birimler, minimal 2D kartlar.
 - **Maç süresi hedefi:** 10–12 dakika.
 - **Oyun akışı:** Oyuncular kulelerini ve birimlerini rakibe göstermeden yerleştirir. Maç **sis altında** başlar: rakibin yarısı keşfedilene kadar gizlidir. Oyuncular ortak havuzdan kart çeker, kartları **Mana** ile tahtaya sürer, birimlerini **Enerji** harcayarak hareket ettirir veya saldırtır ve gizli görevlerini tamamlar. 3 görevden 2'sini bitiren oyuncu için merkezdeki portal açılır. Portala girip rakibin bir turunu hayatta atlatan oyuncu kazanır. Rakibin kulesini yıkmak da kazandırır.
@@ -335,15 +335,15 @@ Amaç: Turunu bitiren oyuncu boş beklemesin. Rakibin turu hem izlenecek hem de 
 
 ## 14. Arayüz ve deneyim (UX)
 
-- **UX-01** Portre ekran, tek elle oynanabilir. Dokunma alanları en az **48 dp**.
+- **UX-01** **Yatay ekran**, iki başparmakla oynanır. Cihaz iki yatay yön (sola ve sağa yatık) arasında döndürülebilir, dikeye geçmez. Dokunma alanları en az **48 dp**. Sık kullanılan kontroller (Turu Bitir, Mana/Enerji, el) başparmakların uzandığı alt köşelere yakın durur.
 - **UX-02** Birime dokununca gidilebilecek karolar (mavi), saldırılabilecek hedefler (kırmızı) ve bir **"Nöbet"** butonu gösterilir. Aksiyonunu kullanmış birim soluk görünür.
 - **UX-03** Kart, hedefin üzerine **sürüklenerek** oynanır. Sürükleme sırasında Kontrol Alanı (C-02) ve geçerli hedefler vurgulanır. Uzun basınca kart detayı açılır.
-- **UX-04** Ekran düzeni (yukarıdan aşağıya):
-  - Rakip bilgisi: kule Can'ı, el sayısı, tamamlanan görevler
-  - Tahta
-  - Pazar (3 slot) ve kör çekme butonu
-  - Kendi elin
-  - **Mana** ve **Enerji** göstergeleri (iki ayrı renk ve ikon), tur süresi, "Turu Bitir" butonu
+- **UX-04** Ekran düzeni (yatay):
+  - **Orta:** Tahta. Kendi bölgen altta (B-05), hafif eğik 3D kamera. Tahta ekran yüksekliğine sığacak şekilde ölçeklenir.
+  - **Üst şerit:** Rakip bilgisi (kule Can'ı, el sayısı, tamamlanan görevler); olay (UX-06) ve "Rakibin turu" (UX-10) şeritleri.
+  - **Alt kenar:** Kendi elin (kart yelpazesi). Tahtanın alt kenarıyla hafifçe örtüşebilir, dokununca öne gelir.
+  - **Sol sütun:** **Mana** ve **Enerji** göstergeleri (iki ayrı renk ve ikon, sol başparmak), tur süresi, görev ve pasif ikonu (UX-05).
+  - **Sağ sütun:** Pazar (3 slot) ve kör çekme butonu, en altta "Turu Bitir" butonu (sağ başparmak).
 - **UX-05** Görevler ve komutan pasifi, köşedeki bir ikondan açılan panelde görünür.
 - **UX-06** Olay duyurusu, tahtanın üstünde bir şerit ve karolarda nabız efektiyle gösterilir.
 - **UX-07** Kart görünümü minimal: ikon, isim, Maliyet (Mana), karakterlerde 3 sayı (Saldırı/Can/Hareket), tek satır açıklama. Destek kartlarında çerçeve rengi **nadirlik** rengidir. Karakter kartlarının nadirliği **yoktur**; çerçeve rengi **biyom** rengidir (A-02).
@@ -366,7 +366,7 @@ Amaç: Turunu bitiren oyuncu boş beklemesin. Rakibin turu hem izlenecek hem de 
 
 Detaylar `CLAUDE.md` ve `.claude/rules/` altındadır.
 
-- **Unity 6.6 (6000.6.x), URP**, önce Android, portre yönü.
+- **Unity 6.6 (6000.6.x), URP**, önce Android, **yatay yön** (Landscape Left/Right arasında otomatik döndürme, dikey kapalı). Referans çözünürlük 1920×1080.
 - **Kural motoru (`Assets/_Project/Core`):**
   - Saf C#, UnityEngine bağımlılığı yok.
   - Deterministik: aynı tohum ve aynı komut dizisi her zaman aynı sonucu verir.
@@ -414,3 +414,4 @@ Detaylar `CLAUDE.md` ve `.claude/rules/` altındadır.
 | 2.2 | 2026-09-30 | Netleştirme (M1 soruları): Çekirdekler biyom başına 3–5 olur, yayılmada en az karosu olan biyom büyür (B-22). Kaynak, Rün Taşı'na komşu olmaz (B-23). Yeniden üretim, aynı tohumun rastgele sayı akışıyla devam eder, "sonraki tohum" kullanılmaz (B-24). Gerekçe: 1000 tohumluk ön simülasyonda eski yorum (toplam 3–5 çekirdek, rastgele yayılma) ile haritaların yalnızca ~%7'si geçerliydi ve kümeler çok büyüktü (en büyüğü ortalama 16 karo). Yeni kuralla ~%96'sı geçerli, kümeler ortalama ~4 karo |
 | 2.3 | 2026-09-30 | Netleştirme (M2 soruları): Muhafız'lar Siper'den faydalanmaz, komşu iki Muhafız birbirini korumaz (U-11). Gerekçe: Aksi halde komşu iki Muhafız ve korudukları birimler (ör. Portal'daki birim) saldırıyla hiç hedef alınamazdı. Şifa etkileri toplanır, Şifacılar birbirini iyileştirir, Şifacı kendini ve kuleyi iyileştirmez (U-05). Okçu atışını birim, kule veya kaya engellemez (U-03) |
 | 2.4 | 2026-09-30 | Netleştirme (M2 soruları): Yeni V-11 görünen bilgi ilkesi eklendi. Siper yalnızca saldırana görünen Muhafız'larla çalışır (U-11). Gerekçe: Aksi halde yasal hedef listesi sis altındaki Muhafız'ı ele veriyordu, "boşa giden saldırı" gibi yeni bir durum eklemek yerine basit kural seçildi. Kule ve nöbet tetik listesi kapalıdır, itme/ışınlanmayla menzile gelmek tetik oluşturmaz (U-27, U-28) |
+| 2.5 | 2026-09-30 | **Ekran yönü dikeyden yataya çevrildi** (kullanıcı kararı). §0 platform, UX-01 (iki başparmak, yalnızca yatay döndürme), UX-04 (yeni yatay yerleşim: tahta ortada, el altta, Mana/Enerji solda, Pazar ve Turu Bitir sağda, rakip bilgisi üstte), §16 (yatay yön, referans 1920×1080). Oyun kuralları değişmedi, B-05 (kendi bölgen altta) aynen geçerli |
