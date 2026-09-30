@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace HexPortal.Core.Data
 {
     /// <summary>
-    /// All game numbers. Must match docs/GDD.md (v2.2) exactly; change only with the user's approval.
+    /// All game numbers. Must match docs/GDD.md (v2.3) exactly; change only with the user's approval.
     /// </summary>
     public static class Catalog
     {

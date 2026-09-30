@@ -5,7 +5,7 @@ using NUnit.Framework;
 
 namespace HexPortal.Tests
 {
-    // Verifies Catalog.cs against docs/GDD.md (v2.2). Consistency tests first, then per-row values.
+    // Verifies Catalog.cs against docs/GDD.md (v2.3). Consistency tests first, then per-row values.
     public class CatalogTests
     {
         static SupportCardDef Card(string id) => Catalog.SupportCards.Single(c => c.Id == id);
