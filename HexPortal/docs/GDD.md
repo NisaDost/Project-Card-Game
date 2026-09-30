@@ -1,6 +1,6 @@
 # HexPortal — Oyun Tasarım Dokümanı (GDD)
 
-> Sürüm: 2.5 · Tarih: 2026-09-30 · Durum: Prototip (Faz 1) kapsamı onaylandı
+> Sürüm: 2.6 · Tarih: 2026-09-30 · Durum: Prototip (Faz 1) kapsamı onaylandı
 > "HexPortal" çalışma adıdır, sonra değişebilir.
 
 Bu doküman oyunun **tek doğruluk kaynağıdır**. Her kuralın kalıcı bir kimliği vardır (ör. `U-04`). Kod, testler ve commit mesajları bu kimliklere referans verir. Kimlikler **asla yeniden numaralandırılmaz**. Bir kural kalkarsa "KALDIRILDI" diye işaretlenir, yeni kural yeni numara alır. Değişiklikler en alttaki **Değişiklik Günlüğü**'ne yazılır.
@@ -115,7 +115,7 @@ Altıgen tahtada her karonun 6 komşusu vardır, yani birimler zaten her yöne g
 
 ### 3.3 Savaş
 
-- **U-20 Hasar:** Saldırı hasarı = Saldırı statı + biyom bonusu + buff'lar − debuff'lar, en az 0. Biyom bonusu, **saldıran birim** kendi biyomundaki bir karodayken geçerlidir.
+- **U-20 Hasar:** Saldırı hasarı = Saldırı statı + biyom bonusu + buff'lar − debuff'lar, en az 0. Biyom bonusu, **saldıran birim** kendi biyomundaki bir karodayken geçerlidir. **"Hasar"**, Can'ı düşüren her etkidir: saldırı, Patlama, kule atışı, nöbet, tuzak ve Zehir. Kalkan (C-12) ve Kalın Duvar (P-04) bunların hepsine uygulanır.
 - **U-21** Karşı saldırı yoktur. (Nöbet ve kule atışı karşı saldırı değildir; kendi tetik kuralları vardır, U-27 ve U-28.)
 - **U-22** Can 0'a inen birim ölür ve tahtadan kalkar. Üzerindeki tüm etkiler silinir.
 - **U-23 Ölüm çekişi:** Birimi ölen oyuncu hemen 1 kör kart çeker (el doluysa çekmez).
@@ -124,7 +124,7 @@ Altıgen tahtada her karonun 6 komşusu vardır, yani birimler zaten her yöne g
 - **U-26 Kuleye saldırı:** Birimler rakip kuleye saldırabilir. Kule; menzil, Siper (U-11) ve görünürlük (V-07) açısından normal bir hedeftir. Q-13 ve W-02 bu hasarı sayar.
 - **U-27 Kule savunması (kule atışı):** Kule her zaman savunmadadır ve **rakibin her turunda en fazla 1 kez**, **tek bir** rakip birime otomatik saldırır. Tetik: rakibin turunda bir rakip birim, kulenin saldırı menzilinde **hareketini bitirirse**, **tahtaya çıkarsa** (T-07) veya **menzilindeyken saldırı yaparsa**. Tetikleyen birim hedef alınır. Hedef geçerli değilse (Siper, görünmüyor) kule ateş etmez ve hakkını korur. Tetik listesi kapalıdır: İtme veya ışınlanmayla (C-15, C-18, C-21) menzile gelen birim tetik oluşturmaz. Tuzaklar bundan ayrıdır (C-32). Kule atışı **her zaman 2 hasar** verir (kule statı). Biyom bonusu, buff veya debuff almaz. Hedef tarafındaki etkiler geçerlidir: Kalkan (C-12) hasarı engeller. Oyuncunun girdi vermesi gerekmez.
 - **U-28 Nöbet:** Bir birim, kendi turunda aksiyonu olarak (1 Enerji, T-05) **nöbete** geçebilir. Rakibin bir sonraki turu boyunca, U-27'deki aynı tetiklerle, saldırı menzilinde ve görüşünde olan **ilk** rakip birime 1 kez otomatik saldırır (U-20). Nöbet ateş edince veya rakibin turu bitince sona erer. Nöbetteki birim itilir veya ışınlanırsa nöbet bozulur. Nöbet durumu, birim rakibe görünürse rakibe de gösterilir.
-- **U-29 Tetik sırası:** Bir olay birden fazla nöbetçiyi tetiklerse önce kule, sonra birim kimliği sırasıyla ateş edilir. Hedef ölürse kalan nöbetçiler ateş etmez ve nöbette kalır. Saldırı tetikli atışlar, tetikleyen saldırı çözüldükten sonra yapılır.
+- **U-29 Tetik sırası:** Bir olay birden fazla nöbetçiyi tetiklerse önce kule, sonra birim kimliği sırasıyla ateş edilir. Hedef ölürse kalan nöbetçiler ateş etmez ve nöbette kalır. Saldırı tetikli atışlar, tetikleyen saldırı çözüldükten sonra yapılır. Bir birim bir karoya vardığında (hareket veya tahtaya çıkma) **önce tuzak** (C-32) çözülür, **sonra** kule ve nöbet tetikleri. Bu tetikler birimin tuzaktan sonraki durumuna bakar: Birim öldüyse ya da Ayna Tuzağı onu menzil dışına taşıdıysa ateş edilmez.
 
 ---
 
@@ -132,7 +132,7 @@ Altıgen tahtada her karonun 6 komşusu vardır, yani birimler zaten her yöne g
 
 ### 4.1 Genel kurallar
 
-- **C-01** Destek kartı oynamak **aksiyon ve Enerji harcamaz**; kartın **Maliyeti** Mana ile ödenir.
+- **C-01** Destek kartı oynamak **aksiyon ve Enerji harcamaz**; kartın **Maliyeti** Mana ile ödenir. Hedef kurallara uyuyorsa, etkisiz kalacak bir kart da oynanabilir (ör. Canı tam birime Şifa İksiri, aksiyonunu kullanmış birime Rüzgâr Adımı). Mana yine harcanır.
 - **C-02 Yakınlık (Kontrol Alanı):** **Tüm kartlar** (karakter kartları dahil) yalnızca oyuncunun **Kontrol Alanı** içinde oynanabilir. Kontrol Alanı; oyuncunun tahtadaki birimlerinin ve kulesinin bulunduğu karolar ile bunlara **komşu** (mesafe ≤ 1, Catalog'da `ControlRange`) karolardır. Hiç birimi veya kulesi olmayan bir bölgeye kart oynanamaz.
   - Karakter kartı: Kontrol Alanındaki boş bir karoya konur (T-07).
   - Buff: Dost bir birimi hedefler (dost birim her zaman kendi Kontrol Alanındadır).
@@ -156,8 +156,8 @@ Altıgen tahtada her karonun 6 komşusu vardır, yani birimler zaten her yöne g
 | **C-15** | Işınlanma | Hareket (Buff) | Dost birimi, Kontrol Alanındaki (C-02) Portal hariç boş bir karoya taşır. Enerji harcamaz ve birimin aksiyonunu kullanmaz | Anlık | 3 | Epik | 1 |
 | **C-16** | Zayıflık | Lanet (Debuff) | −2 Saldırı | 2 tur | 1 | Sıradan | 4 |
 | **C-17** | Zehir | Lanet (Debuff) | Sahibinin tur başında −1 Can | 2 tur | 2 | Nadir | 2 |
-| **C-18** | İtme | Kontrol (Debuff) | Hedefi seçilen bir düz yönde 2 karo iter. Engele çarparsa durur, hasar olmaz. Durduğu karodaki tuzak tetiklenir | Anlık | 1 | Sıradan | 4 |
-| **C-19** | Kök Salma | Kontrol (Debuff) | Hedef hareket edemez ama saldırabilir | 2 tur | 2 | Nadir | 2 |
+| **C-18** | İtme | Kontrol (Debuff) | Hedefi seçilen bir düz yönde 2 karo iter. Engele (birim, kule, kaya, tahta kenarı) çarparsa durur, hasar olmaz. Hiç ilerleyemese de kart oynanmış sayılır. İtilen birim Portal'da durabilir. Durduğu karodaki tuzak tetiklenir | Anlık | 1 | Sıradan | 4 |
+| **C-19** | Kök Salma | Kontrol (Debuff) | Hedef hareket edemez ama saldırabilir. Işınlanma (C-15) hareket aksiyonu olmadığı için kök salmış birimi yine taşır | 2 tur | 2 | Nadir | 2 |
 | **C-20** | Diken Tuzağı | Tuzak | Tetikleyen birim 3 hasar alır | Kalıcı | 1 | Nadir | 2 |
 | **C-21** | Ayna Tuzağı | Tuzak | Tetikleyen birim, kendi başlangıç bölgesinde rastgele boş bir karoya ışınlanır | Kalıcı | 2 | Epik | 1 |
 
@@ -167,7 +167,7 @@ Kopya toplamı: 6 sıradan × 4 + 4 nadir × 2 + 2 epik × 1 = **34 kart**.
 
 - **C-30** Tuzak, kapalı olarak Kontrol Alanındaki (C-02) **boş bir karoya** konur. Portal, kule ve kaya karoları hariç. Konulduğu anda karoda birim olmamalıdır.
 - **C-31** Bir oyuncunun aynı anda en fazla **2 aktif tuzağı** olabilir.
-- **C-32** Tuzak yalnızca **rakip** bir birim o karoda **durduğunda** tetiklenir: hareketin varış karosu, itmenin durduğu karo veya ışınlanmanın varış karosu. Yoldan geçmek tetiklemez. Tuzak tek kullanımlıktır.
+- **C-32** Tuzak yalnızca **rakip** bir birim o karoda **durduğunda** tetiklenir: hareketin varış karosu, itmenin durduğu karo, ışınlanmanın varış karosu (Ayna Tuzağı'nınki dahil, zincirleme tetiklenebilir) veya **tahtaya çıkma** karosu (T-07). Yoldan geçmek tetiklemez. Tuzak tek kullanımlıktır.
 - **C-33** Rakip tuzaklar, karo Görünür olsa bile görünmez. Tetiklenince iki oyuncuya da gösterilir.
 - **C-34** Aynı karoda iki oyuncunun da birer tuzağı olabilir. Her tuzak sadece rakip birimlerde tetiklenir.
 - **C-35** Kaya oluşan karodaki tuzak yok olur.
@@ -211,12 +211,12 @@ Kopya toplamı: 6 sıradan × 4 + 4 nadir × 2 + 2 epik × 1 = **34 kart**.
 
 - **T-01 Mana:** Tur başında oyuncunun Manası **min(raunt numarası, 6)** değerine doldurulur. Harcanmayan Mana sonraki tura aktarılmaz.
 - **T-02** Oyuncu B, **1. rauntta +1 Mana** alır (2 Mana ile başlar).
-- **T-03** Kaynak karosunda kendi birimi olan oyuncu tur başında +1 Mana alır. Bu bonus 6 sınırını aşabilir.
+- **T-03** Kaynak karosunda kendi birimi olan oyuncu tur başında +1 Mana alır. Birden çok Kaynak tutuluyorsa **her Kaynak için ayrı ayrı** +1 alınır. Bu bonus 6 sınırını aşabilir.
 - **T-04 Tur başı sırası:**
   1. Mana ve Enerji doldurulur (T-01…T-03, T-05).
   2. Tur başı etkileri uygulanır: Şifa (U-05), Zehir (C-17), Son Nefes (P-01).
   3. Kazanma kontrolü yapılır (W-01).
-  4. Kart çekilir: Oyuncu Pazar'dan 1 kart alır **veya** 1 kör kart çeker (D-07 geçerli). Seçim rakibin turunda önceden yapıldıysa (T-11) o uygulanır.
+  4. Kart çekilir: Oyuncu Pazar'dan 1 kart alır **veya** 1 kör kart çeker (D-07 geçerli). Seçim rakibin turunda önceden yapıldıysa (T-11) o uygulanır. Çekim **zorunludur** ve turun diğer işlemlerinden önce yapılır. El doluysa ya da çekilecek kart yoksa atlanır. A da 1. rauntta çeker.
 - **T-05 Enerji ve aksiyon:** Tur başında Enerji **3**'e doldurulur (Catalog'da `EnergyPerTurn`). Harcanmayan Enerji aktarılmaz. Tahtadaki her birim kendi turunda **en fazla 1 aksiyon** yapar: **hareket** (U-07), **saldırı** veya **nöbet** (U-28). Her aksiyon **1 Enerji** harcar. Bir birim aynı turda hem hareket edip hem saldıramaz.
 - **T-06 Kart oynama:** Mana yettiği sürece turda istenen sayıda kart oynanabilir (C-01, C-02). Kart oynamak Enerji harcamaz.
 - **T-07 Karakter çıkarma:** Eldeki bir karakter, kartın **Maliyeti** (§3.1) kadar Mana ödenerek tahtaya çıkarılır. Enerji ve aksiyon harcamaz. Kontrol Alanında (C-02) Portal hariç boş bir karoya konur. Çıktığı tur aksiyon yapamaz.
@@ -305,7 +305,7 @@ Amaç: Turunu bitiren oyuncu boş beklemesin. Rakibin turu hem izlenecek hem de 
 - **V-08 Açığa çıkma:** Saldırı yapan birim veya kule, saldırdığı andan itibaren **rakibin bir sonraki tur sonuna kadar** rakibe Görünür olur (nöbet veya kule atışı rakibin turunda yapıldıysa, o turun sonuna kadar). Büyücü'nün Patlama hasarını alan gizli birimler açığa çıkmaz.
 - **V-09 Kamu bilgisi:** Tamamlanan/başarısız görevler, açılan pasifler, tetiklenen tuzaklar, olay duyuruları, el sayısı ve kule Can değerleri sisten bağımsız olarak gösterilir.
 - **V-10 Uygulama:** Her oyuncunun keşif haritası ve son görülen halleri Core'da oyun durumunun bir parçası olarak tutulur. Sisli görünümü yalnızca `PlayerView` üretir. Geçerli hamle listesi de yalnızca oyuncunun görebildiği bilgiye dayanır.
-- **V-11 Görünen bilgi ilkesi:** Bir hamlenin yasallığı ve bir hedefin geçerliliği (Siper dahil) yalnızca hamleyi yapan tarafın **Görünür** bilgisine göre belirlenir. Kule atışı ve nöbette bu taraf, kulenin ya da birimin sahibidir. Görünmeyen birimler başkasının seçeneklerini ve saldırıların sonucunu etkilemez. Tek istisna tuzaklardır (C-32, C-33).
+- **V-11 Görünen bilgi ilkesi:** Bir hamlenin yasallığı ve bir hedefin geçerliliği (Siper dahil) yalnızca hamleyi yapan tarafın **Görünür** bilgisine göre belirlenir. Kule atışı ve nöbette bu taraf, kulenin ya da birimin sahibidir. Görünmeyen birimler başkasının seçeneklerini ve saldırıların sonucunu etkilemez. İstisnalar: tuzaklar (C-32, C-33) ve fiziksel çakışma. Örneğin İtme (C-18), itenin göremediği bir birime çarpsa da orada durur.
 
 ---
 
@@ -415,3 +415,4 @@ Detaylar `CLAUDE.md` ve `.claude/rules/` altındadır.
 | 2.3 | 2026-09-30 | Netleştirme (M2 soruları): Muhafız'lar Siper'den faydalanmaz, komşu iki Muhafız birbirini korumaz (U-11). Gerekçe: Aksi halde komşu iki Muhafız ve korudukları birimler (ör. Portal'daki birim) saldırıyla hiç hedef alınamazdı. Şifa etkileri toplanır, Şifacılar birbirini iyileştirir, Şifacı kendini ve kuleyi iyileştirmez (U-05). Okçu atışını birim, kule veya kaya engellemez (U-03) |
 | 2.4 | 2026-09-30 | Netleştirme (M2 soruları): Yeni V-11 görünen bilgi ilkesi eklendi. Siper yalnızca saldırana görünen Muhafız'larla çalışır (U-11). Gerekçe: Aksi halde yasal hedef listesi sis altındaki Muhafız'ı ele veriyordu, "boşa giden saldırı" gibi yeni bir durum eklemek yerine basit kural seçildi. Kule ve nöbet tetik listesi kapalıdır, itme/ışınlanmayla menzile gelmek tetik oluşturmaz (U-27, U-28) |
 | 2.5 | 2026-09-30 | **Ekran yönü dikeyden yataya çevrildi** (kullanıcı kararı). §0 platform, UX-01 (iki başparmak, yalnızca yatay döndürme), UX-04 (yeni yatay yerleşim: tahta ortada, el altta, Mana/Enerji solda, Pazar ve Turu Bitir sağda, rakip bilgisi üstte), §16 (yatay yön, referans 1920×1080). Oyun kuralları değişmedi, B-05 (kendi bölgen altta) aynen geçerli |
+| 2.6 | 2026-09-30 | Netleştirme (M3 soruları): Tur başı çekimi zorunlu, diğer işlemlerden önce yapılır, A da 1. rauntta çeker (T-04). "Hasar" tanımı eklendi, Kalkan Zehir'i de engeller (U-20). Etkisiz kart oynamak geçerli (C-01). İtme'nin engelleri ve 0 karo itme (C-18). Kök salmış birim Işınlanma ile taşınabilir (C-19). Tahtaya çıkma tuzak tetikler, Ayna Tuzağı zincirleme tetikleyebilir (C-32). Her Kaynak ayrı +1 Mana (T-03). Fiziksel çakışma V-11'in istisnasıdır (V-11). Varışta önce tuzak, sonra kule ve nöbet çözülür (U-29) |
