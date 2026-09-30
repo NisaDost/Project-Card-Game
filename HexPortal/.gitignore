@@ -1,0 +1,32 @@
+# Unity
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+*.csproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.pidb
+*.booproj
+*.apk
+*.aab
+*.unitypackage
+.vs/
+.idea/
+.vscode/
+
+# Keep our own .NET tool projects (Unity-generated csproj/sln above are ignored)
+!/Tools/**/*.csproj
+/Tools/**/bin/
+/Tools/**/obj/
+/Tools/**/TestResults/
+
+# Claude Code local state
+.claude/settings.local.json
+.claude/.tests-dirty

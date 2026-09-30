@@ -1,0 +1,16 @@
+{
+    "name": "HexPortal.Game",
+    "rootNamespace": "HexPortal.Game",
+    "references": [
+        "HexPortal.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
