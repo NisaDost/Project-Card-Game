@@ -77,7 +77,7 @@ Verified reach counts on an **empty, fully visible** board (script-checked):
 - **Mage:** distance 1–2, any direction. The splash hits enemy units and the enemy tower on the target's 6 straight neighbours (U-04).
 - **Tower (U-06, U-27):** distance 1–2.
 - **Overwatch (U-28):** the unit's normal attack range.
-- **Guardian cover (U-11):** When the target is adjacent (distance 1) to a Guardian of its own side and the target is **not a Guardian itself**, it cannot be chosen by an **attack** (this includes overwatch and tower shots). Guardians never receive cover, not even from another adjacent Guardian. A friendly tower adjacent to a Guardian is covered.
+- **Guardian cover (U-11):** When the target is adjacent (distance 1) to a Guardian of its own side and the target is **not a Guardian itself**, it cannot be chosen by an **attack** (this includes overwatch and tower shots). Guardians never receive cover, not even from another adjacent Guardian. A friendly tower adjacent to a Guardian is covered. Only Guardians that are **Visible to the attacking side** count (V-11); for tower shots and overwatch the attacking side is the shooter's owner.
 - Every attack target must be **Visible** to the attacker's owner (V-07).
 
 ## World layout (Unity, `HexLayout`)

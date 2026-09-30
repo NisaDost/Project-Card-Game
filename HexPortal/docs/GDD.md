@@ -1,6 +1,6 @@
 # HexPortal — Oyun Tasarım Dokümanı (GDD)
 
-> Sürüm: 2.3 · Tarih: 2026-09-30 · Durum: Prototip (Faz 1) kapsamı onaylandı
+> Sürüm: 2.4 · Tarih: 2026-09-30 · Durum: Prototip (Faz 1) kapsamı onaylandı
 > "HexPortal" çalışma adıdır, sonra değişebilir.
 
 Bu doküman oyunun **tek doğruluk kaynağıdır**. Her kuralın kalıcı bir kimliği vardır (ör. `U-04`). Kod, testler ve commit mesajları bu kimliklere referans verir. Kimlikler **asla yeniden numaralandırılmaz**. Bir kural kalkarsa "KALDIRILDI" diye işaretlenir, yeni kural yeni numara alır. Değişiklikler en alttaki **Değişiklik Günlüğü**'ne yazılır.
@@ -110,7 +110,7 @@ Altıgen tahtada her karonun 6 komşusu vardır, yani birimler zaten her yöne g
 - ~~**U-08** Çapraz kalıp~~ **KALDIRILDI (v2.0).** Altıgen tahtada kenar komşuları zaten 6 yönü kapsıyor. Hareket artık U-07'deki tek kuraldır.
 - **U-09 Süvari (Atik):** Süvari hareket ederken birimlerin ve kulelerin **üstünden geçebilir**. Kayadan geçemez. Varış karosu yine boş olmalıdır. (Eski "atın sıçrayışı" kalıbı v2.0'da kaldırıldı.)
 - **U-10** Bir birim dolu karoda (birim, kule, kaya) duramaz. Portal'da durabilir.
-- **U-11 Siper:** Bir Muhafız'a komşu olan dost birimler ve dost kule, **saldırılarla** hedef alınamaz. **Muhafız'lar Siper'den hiçbir zaman faydalanmaz:** Başka bir Muhafız'a komşu olsalar bile saldırıyla hedef alınabilirler (saldırıya kapalı, yenilmez gruplar oluşmasın). Büyücü'nün Patlama hasarı ve kartlar Siper'i yok sayar. Nöbet ve kule atışları da saldırıdır, Siper'e tabidir.
+- **U-11 Siper:** Bir Muhafız'a komşu olan dost birimler ve dost kule, **saldırılarla** hedef alınamaz. **Muhafız'lar Siper'den hiçbir zaman faydalanmaz:** Başka bir Muhafız'a komşu olsalar bile saldırıyla hedef alınabilirler (saldırıya kapalı, yenilmez gruplar oluşmasın). Siper yalnızca saldıran tarafa **Görünür** olan Muhafız'larla çalışır (V-11): Sis altındaki bir Muhafız, görünür bir hedefi saldırıya karşı korumaz. Büyücü'nün Patlama hasarı ve kartlar Siper'i yok sayar. Nöbet ve kule atışları da saldırıdır, Siper'e tabidir.
 - **U-12 Görünürlük sınırı:** Hareketin yolu ve varış karosu, hareket eden oyuncu için **Görünür** (V-01) karolardan oluşmalıdır. Keşfedilmiş ama şu an görünmeyen veya keşfedilmemiş karolara hareket edilemez. Böylece geçerli hamle listesi gizli bilgiyi sızdırmaz.
 
 ### 3.3 Savaş
@@ -122,7 +122,7 @@ Altıgen tahtada her karonun 6 komşusu vardır, yani birimler zaten her yöne g
 - **U-24** Can, iyileşme ile başlangıç değerini aşamaz.
 - **U-25** Okçu komşu karodaki düşmana da saldırabilir (menzil 1–3).
 - **U-26 Kuleye saldırı:** Birimler rakip kuleye saldırabilir. Kule; menzil, Siper (U-11) ve görünürlük (V-07) açısından normal bir hedeftir. Q-13 ve W-02 bu hasarı sayar.
-- **U-27 Kule savunması (kule atışı):** Kule her zaman savunmadadır ve **rakibin her turunda en fazla 1 kez**, **tek bir** rakip birime otomatik saldırır. Tetik: rakibin turunda bir rakip birim, kulenin saldırı menzilinde **hareketini bitirirse**, **tahtaya çıkarsa** (T-07) veya **menzilindeyken saldırı yaparsa**. Tetikleyen birim hedef alınır. Hedef geçerli değilse (Siper, görünmüyor) kule ateş etmez ve hakkını korur. Kule atışı **her zaman 2 hasar** verir (kule statı). Biyom bonusu, buff veya debuff almaz. Hedef tarafındaki etkiler geçerlidir: Kalkan (C-12) hasarı engeller. Oyuncunun girdi vermesi gerekmez.
+- **U-27 Kule savunması (kule atışı):** Kule her zaman savunmadadır ve **rakibin her turunda en fazla 1 kez**, **tek bir** rakip birime otomatik saldırır. Tetik: rakibin turunda bir rakip birim, kulenin saldırı menzilinde **hareketini bitirirse**, **tahtaya çıkarsa** (T-07) veya **menzilindeyken saldırı yaparsa**. Tetikleyen birim hedef alınır. Hedef geçerli değilse (Siper, görünmüyor) kule ateş etmez ve hakkını korur. Tetik listesi kapalıdır: İtme veya ışınlanmayla (C-15, C-18, C-21) menzile gelen birim tetik oluşturmaz. Tuzaklar bundan ayrıdır (C-32). Kule atışı **her zaman 2 hasar** verir (kule statı). Biyom bonusu, buff veya debuff almaz. Hedef tarafındaki etkiler geçerlidir: Kalkan (C-12) hasarı engeller. Oyuncunun girdi vermesi gerekmez.
 - **U-28 Nöbet:** Bir birim, kendi turunda aksiyonu olarak (1 Enerji, T-05) **nöbete** geçebilir. Rakibin bir sonraki turu boyunca, U-27'deki aynı tetiklerle, saldırı menzilinde ve görüşünde olan **ilk** rakip birime 1 kez otomatik saldırır (U-20). Nöbet ateş edince veya rakibin turu bitince sona erer. Nöbetteki birim itilir veya ışınlanırsa nöbet bozulur. Nöbet durumu, birim rakibe görünürse rakibe de gösterilir.
 - **U-29 Tetik sırası:** Bir olay birden fazla nöbetçiyi tetiklerse önce kule, sonra birim kimliği sırasıyla ateş edilir. Hedef ölürse kalan nöbetçiler ateş etmez ve nöbette kalır. Saldırı tetikli atışlar, tetikleyen saldırı çözüldükten sonra yapılır.
 
@@ -305,6 +305,7 @@ Amaç: Turunu bitiren oyuncu boş beklemesin. Rakibin turu hem izlenecek hem de 
 - **V-08 Açığa çıkma:** Saldırı yapan birim veya kule, saldırdığı andan itibaren **rakibin bir sonraki tur sonuna kadar** rakibe Görünür olur (nöbet veya kule atışı rakibin turunda yapıldıysa, o turun sonuna kadar). Büyücü'nün Patlama hasarını alan gizli birimler açığa çıkmaz.
 - **V-09 Kamu bilgisi:** Tamamlanan/başarısız görevler, açılan pasifler, tetiklenen tuzaklar, olay duyuruları, el sayısı ve kule Can değerleri sisten bağımsız olarak gösterilir.
 - **V-10 Uygulama:** Her oyuncunun keşif haritası ve son görülen halleri Core'da oyun durumunun bir parçası olarak tutulur. Sisli görünümü yalnızca `PlayerView` üretir. Geçerli hamle listesi de yalnızca oyuncunun görebildiği bilgiye dayanır.
+- **V-11 Görünen bilgi ilkesi:** Bir hamlenin yasallığı ve bir hedefin geçerliliği (Siper dahil) yalnızca hamleyi yapan tarafın **Görünür** bilgisine göre belirlenir. Kule atışı ve nöbette bu taraf, kulenin ya da birimin sahibidir. Görünmeyen birimler başkasının seçeneklerini ve saldırıların sonucunu etkilemez. Tek istisna tuzaklardır (C-32, C-33).
 
 ---
 
@@ -412,3 +413,4 @@ Detaylar `CLAUDE.md` ve `.claude/rules/` altındadır.
 | 2.1 | 2026-09-29 | Netleştirme: Kule atışı her zaman 2 hasar, biyom/buff/debuff yok, hedefin Kalkan'ı geçerli (U-27). Karakter kartlarında nadirlik yok, çerçeve biyom rengi (UX-07) |
 | 2.2 | 2026-09-30 | Netleştirme (M1 soruları): Çekirdekler biyom başına 3–5 olur, yayılmada en az karosu olan biyom büyür (B-22). Kaynak, Rün Taşı'na komşu olmaz (B-23). Yeniden üretim, aynı tohumun rastgele sayı akışıyla devam eder, "sonraki tohum" kullanılmaz (B-24). Gerekçe: 1000 tohumluk ön simülasyonda eski yorum (toplam 3–5 çekirdek, rastgele yayılma) ile haritaların yalnızca ~%7'si geçerliydi ve kümeler çok büyüktü (en büyüğü ortalama 16 karo). Yeni kuralla ~%96'sı geçerli, kümeler ortalama ~4 karo |
 | 2.3 | 2026-09-30 | Netleştirme (M2 soruları): Muhafız'lar Siper'den faydalanmaz, komşu iki Muhafız birbirini korumaz (U-11). Gerekçe: Aksi halde komşu iki Muhafız ve korudukları birimler (ör. Portal'daki birim) saldırıyla hiç hedef alınamazdı. Şifa etkileri toplanır, Şifacılar birbirini iyileştirir, Şifacı kendini ve kuleyi iyileştirmez (U-05). Okçu atışını birim, kule veya kaya engellemez (U-03) |
+| 2.4 | 2026-09-30 | Netleştirme (M2 soruları): Yeni V-11 görünen bilgi ilkesi eklendi. Siper yalnızca saldırana görünen Muhafız'larla çalışır (U-11). Gerekçe: Aksi halde yasal hedef listesi sis altındaki Muhafız'ı ele veriyordu, "boşa giden saldırı" gibi yeni bir durum eklemek yerine basit kural seçildi. Kule ve nöbet tetik listesi kapalıdır, itme/ışınlanmayla menzile gelmek tetik oluşturmaz (U-27, U-28) |
