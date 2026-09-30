@@ -73,11 +73,11 @@ Verified reach counts on an **empty, fully visible** board (script-checked):
 ## Ranges
 
 - Melee: distance 1.
-- **Archer:** Any cell along a straight direction at `k = 1..3`. Units in between **do not** block (U-03).
+- **Archer:** Any cell along a straight direction at `k = 1..3`. **Nothing** in between blocks: units, towers and rocks are all ignored (U-03). A line that leaves the board never re-enters it, so stop at the first off-board cell.
 - **Mage:** distance 1–2, any direction. The splash hits enemy units and the enemy tower on the target's 6 straight neighbours (U-04).
 - **Tower (U-06, U-27):** distance 1–2.
 - **Overwatch (U-28):** the unit's normal attack range.
-- **Guardian cover (U-11):** When the target is adjacent (distance 1) to its own Guardian and is not that Guardian, it cannot be chosen by an **attack** (this includes overwatch and tower shots).
+- **Guardian cover (U-11):** When the target is adjacent (distance 1) to a Guardian of its own side and the target is **not a Guardian itself**, it cannot be chosen by an **attack** (this includes overwatch and tower shots). Guardians never receive cover, not even from another adjacent Guardian. A friendly tower adjacent to a Guardian is covered.
 - Every attack target must be **Visible** to the attacker's owner (V-07).
 
 ## World layout (Unity, `HexLayout`)

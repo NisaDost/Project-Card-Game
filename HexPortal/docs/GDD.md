@@ -1,6 +1,6 @@
 # HexPortal — Oyun Tasarım Dokümanı (GDD)
 
-> Sürüm: 2.2 · Tarih: 2026-09-30 · Durum: Prototip (Faz 1) kapsamı onaylandı
+> Sürüm: 2.3 · Tarih: 2026-09-30 · Durum: Prototip (Faz 1) kapsamı onaylandı
 > "HexPortal" çalışma adıdır, sonra değişebilir.
 
 Bu doküman oyunun **tek doğruluk kaynağıdır**. Her kuralın kalıcı bir kimliği vardır (ör. `U-04`). Kod, testler ve commit mesajları bu kimliklere referans verir. Kimlikler **asla yeniden numaralandırılmaz**. Bir kural kalkarsa "KALDIRILDI" diye işaretlenir, yeni kural yeni numara alır. Değişiklikler en alttaki **Değişiklik Günlüğü**'ne yazılır.
@@ -96,9 +96,9 @@ Her sınıfın 3 biyom varyantı vardır. **Varyantların statları ve yetenekle
 |---|---|---|---|---|---|---|---|---|
 | **U-01** | Muhafız | 3 | 2 | 6 | 1 | 2 | Komşu | **Siper:** Bkz. U-11 |
 | **U-02** | Süvari | 3 | 3 | 4 | 3 | 3 | Komşu | **Atik:** Hareket ederken birimlerin ve kulelerin üstünden geçer (U-09). **Hücum:** Bir önceki kendi turunda hareket ettiyse +1 Saldırı |
-| **U-03** | Okçu | 2 | 2 | 3 | 2 | 3 | Düz hatta 1–3 | **Uzak atış:** Aradaki birimler atışı engellemez |
+| **U-03** | Okçu | 2 | 2 | 3 | 2 | 3 | Düz hatta 1–3 | **Uzak atış:** Hat üzerindeki hiçbir şey (birim, kule, kaya) atışı engellemez |
 | **U-04** | Büyücü | 3 | 2 | 3 | 2 | 2 | Mesafe 1–2 | **Patlama:** Hedefe komşu düşman birimleri ve kuleler 1 hasar alır |
-| **U-05** | Şifacı | 2 | 1 | 3 | 1 | 2 | Komşu | **Şifa:** Kendi tur başında komşu dost birimler +1 Can alır |
+| **U-05** | Şifacı | 2 | 1 | 3 | 1 | 2 | Komşu | **Şifa:** Kendi tur başında komşu dost birimler +1 Can alır. Birden çok Şifacı'nın etkisi toplanır, Şifacılar birbirini de iyileştirir. Şifacı kendini ve kuleyi iyileştirmez (U-24 tavanı geçerli) |
 
 **Kule (U-06):** Her oyuncunun 1 kulesi vardır. Can **10**, Saldırı **2**, saldırı menzili **mesafe 1–2**, Görüş **2**. Hareket etmez. Bir karoyu kaplar ve geçişi engeller. Kule yalnızca **savunma amaçlı** saldırır (U-27). Kartlar kuleyi hedef alamaz. Kule biyom bonusu almaz. Kule yıkılırsa sahibi kaybeder (W-02).
 
@@ -110,7 +110,7 @@ Altıgen tahtada her karonun 6 komşusu vardır, yani birimler zaten her yöne g
 - ~~**U-08** Çapraz kalıp~~ **KALDIRILDI (v2.0).** Altıgen tahtada kenar komşuları zaten 6 yönü kapsıyor. Hareket artık U-07'deki tek kuraldır.
 - **U-09 Süvari (Atik):** Süvari hareket ederken birimlerin ve kulelerin **üstünden geçebilir**. Kayadan geçemez. Varış karosu yine boş olmalıdır. (Eski "atın sıçrayışı" kalıbı v2.0'da kaldırıldı.)
 - **U-10** Bir birim dolu karoda (birim, kule, kaya) duramaz. Portal'da durabilir.
-- **U-11 Siper:** Bir Muhafız'a komşu olan dost birimler ve dost kule, **saldırılarla** hedef alınamaz. Bu korunan birim Muhafız'ın kendisi değildir. Büyücü'nün Patlama hasarı ve kartlar Siper'i yok sayar. Nöbet ve kule atışları da saldırıdır, Siper'e tabidir.
+- **U-11 Siper:** Bir Muhafız'a komşu olan dost birimler ve dost kule, **saldırılarla** hedef alınamaz. **Muhafız'lar Siper'den hiçbir zaman faydalanmaz:** Başka bir Muhafız'a komşu olsalar bile saldırıyla hedef alınabilirler (saldırıya kapalı, yenilmez gruplar oluşmasın). Büyücü'nün Patlama hasarı ve kartlar Siper'i yok sayar. Nöbet ve kule atışları da saldırıdır, Siper'e tabidir.
 - **U-12 Görünürlük sınırı:** Hareketin yolu ve varış karosu, hareket eden oyuncu için **Görünür** (V-01) karolardan oluşmalıdır. Keşfedilmiş ama şu an görünmeyen veya keşfedilmemiş karolara hareket edilemez. Böylece geçerli hamle listesi gizli bilgiyi sızdırmaz.
 
 ### 3.3 Savaş
@@ -411,3 +411,4 @@ Detaylar `CLAUDE.md` ve `.claude/rules/` altındadır.
 | 2.0 | 2026-09-29 | **Kaynaklar:** Enerji ikiye ayrıldı: kart oynamak için **Mana** (T-01…T-03, C-01, T-06) ve hareket/saldırı için **Enerji** (T-05, turda 3). Her karakterin kendi **Maliyeti** var (§3.1, T-07). **Aksiyon:** "Turda 2 aksiyon" kalktı; her birim turda ya hareket eder ya saldırır ya nöbet tutar, her biri 1 Enerji (T-05). **Hareket:** Düz/çapraz/sıçrama kalıpları yerine tek kural: komşu karolar üzerinden Hareket kadar adım (U-07). U-08 KALDIRILDI. Süvari: Hareket 3, birimlerin üstünden geçer, Hücum bir önceki turdaki harekete bağlandı (U-02, U-09). **Yakınlık:** Tüm kartlar yalnızca Kontrol Alanında oynanır (C-02, C-30, C-15, T-07, S-05). **Buff/debuff sınırı:** 1 buff + 1 debuff, yenisi eskisinin yerini alır (C-05, C-06). **Kule:** Birimler rakip kuleye saldırabilir (U-26). Kule rakip turunda 1 kez, tek birime otomatik savunma atışı yapar (U-06, U-27). Yeni **Nöbet** aksiyonu (U-28, U-29). **Sis:** 3 görünürlük durumu ve Görüş statı (§11 V-*, U-12). Açılışta rakip yarısı gizli (S-07, V-04). Portal her zaman görünür (V-06). **Bekleme:** Rakibin turunda ön seçim, canlı izleme, planlama ve savunma tepkileri (§7.1 T-11…T-13, UX-10). Tur süresi 45 → 30 sn (T-09). Tuzak yalnızca durulan karoda tetiklenir (C-32). Oyuncu yarıları tanımlandı (B-06). Unity 6.6. Bölüm numaraları kaydı: Görünürlük §11 olarak eklendi, sonraki bölümler bir kaydı |
 | 2.1 | 2026-09-29 | Netleştirme: Kule atışı her zaman 2 hasar, biyom/buff/debuff yok, hedefin Kalkan'ı geçerli (U-27). Karakter kartlarında nadirlik yok, çerçeve biyom rengi (UX-07) |
 | 2.2 | 2026-09-30 | Netleştirme (M1 soruları): Çekirdekler biyom başına 3–5 olur, yayılmada en az karosu olan biyom büyür (B-22). Kaynak, Rün Taşı'na komşu olmaz (B-23). Yeniden üretim, aynı tohumun rastgele sayı akışıyla devam eder, "sonraki tohum" kullanılmaz (B-24). Gerekçe: 1000 tohumluk ön simülasyonda eski yorum (toplam 3–5 çekirdek, rastgele yayılma) ile haritaların yalnızca ~%7'si geçerliydi ve kümeler çok büyüktü (en büyüğü ortalama 16 karo). Yeni kuralla ~%96'sı geçerli, kümeler ortalama ~4 karo |
+| 2.3 | 2026-09-30 | Netleştirme (M2 soruları): Muhafız'lar Siper'den faydalanmaz, komşu iki Muhafız birbirini korumaz (U-11). Gerekçe: Aksi halde komşu iki Muhafız ve korudukları birimler (ör. Portal'daki birim) saldırıyla hiç hedef alınamazdı. Şifa etkileri toplanır, Şifacılar birbirini iyileştirir, Şifacı kendini ve kuleyi iyileştirmez (U-05). Okçu atışını birim, kule veya kaya engellemez (U-03) |
