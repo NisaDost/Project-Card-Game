@@ -56,7 +56,11 @@ Milestone definitions and "done" criteria: GDD §17.
 - The template assets (`Assets/TutorialInfo`, `Assets/Readme.asset`, `Assets/Scenes/SampleScene.unity`) are still in the project; they can be deleted.
 - Repo layout: the git root is the parent folder `Project-Card-Game/`. This Unity project is `HexPortal/`; `Project Card Game/` is the old 2022.3 prototype and is not used.
 
+- **M6 GATE (pipeline in dev builds):** A Development Build defines `ENABLE_PROFILER`, so the `com.unity.pipeline` runtime (C# interpreter + server) is compiled into the player. Before the first Android build in M6, settle: (a) is that server reachable over the network on the device? (b) exclude it with an Editor build script, or use dev builds only for USB/local testing? No Development Build is distributed until this is decided.
+
 ## Decisions
+- 2026-09-30 — Security: `unity command eval` / `eval_file` only run C# we wrote and read before the command. Every change made through the Editor is reviewed with `git diff` before a commit.
+- 2026-09-30 — Unity CLI bridge: `com.unity.pipeline` pinned at 0.8.0-exp.1 (the AI Assistant/Inference packages were removed; not needed). Release player builds only get `Unity.Pipeline.Attributes` (harmless attributes); the other runtime assemblies are constrained to `UNITY_EDITOR || ENABLE_PROFILER || ENABLE_RUNTIME_PIPELINE`. `ENABLE_RUNTIME_PIPELINE` is NEVER defined in this project.
 - 2026-09-30 — GDD v2.2 (B-22 seeds per biome + balanced growth, B-23 wellspring not next to a rune, B-24 retry continues the same RNG stream).
 - 2026-09-30 — The map RNG is `new Rng(seed ^ MapStreamSalt)`; later streams (deal, draws) must use a different salt. `GameMap.Set` is internal (engine only).
 - 2026-09-30 — B-05 has no M1 test: it is data-only (board data is never transformed per player); the 180° view is the camera in M6.
