@@ -3,7 +3,7 @@ using UnityEngine.UIElements;
 
 namespace HexPortal.Game
 {
-    // Builds the scene from code (no manual scene setup). M0: portrait camera and a title label.
+    // Builds the scene from code (no manual scene setup). M0: landscape camera and a title label.
     public static class Bootstrap
     {
         const string ThemeResource = "HexPortalTheme";
@@ -11,9 +11,19 @@ namespace HexPortal.Game
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Init()
         {
-            Screen.orientation = ScreenOrientation.Portrait;
+            SetupOrientation();
             SetupCamera();
             SetupUi();
+        }
+
+        // Landscape only (GDD UX-01): auto-rotate between Landscape Left and Right, never portrait.
+        static void SetupOrientation()
+        {
+            Screen.autorotateToLandscapeLeft = true;
+            Screen.autorotateToLandscapeRight = true;
+            Screen.autorotateToPortrait = false;
+            Screen.autorotateToPortraitUpsideDown = false;
+            Screen.orientation = ScreenOrientation.AutoRotation;
         }
 
         static void SetupCamera()
@@ -24,7 +34,7 @@ namespace HexPortal.Game
                 var go = new GameObject("Main Camera") { tag = "MainCamera" };
                 cam = go.AddComponent<Camera>();
             }
-            // Top-down view of the board origin, row 0 toward +Z (top of a portrait screen).
+            // Top-down view of the board origin, row 0 toward +Z (top of the landscape screen).
             cam.transform.SetPositionAndRotation(new Vector3(0f, 20f, 0f), Quaternion.Euler(90f, 0f, 0f));
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.12f, 0.14f, 0.2f);
@@ -39,7 +49,7 @@ namespace HexPortal.Game
             var settings = ScriptableObject.CreateInstance<PanelSettings>();
             settings.themeStyleSheet = theme;
             settings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
-            settings.referenceResolution = new Vector2Int(1080, 1920);
+            settings.referenceResolution = new Vector2Int(1920, 1080);
             settings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
             settings.match = 0.5f;
 
