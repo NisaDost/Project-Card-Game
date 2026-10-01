@@ -34,6 +34,7 @@ namespace HexPortal.Core
                 var pr = s.GetProgress(p);
                 for (int i = 0; i < Data.Catalog.QuestPick; i++) Add(ref h, (int)pr.GetQuestStatus(i));
                 Add(ref h, pr.Kills);
+                if (includeFog) Add(ref h, pr.SeenKills); // visibility-derived like the fog: light states do not track it
                 Add(ref h, pr.TowerDamage);
                 Add(ref h, pr.TrapsSprung);
                 Add(ref h, pr.UnitsLost);

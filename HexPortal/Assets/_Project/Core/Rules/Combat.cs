@@ -132,9 +132,10 @@ namespace HexPortal.Core
                 events.Add(new DamageDealt(sourcePlayer, sourceUnitId, target, u.Id, amount, kind));
                 if (u.Health == 0)
                 {
-                    events.Add(new UnitDied(u.Id, u.Owner, sourcePlayer)); // tagged while the unit is still on its cell
+                    var died = new UnitDied(u.Id, u.Owner, sourcePlayer);
+                    events.Add(died); // tagged while the unit is still on its cell
                     state.RemoveUnit(u);
-                    Quests.OnUnitDied(state, u, sourcePlayer);         // Q-12, Q-16 (hidden until judged)
+                    Quests.OnUnitDied(state, u, sourcePlayer, died.ViewFor(sourcePlayer) != null); // Q-12, Q-16 (hidden until judged)
                     Passives.OnUnitDied(state, u);                     // P-01
                     Pools.DeathDraw(state, u.Owner, events);
                 }

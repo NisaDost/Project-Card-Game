@@ -22,6 +22,9 @@ namespace HexPortal.Core
 
         /// <summary>Q-12: enemy units this player killed (every source, UnitDied.Killer).</summary>
         public int Kills { get; internal set; }
+        /// <summary>Q-12 display (M6 D2, PM): the kills whose UnitDied this player saw. Shown in PlayerView; completion uses Kills.
+        /// Not updated in light (AI simulation) states.</summary>
+        public int SeenKills { get; internal set; }
         /// <summary>Q-13: damage this player dealt to the enemy tower (blocked damage excluded).</summary>
         public int TowerDamage { get; internal set; }
         /// <summary>Q-17: own traps triggered on enemy units.</summary>
@@ -55,7 +58,7 @@ namespace HexPortal.Core
         {
             var c = new PlayerProgress
             {
-                Kills = Kills, TowerDamage = TowerDamage, TrapsSprung = TrapsSprung, UnitsLost = UnitsLost, PassiveRevealed = PassiveRevealed,
+                Kills = Kills, SeenKills = SeenKills, TowerDamage = TowerDamage, TrapsSprung = TrapsSprung, UnitsLost = UnitsLost, PassiveRevealed = PassiveRevealed,
                 LastBreathUsed = LastBreathUsed, LastBreathPending = LastBreathPending, LastBreathClass = LastBreathClass,
                 LastBreathBiome = LastBreathBiome, LastBreathDeathTurn = LastBreathDeathTurn, WallBlocked = WallBlocked,
                 MerchantUsed = MerchantUsed, PortalUnitId = PortalUnitId,

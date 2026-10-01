@@ -105,6 +105,24 @@ namespace HexPortal.Tests
             var own = s.GetProgress(p);
             var opp = s.GetProgress(o);
             Assert.That(v.QuestStatuses, Is.EqualTo(Enumerable.Range(0, s.GetQuestChoices(p).Count).Select(i => own.GetQuestStatus(i))));
+            // M6 D2: own quest progress only, from owner-known data; Hunter shows seen kills, never the real count.
+            Assert.That(v.QuestProgress.Select(q => (q.Id, q.Status)),
+                Is.EqualTo(s.GetQuestChoices(p).Select((q, i) => (q.Id, own.GetQuestStatus(i)))));
+            Assert.That(own.SeenKills, Is.LessThanOrEqualTo(own.Kills));
+            foreach (var q in v.QuestProgress)
+            {
+                switch (q.Id)
+                {
+                    case "Q-12": Assert.That(q.Current, Is.EqualTo(own.SeenKills)); break;
+                    case "Q-13": Assert.That(q.Current, Is.EqualTo(own.TowerDamage)); break;
+                    case "Q-14": Assert.That(q.Current, Is.EqualTo(s.GetTower(p).Health)); break;
+                    case "Q-16": Assert.That(q.Current, Is.EqualTo(own.UnitsLost)); break;
+                    case "Q-17": Assert.That(q.Current, Is.EqualTo(own.TrapsSprung)); break;
+                    case "Q-10": case "Q-18":
+                        Assert.That(q.Current, Is.EqualTo(q.Cell.HasValue ? own.GetHoldStreak(q.Cell.Value) : 0)); break;
+                }
+                if (q.Cell.HasValue) Assert.That(s.GetFog(p).Get(q.Cell.Value), Is.Not.EqualTo(CellVisibility.Hidden));
+            }
             var oq = s.GetQuestChoices(o);
             Assert.That(v.OpponentCompletedQuests, Is.EqualTo(oq.Where((q, i) => opp.GetQuestStatus(i) == QuestStatus.Completed).Select(q => q.Id)));
             Assert.That(v.OpponentFailedQuests, Is.EqualTo(oq.Where((q, i) => opp.GetQuestStatus(i) == QuestStatus.Failed).Select(q => q.Id)));

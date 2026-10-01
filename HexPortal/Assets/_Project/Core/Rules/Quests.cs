@@ -57,10 +57,65 @@ namespace HexPortal.Core
 
         /// <summary>U-22 hook: Q-12 kill credit (every source; never for the victim's own side) and the hidden Q-16 loss count
         /// (no event now, v2.10).</summary>
-        internal static void OnUnitDied(GameState state, Unit unit, PlayerId killer)
+        internal static void OnUnitDied(GameState state, Unit unit, PlayerId killer, bool killerSaw)
         {
-            if (killer != unit.Owner) state.GetProgress(killer).Kills++;
+            if (killer != unit.Owner)
+            {
+                state.GetProgress(killer).Kills++;
+                if (killerSaw) state.GetProgress(killer).SeenKills++; // M6 D2: display counter only
+            }
             state.GetProgress(unit.Owner).UnitsLost++;
+        }
+
+        /// <summary>M6 D2: what the owner may see of an own quest's progress. Uses only owner-known data: own units, own tower,
+        /// own hold streaks, own tower damage dealt (enemy tower Health is public), own traps sprung (public, C-33), own losses
+        /// (own deaths are always seen) and SeenKills, never the real Kills. Returns (current, held cell or null).</summary>
+        internal static int OwnerProgress(GameState state, PlayerId p, QuestDef q, out Hex? cell)
+        {
+            var prog = state.GetProgress(p);
+            cell = null;
+            switch (q.Id)
+            {
+                case "Q-10": return BestStreak(state, p, Marker.RuneStone, out cell);
+                case "Q-18": return BestStreak(state, p, Marker.Wellspring, out cell);
+                case "Q-11": return CountOn(state, p, Marker.RuneStone);
+                case "Q-12": return prog.SeenKills;
+                case "Q-13": return prog.TowerDamage;
+                case "Q-14": return state.GetTower(p).Health;
+                case "Q-15": return CountOnOwnBiome(state, p);
+                case "Q-16": return prog.UnitsLost;
+                case "Q-17": return prog.TrapsSprung;
+                case "Q-19": return CountDeep(state, p);
+                default: return 0;
+            }
+        }
+
+        static int BestStreak(GameState state, PlayerId p, Marker marker, out Hex? cell)
+        {
+            cell = null;
+            int best = 0;
+            foreach (var h in Board.Cells)
+            {
+                int n = state.GetProgress(p).GetHoldStreak(h);
+                if (state.Map.Get(h).Marker == marker && n > best) { best = n; cell = h; }
+            }
+            return best;
+        }
+
+        static int CountOnOwnBiome(GameState state, PlayerId p)
+        {
+            int n = 0;
+            foreach (var u in state.Units)
+                if (u.Owner == p && state.Map.Get(u.Pos).Biome == u.Biome) n++; // the Portal has no biome
+            return n;
+        }
+
+        static int CountDeep(GameState state, PlayerId p)
+        {
+            int n = 0;
+            foreach (var u in state.Units)
+                if (u.Owner == p && Board.IsHomeZone(u.Pos, p.Opponent())) n++;
+            return n;
         }
 
         static bool IsHoldTarget(Marker m) => m == Marker.RuneStone || m == Marker.Wellspring;
@@ -74,18 +129,10 @@ namespace HexPortal.Core
                 case "Q-11": return CountOn(state, p, Marker.RuneStone) >= q.Amount;
                 case "Q-12": return prog.Kills >= q.Amount;
                 case "Q-13": return prog.TowerDamage >= q.Amount;
-                case "Q-15":
-                    int onBiome = 0;
-                    foreach (var u in state.Units)
-                        if (u.Owner == p && state.Map.Get(u.Pos).Biome == u.Biome) onBiome++; // the Portal has no biome
-                    return onBiome >= q.Amount;
+                case "Q-15": return CountOnOwnBiome(state, p) >= q.Amount;
                 case "Q-17": return prog.TrapsSprung >= q.Amount;
                 case "Q-18": return CountHeld(state, p, Marker.Wellspring) >= q.Amount;
-                case "Q-19":
-                    int deep = 0;
-                    foreach (var u in state.Units)
-                        if (u.Owner == p && Board.IsHomeZone(u.Pos, p.Opponent())) deep++;
-                    return deep >= q.Amount;
+                case "Q-19": return CountDeep(state, p) >= q.Amount;
                 default: return false;
             }
         }

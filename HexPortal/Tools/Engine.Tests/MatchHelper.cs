@@ -159,6 +159,8 @@ namespace HexPortal.Tests
             sb.Append("traps=").Append(string.Join(",", v.OwnTraps.Select(t => t.CardId + ":" + t.DefId + "@" + t.Pos))).Append('\n');
             sb.Append("questStatus=").Append(string.Join(",", v.QuestStatuses)).Append(" oppDone=").Append(string.Join(",", v.OpponentCompletedQuests))
               .Append(" oppFailed=").Append(string.Join(",", v.OpponentFailedQuests)).Append('\n');
+            sb.Append("questProgress=").Append(string.Join(";", v.QuestProgress.Select(q =>
+                q.Id + ":" + q.Status + " " + q.Current + "/" + q.Target + " r" + q.Round + " @" + q.Cell))).Append('\n');
             sb.Append("passiveRevealed=").Append(v.PassiveRevealed).Append(" oppPassive=").Append(v.OpponentPassive).Append('\n');
             sb.Append("event=").Append(v.AnnouncedEvent).Append('@').Append(v.AnnouncedEventRound)
               .Append(' ').Append(string.Join(",", v.AnnouncedEventCells)).Append('\n');
@@ -264,6 +266,7 @@ namespace HexPortal.Tests
                 s.SetQuestOffer(o, choices.Concat(pool.Skip(next)).Take(Catalog.QuestOffer).ToList());
                 if (old.Count > 0) s.SetQuestChoices(o, choices);
                 prog.Kills = rng.NextInt(0, 3);
+                prog.SeenKills = rng.NextInt(0, prog.Kills + 1);
                 prog.TowerDamage = rng.NextInt(0, 6);
                 prog.TrapsSprung = rng.NextInt(0, 2);
                 prog.UnitsLost = rng.NextInt(0, 2); // Q-16 (v2.10): hidden until the owner's turn end / round end

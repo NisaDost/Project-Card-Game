@@ -69,6 +69,20 @@ namespace HexPortal.Core
         public bool TowerIsGhost { get; internal set; }
     }
 
+    /// <summary>M6 D2: one own chosen quest as its owner knows it. Current: Q-10/Q-18 best hold streak (Cell = that stone or
+    /// wellspring, null if 0), Q-11/Q-15/Q-19 count now, Q-12 kills the owner saw (completion uses the real count), Q-13 tower
+    /// damage dealt, Q-14 own tower Health, Q-16 own units lost (owner-known; the failure is announced later, v2.10),
+    /// Q-17 own traps sprung. Target: Catalog Amount (Q-10/Q-18: QuestHoldTurns). Round: judging round or 0.</summary>
+    public sealed class QuestProgressView
+    {
+        public string Id { get; internal set; }
+        public QuestStatus Status { get; internal set; }
+        public int Current { get; internal set; }
+        public int Target { get; internal set; }
+        public int Round { get; internal set; }
+        public Hex? Cell { get; internal set; }
+    }
+
     /// <summary>An own face-down trap.</summary>
     public sealed class TrapView
     {
@@ -125,6 +139,8 @@ namespace HexPortal.Core
         public IReadOnlyList<TrapView> OwnTraps { get; private set; }
         /// <summary>Q-03, Q-04: status of each own chosen quest, aligned with QuestChoices.</summary>
         public IReadOnlyList<QuestStatus> QuestStatuses { get; private set; }
+        /// <summary>M6 D2: own chosen quests with progress, aligned with QuestChoices. Never the opponent's.</summary>
+        public IReadOnlyList<QuestProgressView> QuestProgress { get; private set; }
         /// <summary>Q-03, V-09: the opponent's completed quests (their active quests stay hidden).</summary>
         public IReadOnlyList<string> OpponentCompletedQuests { get; private set; }
         /// <summary>Q-04, V-09.</summary>
@@ -218,7 +234,18 @@ namespace HexPortal.Core
             var passiveOffer = new List<string>();
             foreach (var d in s.GetPassiveOffer(p)) passiveOffer.Add(d.Id);
             var statuses = new List<QuestStatus>();
-            for (int i = 0; i < s.GetQuestChoices(p).Count; i++) statuses.Add(s.GetProgress(p).GetQuestStatus(i));
+            var questProgress = new List<QuestProgressView>();
+            for (int i = 0; i < s.GetQuestChoices(p).Count; i++)
+            {
+                var q = s.GetQuestChoices(p)[i];
+                statuses.Add(s.GetProgress(p).GetQuestStatus(i));
+                int current = Quests.OwnerProgress(s, p, q, out var heldCell);
+                questProgress.Add(new QuestProgressView
+                {
+                    Id = q.Id, Status = statuses[i], Current = current, Target = q.Hold ? Catalog.QuestHoldTurns : q.Amount,
+                    Round = q.Round, Cell = heldCell,
+                });
+            }
             var oppCompleted = new List<string>();
             var oppFailed = new List<string>();
             var oppQuests = s.GetQuestChoices(o);
@@ -242,7 +269,7 @@ namespace HexPortal.Core
                 SetupStep = Setup.StepOf(s, p), OpponentSetupFinished = s.IsSetupFinished(o),
                 QuestOffer = questOffer, QuestChoices = questChoices, PassiveOffer = passiveOffer,
                 PassiveChoice = s.GetPassiveChoice(p) == null ? null : s.GetPassiveChoice(p).Id,
-                QuestStatuses = statuses, OpponentCompletedQuests = oppCompleted, OpponentFailedQuests = oppFailed,
+                QuestStatuses = statuses, QuestProgress = questProgress,OpponentCompletedQuests = oppCompleted, OpponentFailedQuests = oppFailed,
                 PassiveRevealed = s.GetProgress(p).PassiveRevealed,
                 OpponentPassive = oppPassive != null && s.GetProgress(o).PassiveRevealed ? oppPassive.Id : null,
                 AnnouncedEvent = s.PendingEvent == null ? null : s.PendingEvent.Id, AnnouncedEventRound = s.PendingEventRound,
