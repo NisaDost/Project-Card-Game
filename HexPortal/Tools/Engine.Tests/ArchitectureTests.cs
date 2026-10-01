@@ -162,5 +162,23 @@ namespace HexPortal.Tests
             AssertNoMatch(@"\brecord\s+(class\s+|struct\s+)?[A-Z]\w*", "No record types in Core.");
             AssertNoMatch(@"\binit\s*(;|=>|\{)", "No init accessors in Core.");
         }
+
+        /// <summary>UX-09, V-10: in the Unity client only MatchController.cs may mention GameState; views read PlayerView,
+        /// filtered events and legal commands.</summary>
+        [Test]
+        public void Arch_OnlyMatchControllerReferencesGameState()
+        {
+            var gameDir = Path.Combine(Path.GetDirectoryName(CoreDir()), "Game");
+            Assert.That(Directory.Exists(gameDir), "Assets/_Project/Game missing");
+            var files = Directory.GetFiles(gameDir, "*.cs", SearchOption.AllDirectories);
+            Assert.That(files.Select(Path.GetFileName), Does.Contain("MatchController.cs"));
+            var hits = files
+                .Where(f => Path.GetFileName(f) != "MatchController.cs")
+                .SelectMany(f => File.ReadAllLines(f).Select((line, i) => (f, i, line)))
+                .Where(x => Regex.IsMatch(x.line, @"\bGameState\b"))
+                .Select(x => $"{Path.GetFileName(x.f)}:{x.i + 1}: {x.line.Trim()}")
+                .ToList();
+            Assert.That(hits, Is.Empty, "Only MatchController may hold the GameState.");
+        }
     }
 }

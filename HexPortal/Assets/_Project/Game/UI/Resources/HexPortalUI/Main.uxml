@@ -1,0 +1,77 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- Landscape layout, reference 1920x1080 (GDD UX-04). Text is filled in from Strings.cs. -->
+    <ui:VisualElement name="board-hit" class="fill" />
+    <ui:VisualElement name="overlay" class="fill" picking-mode="Ignore" />
+
+    <ui:VisualElement name="hud" class="fill" picking-mode="Ignore">
+        <ui:VisualElement name="top" class="top-strip" picking-mode="Ignore">
+            <ui:Label name="own-info" class="info" />
+            <ui:Label name="turn-banner" class="banner" />
+            <ui:Label name="event-banner" class="banner event" />
+            <ui:Label name="opp-info" class="info right" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="left" class="side-col left-col" picking-mode="Ignore">
+            <ui:VisualElement class="meter mana-meter" picking-mode="Ignore">
+                <ui:Label class="meter-icon mana-icon" text="◆" />
+                <ui:Label name="mana-text" class="meter-text" />
+                <ui:VisualElement name="mana-pips" class="pips" />
+            </ui:VisualElement>
+            <ui:VisualElement class="meter energy-meter" picking-mode="Ignore">
+                <ui:Label class="meter-icon energy-icon" text="⚡" />
+                <ui:Label name="energy-text" class="meter-text" />
+                <ui:VisualElement name="energy-pips" class="pips" />
+            </ui:VisualElement>
+            <ui:Label name="timer" class="timer" />
+            <ui:Button name="quest-btn" class="btn" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="right" class="side-col right-col" picking-mode="Ignore">
+            <ui:Button name="market-0" class="btn market" />
+            <ui:Button name="market-1" class="btn market" />
+            <ui:Button name="market-2" class="btn market" />
+            <ui:Button name="blind-btn" class="btn market" />
+            <ui:VisualElement class="spacer" picking-mode="Ignore" />
+            <ui:Button name="overwatch-btn" class="btn overwatch" />
+            <ui:Button name="end-btn" class="btn end" />
+        </ui:VisualElement>
+
+        <ui:Label name="prompt" class="prompt" />
+        <ui:VisualElement name="hand" class="hand" picking-mode="Ignore" />
+        <ui:VisualElement name="drag-card" class="card dragging" picking-mode="Ignore" />
+    </ui:VisualElement>
+
+    <ui:VisualElement name="quest-panel" class="popup">
+        <ui:Label name="quest-text" class="popup-text" />
+        <ui:Button name="quest-close" class="btn" />
+    </ui:VisualElement>
+    <ui:VisualElement name="card-detail" class="popup">
+        <ui:Label name="detail-text" class="popup-text" />
+        <ui:Button name="detail-close" class="btn" />
+    </ui:VisualElement>
+
+    <ui:VisualElement name="screen-quests" class="screen">
+        <ui:Label name="quests-title" class="screen-title" />
+        <ui:VisualElement name="quest-options" class="options" />
+        <ui:Button name="quests-confirm" class="btn big" />
+    </ui:VisualElement>
+    <ui:VisualElement name="screen-passive" class="screen">
+        <ui:Label name="passive-title" class="screen-title" />
+        <ui:VisualElement name="passive-options" class="options" />
+    </ui:VisualElement>
+    <ui:VisualElement name="screen-handoff" class="screen opaque">
+        <ui:Label name="handoff-title" class="screen-title" />
+        <ui:Label name="handoff-player" class="screen-sub" />
+        <ui:Label name="handoff-tap" class="screen-sub" />
+    </ui:VisualElement>
+    <ui:VisualElement name="screen-result" class="screen opaque">
+        <ui:Label name="result-title" class="screen-title" />
+        <ui:Label name="result-reason" class="screen-sub" />
+        <ui:Button name="result-menu" class="btn big" />
+    </ui:VisualElement>
+    <ui:VisualElement name="screen-menu" class="screen opaque">
+        <ui:Label name="menu-title" class="screen-title huge" />
+        <ui:Button name="menu-hotseat" class="btn big" />
+        <ui:Button name="menu-timer" class="btn big" />
+    </ui:VisualElement>
+</ui:UXML>

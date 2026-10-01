@@ -12,7 +12,7 @@ Milestone definitions and "done" criteria: GDD §17.
 | M3 Cards | ✅ Done (2026-09-30) | 287 tests green, Unity compiles. Mana, Control Zone, deploy, 12 support cards, traps, pools/Market/hands, mandatory first draw, T-11 pre-pick (engine), U-23, U-27 deploy trigger, U-29 trap-before-shots. GDD v2.7 |
 | M4 Match | ✅ Done (2026-10-01) | 412 tests green, Unity compiles. M4a: setup, fog memory, V-08, PlayerView, EventFilter (fails closed), T-09/W-04. M4b: quests, passives, map events, W-01/W-03. 200 random-legal matches all end with a W-* (W-01 64, W-03 tower 9 / quests 85 / unit HP 33 / draw 2, W-04 7), no legal command rejected, replays identical, leak scan after every command. GDD v2.10 |
 | M5 AI + Sim | ✅ Done (2026-10-01) — balance open, deferred by the user to after M6 | GreedyAi on PlayerView (AI-01 proofs), Sim tool. 438 green. 1000 games ~1 min serial; AI decision avg 0.72 ms. Seat A 57% (target 45–55%), ~89% W-01, median 6 rounds; see docs/balance/M5-2026-10-01.md |
-| M6 Graybox client | ⏳ | |
+| M6 Graybox client | ⏳ M6a code done | M6a (2026-10-01): hotseat graybox client (MatchController only holder of GameState, Board/Fog/Units views, UX-04 HUD, setup/handoff/result screens, T-09 clock), D2 quest progress in PlayerView, hexportal_client_state CLI, 4 PlayMode tests, arch test. 447 green, Unity clean. Pending: a human Editor play to the result screen (CLI pointer input stops when the Game view loses focus), real mouse/touch card drag. M6b next: AI mode, polish, Android |
 | M7 Demo polish (Faz 2) | ⏳ | |
 
 ## Handoff (2026-10-01)
@@ -66,6 +66,7 @@ Milestone definitions and "done" criteria: GDD §17.
 - 2026-09-29 — `Tools/Core.Build` (netstandard2.1) is built by `dotnet test`, so Core API use that Unity doesn't have fails the test run.
 
 ## Session log
+- 2026-10-01 — (Dev 2) M6a: D2 (400b80a) and hotseat client (unity-client-dev). Verified in the live Editor with captures through setup A/B and the first turns; result screen covered only by PlayMode test. Gaps: PlayerView has no Control Zone set (client highlights only legal targets), hexportal_client_state is not allowlisted (user decision), ghost transparency shader variant may be stripped in builds.
 - 2026-10-01 — (Dev 2) M5b: AI fixes (P-04 belief, light-state guard, stricter arch scan, seat-symmetric tie-break, enemy Rider charge), Portal-defence weights, Sim tool + runs. gdd-reviewer: OK to commit, M5 criterion (A 45–55%) not met. Minor follow-ups: exclude view-only events from Sim's never-triggered list, count pre-picked draws, mirror test for deploy/push, seed arithmetic checks, P-04 comment wording, arch-scan array/tuple/cast patterns.
 - 2026-10-01 — (Dev 2) M5a implemented (rules-engineer). gdd-reviewer: OK to commit; major for M5b: belief assumes a revealed enemy P-04 is unused (AI stops pressuring the tower). Minor: PlayerView.For should reject light states, arch-scan line loopholes, AI-05 timing check, seat-asymmetric tie-break, enemy Rider charge unknown.
 - 2026-10-01 — (Dev 2) M4b implemented (rules-engineer). gdd-reviewer: no blocking, OK to commit; follow-ups R1–R5 (PM, v2.10), C1/L1 (v2.9) and leak-test tightening applied. Tightened checks found no Core leak (one missing test exclusion: observer overwatch Mage splash). Planted leaks (unrevealed passive in view, UnitRevived to all) caught. 412 green, Unity clean.

@@ -2,7 +2,9 @@
     "name": "HexPortal.Editor",
     "rootNamespace": "HexPortal.Editor",
     "references": [
-        "Unity.Pipeline.Attributes"
+        "Unity.Pipeline.Attributes",
+        "HexPortal.Core",
+        "HexPortal.Game"
     ],
     "includePlatforms": [
         "Editor"

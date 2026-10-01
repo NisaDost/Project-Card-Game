@@ -1,0 +1,75 @@
+/* Graybox HUD. 1 dp ~ 1 px at the 1920x1080 reference; touch targets >= 48 (UX-01). */
+.fill { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+Label { color: rgb(240, 240, 245); -unity-font-style: bold; }
+
+.top-strip { position: absolute; left: 0; right: 0; top: 0; height: 64px; flex-direction: row; align-items: center;
+    justify-content: space-between; padding-left: 16px; padding-right: 16px; background-color: rgba(10, 12, 20, 0.7); }
+.info { font-size: 22px; }
+.info.right { -unity-text-align: middle-right; }
+.banner { font-size: 26px; padding: 4px 16px; border-radius: 8px; background-color: rgba(60, 80, 140, 0.9); }
+.banner.event { background-color: rgba(200, 110, 20, 0.95); }
+
+.side-col { position: absolute; top: 76px; bottom: 16px; width: 230px; }
+.left-col { left: 12px; }
+.right-col { right: 12px; align-items: stretch; }
+.spacer { flex-grow: 1; }
+
+.meter { flex-direction: row; flex-wrap: wrap; align-items: center; padding: 8px; margin-bottom: 10px; border-radius: 10px; border-width: 3px; }
+.mana-meter { background-color: rgba(30, 60, 150, 0.85); border-color: rgb(110, 160, 255); }
+.energy-meter { background-color: rgba(140, 100, 10, 0.85); border-color: rgb(255, 210, 60); }
+.meter-icon { font-size: 30px; width: 40px; -unity-text-align: middle-center; }
+.mana-icon { color: rgb(140, 190, 255); }
+.energy-icon { color: rgb(255, 225, 90); }
+.meter-text { font-size: 24px; flex-grow: 1; }
+.pips { flex-direction: row; width: 100%; height: 20px; margin-top: 4px; }
+.pip { width: 22px; height: 18px; margin-right: 4px; border-radius: 4px; }
+.mana-pip { background-color: rgb(120, 180, 255); }
+.energy-pip { background-color: rgb(255, 215, 70); }
+.pip.off { background-color: rgba(255, 255, 255, 0.15); }
+.timer { font-size: 26px; margin: 8px 0; padding: 6px; background-color: rgba(0, 0, 0, 0.5); border-radius: 8px; -unity-text-align: middle-center; }
+
+.btn { min-height: 56px; min-width: 56px; font-size: 22px; margin: 4px 0; border-radius: 10px;
+    background-color: rgb(55, 62, 85); color: rgb(240, 240, 245); border-width: 2px; border-color: rgb(120, 130, 160); white-space: normal; }
+.btn:hover { background-color: rgb(75, 85, 115); }
+.btn:disabled { opacity: 0.4; }
+.btn.big { min-height: 80px; width: 520px; font-size: 32px; margin: 10px; }
+.btn.market { min-height: 72px; font-size: 19px; }
+.btn.market.picked { border-color: rgb(255, 230, 80); border-width: 4px; }
+.btn.end { min-height: 96px; font-size: 30px; background-color: rgb(40, 130, 70); }
+.btn.overwatch { background-color: rgb(120, 60, 150); }
+.btn.selected { border-color: rgb(255, 230, 80); border-width: 5px; background-color: rgb(80, 90, 60); }
+
+.prompt { position: absolute; left: 260px; right: 260px; top: 72px; font-size: 24px; -unity-text-align: middle-center;
+    background-color: rgba(0, 0, 0, 0.55); border-radius: 8px; padding: 4px; }
+
+.hand { position: absolute; left: 260px; right: 260px; bottom: 4px; height: 160px; flex-direction: row; justify-content: center; align-items: flex-end; }
+.card { width: 128px; height: 150px; margin: 0 6px; padding: 6px; border-radius: 12px; border-width: 5px;
+    background-color: rgb(235, 232, 220); border-color: rgb(160, 160, 160); }
+.card Label { color: rgb(30, 30, 40); white-space: normal; }
+.card.selected { translate: 0 -24px; border-color: rgb(255, 230, 0); }
+.card.unplayable { opacity: 0.55; }
+.card-cost { position: absolute; left: -4px; top: -4px; width: 38px; height: 38px; border-radius: 19px; font-size: 22px;
+    -unity-text-align: middle-center; background-color: rgb(50, 100, 220); color: white; }
+.card .card-cost { color: white; }
+.card-name { margin-top: 30px; font-size: 17px; -unity-text-align: middle-center; }
+.card-text { font-size: 13px; -unity-text-align: middle-center; -unity-font-style: normal; }
+.card-stats { font-size: 15px; -unity-text-align: middle-center; margin-top: 6px; }
+.dragging { position: absolute; display: none; opacity: 0.85; }
+
+.popup { position: absolute; left: 30%; right: 30%; top: 18%; padding: 20px; background-color: rgba(20, 24, 40, 0.97);
+    border-radius: 14px; border-width: 3px; border-color: rgb(120, 140, 200); display: none; }
+.popup-text { font-size: 22px; white-space: normal; margin-bottom: 12px; -unity-font-style: normal; }
+
+.screen { position: absolute; left: 0; top: 0; right: 0; bottom: 0; align-items: center; justify-content: center;
+    background-color: rgba(8, 10, 18, 0.85); display: none; }
+.screen.opaque { background-color: rgb(14, 17, 28); }
+.screen-title { font-size: 48px; margin-bottom: 24px; }
+.screen-title.huge { font-size: 96px; }
+.screen-sub { font-size: 32px; margin: 8px; }
+.options { flex-direction: row; flex-wrap: wrap; justify-content: center; width: 80%; }
+.option { width: 300px; min-height: 140px; margin: 10px; font-size: 22px; }
+
+.unit-label { position: absolute; font-size: 20px; padding: 0 4px; border-radius: 6px; background-color: rgba(0, 0, 0, 0.6);
+    -unity-text-align: middle-center; translate: -50% -100%; }
+.unit-label.ghost { opacity: 0.5; }
+.float-label { position: absolute; font-size: 34px; color: rgb(255, 80, 60); translate: -50% -50%; -unity-text-align: middle-center; }

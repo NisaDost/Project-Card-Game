@@ -1,0 +1,23 @@
+{
+    "name": "HexPortal.Game.Tests",
+    "rootNamespace": "HexPortal.Game.Tests",
+    "references": [
+        "HexPortal.Core",
+        "HexPortal.Game",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
