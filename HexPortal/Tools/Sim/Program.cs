@@ -8,7 +8,9 @@ namespace HexPortal.Sim
     /// <summary>AI-vs-AI batch simulator (M5b).
     /// Usage: Sim [--games N] [--seed S] [--a normal|easy] [--b normal|easy] [--first a|b] [--swap] [--parallel] [--json path]
     /// "a" and "b" are two AI configurations; --first chooses which one sits on seat A (A moves first, S-01); --swap plays
-    /// every seed twice with the configurations on both seats (each keeps its own Rng).</summary>
+    /// every seed twice with the configurations on both seats (each keeps its own Rng); it cannot be combined with --first.
+    /// Game i uses match seed S × 1,000,000 + i + 1, so --games is at most 1,000,000 and --seed at most
+    /// SimOptions.MaxSeed (no overflow, no overlap between seeds).</summary>
     public static class Program
     {
         public static int Main(string[] args)
@@ -26,13 +28,14 @@ namespace HexPortal.Sim
                         case "--seed": o.Seed = ulong.Parse(Next()); break;
                         case "--a": o.LevelA = Level(Next()); break;
                         case "--b": o.LevelB = Level(Next()); break;
-                        case "--first": o.FirstIsA = First(Next()); break;
+                        case "--first": o.FirstIsA = First(Next()); o.FirstSet = true; break;
                         case "--swap": o.Swap = true; break;
                         case "--parallel": o.Parallel = true; break;
                         case "--json": json = Next(); break;
                         default: throw new ArgumentException("Unknown argument " + args[i]);
                     }
                 }
+                o.Validate();
             }
             catch (Exception e) when (e is ArgumentException || e is FormatException || e is OverflowException)
             {

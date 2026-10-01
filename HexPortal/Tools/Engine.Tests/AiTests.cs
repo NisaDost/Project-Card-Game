@@ -284,8 +284,13 @@ namespace HexPortal.Tests
                 var tb = new TestBoard();
                 tb.Unit(UnitClass.Guardian, p, M(6, 6)); // two equal moves (5,5) and (7,5): a tie
                 tb.Unit(UnitClass.Archer, p, M(2, 6));
+                // In the Control Zone: a C-18 target. On the left edge, pushes 2, 3, 4 (NW, W, SW) are blocked and tie; their
+                // mirrors 5, 0, 1 do not keep that order, so the seat-rotated direction order is really checked.
+                tb.Unit(UnitClass.Healer, p.Opponent(), M(0, 6));
                 foreach (var r in new[] { M(4, 6), M(8, 6), M(5, 7), M(7, 7) }) tb.Rock(r);
-                tb.Active(p);
+                tb.Hand(p, "U-05-Desert"); // deploy: many Control Zone cells, several with equal scores
+                tb.Hand(p, "C-18");
+                tb.Active(p).Mana(p, 3);
                 var st = tb.Build();
                 ExploreAll(st, p);
                 return st;
@@ -297,6 +302,9 @@ namespace HexPortal.Tests
                     case MoveCommand m: return new MoveCommand(B, m.UnitId, m.Dest.Mirror());
                     case AttackCommand a: return new AttackCommand(B, a.UnitId, a.Target.Mirror());
                     case OverwatchCommand o: return new OverwatchCommand(B, o.UnitId);
+                    case DeployCommand d: return new DeployCommand(B, d.CardId, d.Cell.Mirror());
+                    case PlayCardCommand pc when pc.Direction >= 0: // Mirror negates a direction: index + 3 (Hex.Directions)
+                        return new PlayCardCommand(B, pc.CardId, pc.Target.Mirror(), (pc.Direction + 3) % 6);
                     case EndTurnCommand _: return new EndTurnCommand(B);
                     default: throw new InvalidOperationException(c.ToString());
                 }
@@ -305,6 +313,11 @@ namespace HexPortal.Tests
             var rb = Rank(Build(B), B);
             Assert.That(ra.Count, Is.EqualTo(rb.Count));
             Assert.That(ra.Select(c => c.Score).Distinct().Count(), Is.LessThan(ra.Count), "the scenario has ties");
+            bool Tied<T>() => ra.Where(c => c.Command is T).GroupBy(c => c.Score).Any(g => g.Count() > 1);
+            Assert.That(Tied<DeployCommand>(), "deploys with equal scores");
+            Assert.That(ra.Count(c => c.Command is PlayCardCommand pc && pc.Direction >= 0), Is.EqualTo(6), "a push in each direction");
+            Assert.That(Tied<PlayCardCommand>(), "pushes with equal scores: "
+                + string.Join(" ", ra.Where(c => c.Command is PlayCardCommand).Select(c => ((PlayCardCommand)c.Command).Direction + ":" + c.Score)));
             for (int i = 0; i < ra.Count; i++)
             {
                 Assert.That(rb[i].Command, Is.EqualTo(Mirror(ra[i].Command)), "rank " + i);

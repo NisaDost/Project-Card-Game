@@ -16,15 +16,30 @@ namespace HexPortal.Sim
         public AiLevel LevelA = AiLevel.Normal;
         public AiLevel LevelB = AiLevel.Normal;
         public bool FirstIsA = true; // configuration "a" on seat A
+        public bool FirstSet;        // --first was given (not allowed with --swap)
         public bool Swap;            // every seed twice, configurations on both seats
         public bool Parallel;
         public bool Timing = true;
 
+        /// <summary>Distinct runs: game i (0-based) of seed S uses match seed S × SeedStride + i + 1.</summary>
+        public const ulong SeedStride = 1000000UL;
+        public const int MaxGames = 1000000;
+        public const ulong MaxSeed = (ulong.MaxValue - SeedStride) / SeedStride;
+
         /// <summary>Game i (0-based) of the run uses this match seed.</summary>
-        public ulong SeedFor(int i) => Seed * 1000000UL + (ulong)i + 1;
+        public ulong SeedFor(int i) => Seed * SeedStride + (ulong)i + 1;
+
+        /// <summary>Throws ArgumentException for settings that would overlap or overflow the seed range.</summary>
+        public void Validate()
+        {
+            if (Games < 1 || Games > MaxGames) throw new ArgumentException("--games must be 1.." + MaxGames + " (seed stride), got " + Games);
+            if (Seed > MaxSeed) throw new ArgumentException("--seed must be at most " + MaxSeed + " (seed × " + SeedStride + " + game must fit in 64 bits)");
+            if (FirstSet && Swap) throw new ArgumentException("--first and --swap cannot be combined (--swap plays both seatings)");
+        }
 
         public List<GameSpec> Specs()
         {
+            Validate();
             var list = new List<GameSpec>();
             for (int i = 0; i < Games; i++)
             {
@@ -48,6 +63,10 @@ namespace HexPortal.Sim
     public static class SimReport
     {
         static readonly string[] Seats = { "A", "B" };
+
+        /// <summary>Redacted views made only by EventFilter for a player; Engine.Apply never returns them, so the Sim
+        /// (which counts the full event list) never sees them.</summary>
+        static readonly string[] ViewOnlyEvents = { "UnitAppeared", "UnitVanished", "TowerHealthChanged" };
 
         public static List<GameRecord> Run(SimOptions o)
         {
@@ -101,6 +120,20 @@ namespace HexPortal.Sim
             }
             root["portal waits"] = waits;
 
+            // ---- W-01: the round each player's Portal first opened (its 2nd completed quest) ----
+            var opened = new SortedDictionary<string, object>();
+            for (int seat = 0; seat < 2; seat++)
+            {
+                var rounds = games.Select(g => g.Seats[seat].PortalOpenRound).ToList();
+                opened[Seats[seat]] = new SortedDictionary<string, object>
+                {
+                    ["opened"] = Stats(rounds.Where(r => r > 0).Select(r => (double)r)),
+                    ["histogram"] = Histogram(rounds.Where(r => r > 0)),
+                    ["never opened"] = rounds.Count(r => r == 0),
+                };
+            }
+            root["portal open round"] = opened;
+
             // ---- Per class, card, quest, passive (player-games; win rate when present) ----
             var pg = new List<(SeatStats s, bool won, int seat)>();
             foreach (var g in games)
@@ -133,6 +166,13 @@ namespace HexPortal.Sim
                 quests[q.Id + " " + q.Name] = e;
             }
             root["quests (chosen)"] = quests;
+            var completion = new SortedDictionary<string, object>(); // top level for the balance-analyst (completed / chosen)
+            foreach (var q in Catalog.Quests)
+            {
+                int chosen = pg.Count(x => x.s.Quests.Contains(q.Id));
+                completion[q.Id] = Rate(pg.Count(x => x.s.QuestsCompleted.Contains(q.Id)), chosen);
+            }
+            root["quest completion rates"] = completion;
 
             var passives = new SortedDictionary<string, object>();
             foreach (var d in Catalog.Passives)
@@ -167,7 +207,7 @@ namespace HexPortal.Sim
             var events = Merge(games.Select(g => g.Events));
             var never = new List<string>();
             foreach (var t in typeof(GameEvent).Assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(GameEvent)) && !t.IsAbstract).OrderBy(t => t.Name))
-                if (!events.ContainsKey(t.Name)) never.Add("event " + t.Name);
+                if (!ViewOnlyEvents.Contains(t.Name) && !events.ContainsKey(t.Name)) never.Add("event " + t.Name);
             foreach (var d in Catalog.Passives) if (!events.ContainsKey("Passive " + d.Id)) never.Add("passive revealed " + d.Id);
             foreach (var d in Catalog.MapEvents) if (!events.ContainsKey("MapEvent " + d.Id)) never.Add("map event " + d.Id);
             foreach (var d in Catalog.SupportCards.Where(c => c.Category == CardCategory.Trap))

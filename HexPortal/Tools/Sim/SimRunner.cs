@@ -23,7 +23,9 @@ namespace HexPortal.Sim
         public SortedSet<string> Classes = new SortedSet<string>(); // classes that were on the board
         public SortedDictionary<string, int> CardsPlayed = new SortedDictionary<string, int>(); // support cards (incl. setup traps)
         public SortedDictionary<string, int> Deployed = new SortedDictionary<string, int>();    // character classes deployed in play
-        public SortedDictionary<string, int> Draws = new SortedDictionary<string, int>();       // Market slot / Blind (turn-start draws)
+        // Turn-start draws (T-04): "explicit <slot>" (a DrawCommand) or "pre-picked <slot>" (a valid T-11 pre-pick applied).
+        public SortedDictionary<string, int> Draws = new SortedDictionary<string, int>();
+        public int PortalOpenRound;           // W-01: round of the turn end that completed the 2nd quest; 0 = never
         public List<string> Quests = new List<string>();
         public List<string> QuestsCompleted = new List<string>();
         public List<string> QuestsFailed = new List<string>();
@@ -100,7 +102,7 @@ namespace HexPortal.Sim
                     case PlayCardCommand pc: Add(st.CardsPlayed, s.FindInHand(p, pc.CardId).DefId); break;
                     case PlaceTrapCommand pt: Add(st.CardsPlayed, s.FindInHand(p, pt.CardId).DefId); break;
                     case DeployCommand d: Add(st.Deployed, s.FindInHand(p, d.CardId).Character.Class.ToString()); break;
-                    case DrawCommand d: Add(st.Draws, d.Slot == DrawCommand.Blind ? "Blind" : ((CardPool)d.Slot).ToString()); break;
+                    case DrawCommand d: Add(st.Draws, "explicit " + (d.Slot == DrawCommand.Blind ? "Blind" : ((CardPool)d.Slot).ToString())); break;
                     case EndTurnCommand _:
                         st.Turns++;
                         st.UnusedMana += s.GetMana(p);
@@ -108,16 +110,32 @@ namespace HexPortal.Sim
                         break;
                 }
 
+                int roundBefore = s.Round; // quests complete at turn ends, before T-10 advances the round
                 var events = Engine.Apply(s, c);
                 rec.Commands++;
+                int turnStarter = -1;      // T-04: the player whose turn start is running in this command
+                GameEvent prev = null;
                 foreach (var e in events)
                 {
                     Add(rec.Events, e.GetType().Name);
                     switch (e)
                     {
+                        case TurnStarted ts: turnStarter = (int)ts.Player; break;
+                        case CardDrawn cd when (int)cd.Player == turnStarter && !IsDeathOrMerchantDraw(prev, cd.Player):
+                            // T-04 step 4 applied a valid pre-pick (T-11): no DrawCommand follows. Death draws (U-23) and the
+                            // Merchant's extra draw (P-05) in the same turn start are told apart by the event just before them.
+                            var drawn = FindCard(s, cd.Player, cd.CardId);
+                            Add(rec.Seats[turnStarter].Draws, "pre-picked " + (cd.Source == DrawSource.Blind ? "Blind"
+                                : drawn != null ? drawn.Pool.ToString() : "Market"));
+                            turnStarter = -1;
+                            break;
                         case TowerShot _: rec.TowerShots++; break;
                         case OverwatchFired _: rec.OverwatchShots++; break;
-                        case QuestCompleted q: rec.Seats[(int)q.Player].QuestsCompleted.Add(q.QuestId); break;
+                        case QuestCompleted q:
+                            var qs = rec.Seats[(int)q.Player];
+                            qs.QuestsCompleted.Add(q.QuestId);
+                            if (qs.QuestsCompleted.Count == Catalog.PortalQuestsRequired) qs.PortalOpenRound = roundBefore; // W-01
+                            break;
                         case QuestFailed q: rec.Seats[(int)q.Player].QuestsFailed.Add(q.QuestId); break;
                         case PassiveRevealed x: rec.Seats[(int)x.Player].PassiveRevealed = true; Add(rec.Events, "Passive " + x.PassiveId); break;
                         case MapEventResolved m: Add(rec.Events, "MapEvent " + m.DefId); break;
@@ -129,6 +147,7 @@ namespace HexPortal.Sim
                             for (int w = 0; w < 2; w++) if (pending[w] == u.UnitId && u.To != Board.Portal) pushed[w] = true;
                             break;
                     }
+                    prev = e;
                 }
                 foreach (var u in s.Units) rec.Seats[(int)u.Owner].Classes.Add(u.Class.ToString());
 
@@ -187,6 +206,18 @@ namespace HexPortal.Sim
             rec.WinnerConfig = s.Result.Winner.HasValue ? rec.Seats[(int)s.Result.Winner.Value].Config : null;
             if (s.Result.Reason == WinReason.Portal) rec.PortalWinRound = s.Round;
             return rec;
+        }
+
+        // U-23: a death draw directly follows its UnitDied; P-05: the Merchant's extra draw directly follows its first
+        // PassiveRevealed (the passive works once, at that moment).
+        static bool IsDeathOrMerchantDraw(GameEvent prev, PlayerId p) =>
+            prev is UnitDied d && d.Owner == p || prev is PassiveRevealed r && r.Player == p && r.PassiveId == "P-05";
+
+        static CardInstance FindCard(GameState s, PlayerId p, int id)
+        {
+            foreach (var c in s.GetHand(p))
+                if (c.Id == id) return c;
+            return null;
         }
 
         static void Add(SortedDictionary<string, int> d, string key) => d[key] = d.TryGetValue(key, out int n) ? n + 1 : 1;

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -47,10 +48,12 @@ namespace HexPortal.Tests
         /// (1) no code calls PlayerView.For, Engine.GetLegalCommands or Match.Create (the caller passes the view and the legal
         /// list); (2) a GameState is created only in BeliefState.cs (`new GameState(`);
         /// (3) GameState appears in no public/internal/protected member signature except BeliefState.From(PlayerView);
-        /// (4) no field, property or local is declared with the GameState type (fields without an access modifier
-        /// included; locals use `var`), and no generic type argument is GameState.
-        /// Each file is checked as one line (comments removed, whitespace collapsed), so signatures split over several
-        /// lines are caught. Private helpers may take the belief state as a parameter (it is built from the view alone).
+        /// (4) GameState is never the type of a field, property, local or foreach variable (fields without an access
+        /// modifier and `GameState a, b;` included; locals use `var`), never an array element type, generic argument or
+        /// tuple element, and never a cast target.
+        /// Each file goes through AiNormalize (comments removed, whitespace collapsed to one line, no space before '('), so
+        /// signatures split over several lines are caught; AiViolations then applies the patterns. Private helpers may take
+        /// the belief state as a parameter (it is built from the view alone); typed lambda parameters are not allowed.
         /// The behavioural part is AiTests.AI01_ChoiceIsTheSameWhenHiddenDataIsScrambled.</summary>
         [Test]
         public void Arch_AiUsesOnlyThePlayerView()
@@ -59,36 +62,20 @@ namespace HexPortal.Tests
             Assert.That(Directory.Exists(aiDir), "Core/Ai missing");
             var files = Directory.GetFiles(aiDir, "*.cs", SearchOption.AllDirectories);
             Assert.That(files, Is.Not.Empty);
-            var hits = new System.Collections.Generic.List<string>();
+            var hits = new List<string>();
             int fromSignatures = 0;
-            const string from = @"\binternal\s+static\s+GameState\s+From\s*\(\s*PlayerView\s+\w+\s*\)";
             foreach (var f in files)
             {
                 string name = Path.GetFileName(f);
-                bool belief = name == "BeliefState.cs";
-                var code = string.Join(" ", File.ReadAllLines(f).Select(l => Regex.Replace(l, @"//.*$", "")));
-                code = Regex.Replace(code, @"/\*.*?\*/", " ");
-                code = Regex.Replace(code, @"\s+", " ");
-                if (belief)
-                {
-                    fromSignatures += Regex.Matches(code, from).Count;
-                    code = Regex.Replace(code, from, "/*From*/");
-                }
-                void Check(string pattern, string why)
-                {
-                    foreach (Match m in Regex.Matches(code, pattern)) hits.Add(name + ": " + why + ": " + m.Value.Trim());
-                }
-                Check(@"PlayerView\s*\.\s*For\s*\(|GetLegalCommands\s*\(|Match\s*\.\s*Create\s*\(", "calls the real-state API");
-                if (!belief) Check(@"\bnew\s+GameState\s*\(", "creates a GameState");
-                Check(NonPrivateSignature, "GameState in a non-private signature");
-                Check(Declaration, "field, property or local of type GameState");
-                Check(GenericArgument, "GameState as a generic argument");
+                foreach (var v in AiViolations(AiNormalize(File.ReadAllText(f)), name == "BeliefState.cs", ref fromSignatures))
+                    hits.Add(name + ": " + v);
             }
             Assert.That(hits, Is.Empty);
             Assert.That(fromSignatures, Is.EqualTo(1), "BeliefState.From(PlayerView) is the one entry point");
         }
 
-        /// <summary>The scan above must catch what it claims to (checked on planted snippets, not on Core).</summary>
+        /// <summary>The scan above catches what it claims to: planted snippets go through the same AiNormalize and
+        /// AiViolations as the Core files.</summary>
         [Test]
         public void Arch_AiScanCatchesPlantedViolations()
         {
@@ -99,23 +86,74 @@ namespace HexPortal.Tests
                 "static GameState last = null;",
                 "GameState Current { get; set; }",
                 "readonly List<GameState> history;",
+                "GameState[] states;",
+                "static int F(GameState [] all) { return 0; }",
+                "GameState a, b;",
+                "(GameState, int) pair;",
+                "(int, GameState) pair;",
+                "(int n, GameState s) named;",
+                "var t = (GameState)obj;",
+                "var t = (GameState) obj;",
+                "foreach (GameState g in list) { }",
+                "PlayerView.For(s, p);",
+                "var l = Engine.GetLegalCommands (s, p);",
+                "var x = new GameState(map, a, b);",
             };
             foreach (var b in bad)
             {
-                var code = Regex.Replace(b, @"\s+", " ");
-                bool caught = Regex.IsMatch(code, NonPrivateSignature) || Regex.IsMatch(code, Declaration)
-                              || Regex.IsMatch(code, GenericArgument);
-                Assert.That(caught, "not caught: " + b);
+                int from = 0;
+                Assert.That(AiViolations(AiNormalize(b), false, ref from), Is.Not.Empty, "not caught: " + b);
             }
-            foreach (var p in new[] { NonPrivateSignature, Declaration, GenericArgument })
-                Assert.That(Regex.IsMatch("static int Eval(GameState s, Context ctx) { var x = s.Clone(); }", p), Is.False,
-                    "a private helper parameter is allowed");
+            string[] good =
+            {
+                "static int Eval(GameState s, Context ctx) { var x = s.Clone(); return 0; }",
+                "static void Put(GameState s, UnitView v, HashSet<int> added, PlayerId viewer) { }",
+                "static long TieKey(ICommand c, GameState belief, PlayerId me) { int kind, primary = 0; return 0; }",
+                "// GameState cached;\nstatic int F(GameState s) { return 0; }",
+                "/* public GameState X;\n internal GameState Y; */ int y;",
+                "internal static GameState From(PlayerView view) { var s = new GameState(map, a, b, 0UL); return s; }",
+            };
+            foreach (var g in good)
+            {
+                int from = 0;
+                Assert.That(AiViolations(AiNormalize(g), true, ref from), Is.Empty, "false positive: " + g);
+            }
         }
 
-        // Applied to a whole file collapsed to one line (Arch_AiUsesOnlyThePlayerView).
-        const string NonPrivateSignature = @"\b(public|internal|protected)\b[^;{}=]*\bGameState\b";
-        const string Declaration = @"\bGameState\s+\w+\s*(=|;|\{)";
-        const string GenericArgument = @"<[^<>;{}]*\bGameState\b";
+        /// <summary>Comments removed, the file collapsed to one line, no whitespace before '('.</summary>
+        static string AiNormalize(string text)
+        {
+            var code = string.Join(" ", text.Split('\n').Select(l => Regex.Replace(l, @"//.*$", "")));
+            code = Regex.Replace(code, @"/\*.*?\*/", " ");
+            code = Regex.Replace(code, @"\s+", " ");
+            return Regex.Replace(code, @"\s+\(", "(");
+        }
+
+        static List<string> AiViolations(string code, bool beliefFile, ref int fromSignatures)
+        {
+            const string from = @"\binternal\s+static\s+GameState\s+From\(\s*PlayerView\s+\w+\s*\)";
+            if (beliefFile)
+            {
+                fromSignatures += Regex.Matches(code, from).Count;
+                code = Regex.Replace(code, from, "/*From*/");
+            }
+            var hits = new List<string>();
+            void Check(string pattern, string why)
+            {
+                foreach (Match m in Regex.Matches(code, pattern)) hits.Add(why + ": " + m.Value.Trim());
+            }
+            Check(@"PlayerView\s*\.\s*For\(|GetLegalCommands\(|Match\s*\.\s*Create\(", "calls the real-state API");
+            if (!beliefFile) Check(@"\bnew\s+GameState\(", "creates a GameState");
+            Check(@"\b(public|internal|protected)\b[^;{}=]*\bGameState\b", "GameState in a non-private signature");
+            Check(@"\bGameState\s+\w+\s*(=|;|\{|,\s*\w+\s*(=|;|,))", "field, property or local of type GameState");
+            Check(@"\bGameState\s+\w+\s+in\b", "foreach variable of type GameState");
+            Check(@"\bGameState\s*\[", "GameState array");
+            Check(@"<[^<>;{}]*\bGameState\b", "GameState as a generic argument");
+            Check(@"(?<![\w>\]?])\(\s*GameState\b", "GameState cast or tuple element");          // not a call/declaration '('
+            Check(@",\s*GameState\s*[,)]", "unnamed GameState tuple element");
+            Check(@"\([^()]*\bGameState\b[^()]*\)\s*\w+\s*(=|;|\{)", "tuple-typed member with a GameState element");
+            return hits;
+        }
 
         [Test]
         public void Arch_CoreHasNoRecordOrInit()

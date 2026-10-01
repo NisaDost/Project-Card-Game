@@ -77,7 +77,8 @@ namespace HexPortal.Core
                 var def = Passive(view.OpponentPassive);
                 s.SetPassiveChoice(opp, def);
                 s.GetProgress(opp).PassiveRevealed = true;
-                // P-04: the blocked amount is hidden. Towers are never healed (U-05), so a tower below full Health means the
+                // P-04: each blocked amount is public as a TowerDamageBlocked event, but the PlayerView carries no running
+                // total and the AI keeps no history. Towers are never healed (U-05), so a tower below full Health means the
                 // wall is used up; otherwise it was revealed by a smaller hit: a middle estimate.
                 if (def.Id == "P-04")
                     s.GetProgress(opp).WallBlocked = view.EnemyTowerHealth < Catalog.Tower.Health ? def.Amount : WallEstimate;
