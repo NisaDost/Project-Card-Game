@@ -8,8 +8,14 @@ namespace HexPortal.Game
     {
         public const string Title = "HexPortal";
         public const string Hotseat = "Aynı cihazda 2 kişi";
-        public const string TimerOn = "Süre: Açık";
-        public const string TimerOff = "Süre: Kapalı";
+        public const string TimerOn = "Süre (2 kişi): Açık";
+        public const string AiEasy = "Yapay zekâya karşı — Kolay";
+        public const string AiNormal = "Yapay zekâya karşı — Normal";
+        public const string SeatA = "YZ maçında sen: Oyuncu A (ilk oynar)";
+        public const string SeatB = "YZ maçında sen: Oyuncu B";
+        public const string AiTimerOn = "Süre (YZ): Açık";
+        public const string AiTimerOff = "Süre (YZ): Kapalı";
+        public const string TimerOff = "Süre (2 kişi): Kapalı";
         public const string HandoffTitle = "Telefonu rakibine ver";
         public const string HandoffTap = "Hazır olunca ekrana dokun";
         public const string PlayerA = "Oyuncu A";

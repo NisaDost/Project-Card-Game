@@ -31,3 +31,4 @@
 # Claude Code local state
 .claude/settings.local.json
 .claude/.tests-dirty
+/.utmp/

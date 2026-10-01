@@ -73,5 +73,9 @@
         <ui:Label name="menu-title" class="screen-title huge" />
         <ui:Button name="menu-hotseat" class="btn big" />
         <ui:Button name="menu-timer" class="btn big" />
+        <ui:Button name="menu-ai-easy" class="btn big" />
+        <ui:Button name="menu-ai-normal" class="btn big" />
+        <ui:Button name="menu-seat" class="btn big" />
+        <ui:Button name="menu-ai-timer" class="btn big" />
     </ui:VisualElement>
 </ui:UXML>

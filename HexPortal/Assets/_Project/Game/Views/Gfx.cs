@@ -22,6 +22,7 @@ namespace HexPortal.Game
         public static readonly Color MoveHl = new Color(0.05f, 0.25f, 1.00f, 0.85f);
         public static readonly Color AttackHl = new Color(1.00f, 0.05f, 0.05f, 0.85f);
         public static readonly Color TargetHl = new Color(1.00f, 0.95f, 0.10f, 0.8f);
+        public static readonly Color ZoneHl = new Color(0.55f, 0.95f, 1.00f, 0.35f);
         public static readonly Color EventHl = new Color(1.00f, 0.55f, 0.10f, 0.6f);
         public static readonly Color FlashHl = new Color(1.00f, 1.00f, 1.00f, 0.8f);
 
@@ -37,8 +38,18 @@ namespace HexPortal.Game
             return Color.Lerp(new Color(g, g, g), c, 0.25f) * 0.6f;
         }
 
-        public static Material Opaque => opaque != null ? opaque : opaque = MakeMaterial(false);
-        public static Material Transparent => transparent != null ? transparent : transparent = MakeMaterial(true);
+        // Material assets in Resources keep the URP Lit shader and its transparent variant in Player builds
+        // (Shader.Find and runtime keywords alone may be stripped). The code fallback covers a missing asset.
+        public static Material Opaque => opaque != null ? opaque : opaque = Load("HexPortalOpaque", false);
+        public static Material Transparent => transparent != null ? transparent : transparent = Load("HexPortalGhost", true);
+
+        static Material Load(string resource, bool transparentSurface)
+        {
+            var asset = Resources.Load<Material>(resource);
+            if (asset != null) return new Material(asset);
+            Debug.LogWarning("[Gfx] Missing Resources/" + resource + ".mat; building the material in code.");
+            return MakeMaterial(transparentSurface);
+        }
 
         static Material MakeMaterial(bool transparentSurface)
         {

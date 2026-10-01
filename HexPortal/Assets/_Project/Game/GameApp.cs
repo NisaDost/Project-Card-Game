@@ -53,10 +53,30 @@ namespace HexPortal.Game
             Ui = new GameUi(Match, root, board, units, cam);
         }
 
+        /// <summary>AI-05: pause between AI commands so each one's animation can be followed.</summary>
+        public const float AiStepSeconds = 0.5f;
+
+        void Start() => StartCoroutine(AiLoop());
+
         void Update()
         {
             Match.Tick(Time.deltaTime);
             Ui.TickClock();
+        }
+
+        /// <summary>Runs the AI's turn one command at a time, so the UI stays responsive (AI-05).</summary>
+        System.Collections.IEnumerator AiLoop()
+        {
+            var wait = new WaitForSeconds(AiStepSeconds);
+            while (true)
+            {
+                if (Match.AiToAct)
+                {
+                    yield return wait;
+                    if (Match.AiToAct) Match.StepAi();
+                }
+                else yield return null;
+            }
         }
 
         void OnDestroy()

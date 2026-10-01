@@ -163,6 +163,29 @@ namespace HexPortal.Tests
             AssertNoMatch(@"\binit\s*(;|=>|\{)", "No init accessors in Core.");
         }
 
+        /// <summary>M6 gate: the com.unity.pipeline runtime server must never be enabled in Player builds
+        /// (RuntimePipelineConfig.json absent, or enableInBuilds false). BuildGuards.cs enforces the same at build time.</summary>
+        [Test]
+        public void Gate_PipelineRuntimeServerNotEnabledInBuilds()
+        {
+            var project = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(CoreDir())));
+            Assert.That(Directory.Exists(Path.Combine(project, "ProjectSettings")), "project root not found");
+            var config = Path.Combine(project, "ProjectSettings", "Packages", "com.unity.pipeline", "RuntimePipelineConfig.json");
+            if (!File.Exists(config)) return;
+            Assert.That(Regex.IsMatch(File.ReadAllText(config), @"""enableInBuilds""\s*:\s*true"), Is.False,
+                "RuntimePipelineConfig.json enables the runtime server in builds.");
+        }
+
+        /// <summary>The project must never define ENABLE_RUNTIME_PIPELINE (CLAUDE.md hard rule).</summary>
+        [Test]
+        public void Gate_NoRuntimePipelineDefine()
+        {
+            var project = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(CoreDir())));
+            var settings = Path.Combine(project, "ProjectSettings", "ProjectSettings.asset");
+            Assert.That(File.Exists(settings));
+            Assert.That(File.ReadAllText(settings), Does.Not.Contain("ENABLE_RUNTIME_PIPELINE"));
+        }
+
         /// <summary>UX-09, V-10: in the Unity client only MatchController.cs may mention GameState; views read PlayerView,
         /// filtered events and legal commands.</summary>
         [Test]

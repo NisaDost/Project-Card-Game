@@ -32,6 +32,8 @@ namespace HexPortal.Game
         readonly List<string> pickedQuests = new List<string>();
 
         bool timerOn = true;
+        bool aiTimerOn;
+        PlayerId humanSeat = PlayerId.A;
         int selectedUnit = -1;
         int selectedCard = -1;
         readonly List<ICommand> secondPick = new List<ICommand>();
@@ -51,6 +53,7 @@ namespace HexPortal.Game
         public int SelectedCard => selectedCard;
         public int HighlightCount => board.HighlightCount;
         public string LastTap { get; private set; } = "";
+        public VisualElement Root => root;
 
         public GameUi(MatchController match, VisualElement root, BoardView board, UnitsView units, Camera cam)
         {
@@ -82,6 +85,12 @@ namespace HexPortal.Game
             var hot = root.Q<Button>("menu-hotseat"); hot.text = Strings.Hotseat; hot.clicked += StartHotseat;
             menuTimer = root.Q<Button>("menu-timer"); menuTimer.text = Strings.TimerOn;
             menuTimer.clicked += () => { timerOn = !timerOn; menuTimer.text = timerOn ? Strings.TimerOn : Strings.TimerOff; };
+            var easy = root.Q<Button>("menu-ai-easy"); easy.text = Strings.AiEasy; easy.clicked += () => StartAi(AiLevel.Easy);
+            var normal = root.Q<Button>("menu-ai-normal"); normal.text = Strings.AiNormal; normal.clicked += () => StartAi(AiLevel.Normal);
+            var seat = root.Q<Button>("menu-seat"); seat.text = Strings.SeatA;
+            seat.clicked += () => { humanSeat = humanSeat.Opponent(); seat.text = humanSeat == PlayerId.A ? Strings.SeatA : Strings.SeatB; };
+            var aiTimer = root.Q<Button>("menu-ai-timer"); aiTimer.text = Strings.AiTimerOff; // T-09: off by default vs AI
+            aiTimer.clicked += () => { aiTimerOn = !aiTimerOn; aiTimer.text = aiTimerOn ? Strings.AiTimerOn : Strings.AiTimerOff; };
             root.Q<Label>("quests-title").text = Strings.ChooseQuests;
             root.Q<Label>("passive-title").text = Strings.ChoosePassive;
             root.Q<Label>("handoff-title").text = Strings.HandoffTitle;
@@ -108,7 +117,15 @@ namespace HexPortal.Game
         void StartHotseat()
         {
             ulong seed = (ulong)System.Environment.TickCount;
+            facing = null;
             match.NewMatch(seed, timerOn);
+        }
+
+        void StartAi(AiLevel level)
+        {
+            ulong seed = (ulong)System.Environment.TickCount;
+            facing = null;
+            match.NewAiMatch(seed, humanSeat, level, aiTimerOn);
         }
 
         // ---------- Screens ----------
@@ -455,6 +472,8 @@ namespace HexPortal.Game
             selectedUnit = -1;
             secondPick.Clear();
             board.ClearHighlights();
+            if (match.View.Phase == GamePhase.Playing) // C-02, UX-03 (setup uses the home zone, shown by the targets)
+                foreach (var z in match.View.ControlZone) board.Highlight(z, Gfx.ZoneHl);
             foreach (var c in match.Legal)
                 if (CardOf(c) == cardId && CellOf(c, out var h)) board.Highlight(h, Gfx.TargetHl);
             int i = 0;

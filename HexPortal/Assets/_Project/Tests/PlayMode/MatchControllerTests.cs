@@ -51,6 +51,59 @@ namespace HexPortal.Game.Tests
             Assert.That(events, Is.GreaterThan(0));
         }
 
+        /// <summary>AI-01…AI-06 through the client: a scripted human against the greedy AI (both seats, both levels)
+        /// reaches a result with no handoff screen; the AI only acts via StepAi.</summary>
+        [TestCase(PlayerId.A, AiLevel.Normal, 21UL)]
+        [TestCase(PlayerId.B, AiLevel.Easy, 22UL)]
+        public void M6_HumanVsAiMatchRunsToResult(PlayerId human, AiLevel level, ulong seed)
+        {
+            var m = new MatchController();
+            m.NewAiMatch(seed, human, level, timer: false);
+            Assert.That(m.HandoffPending, Is.False);
+            Assert.That(m.Viewer, Is.EqualTo(human));
+            var rng = new Random((int)seed);
+            int steps = 0, actions = 0, aiSteps = 0;
+            while (!m.IsOver && steps++ < 50000)
+            {
+                Assert.That(m.HandoffPending, Is.False, "no handoff vs AI");
+                Assert.That(m.View.Viewer, Is.EqualTo(human), "only the human's view is shown");
+                if (m.AiToAct)
+                {
+                    Assert.That(m.StepAi(), Is.True);
+                    aiSteps++;
+                    actions = 0;
+                    continue;
+                }
+                var legal = m.Legal;
+                Assert.That(legal, Is.Not.Empty);
+                ICommand cmd;
+                if (m.View.Phase == GamePhase.Setup)
+                    cmd = legal.FirstOrDefault(c => c is FinishSetupCommand)
+                          ?? (m.View.SetupStep == SetupStep.Placement ? legal.First(c => c is PlaceUnitCommand) : legal[rng.Next(legal.Count)]);
+                else
+                {
+                    var end = legal.FirstOrDefault(c => c is EndTurnCommand);
+                    var others = legal.Where(c => !(c is EndTurnCommand)).ToList();
+                    cmd = end != null && (others.Count == 0 || actions++ >= 3) ? end : others[rng.Next(others.Count)];
+                }
+                Assert.That(m.Apply(cmd), Is.True, "legal command rejected: " + cmd);
+            }
+            Assert.That(m.IsOver, Is.True, "match did not finish");
+            Assert.That(m.View.Result, Is.Not.Null);
+            Assert.That(aiSteps, Is.GreaterThan(0));
+        }
+
+        /// <summary>AI-01: the only AI entry point takes a PlayerView and the legal list; nothing typed GameState.</summary>
+        [Test]
+        public void M6_AiNeverReceivesGameState()
+        {
+            var choose = typeof(GreedyAi).GetMethod("Choose", BindingFlags.Public | BindingFlags.Static);
+            Assert.That(choose, Is.Not.Null);
+            var ps = choose.GetParameters();
+            Assert.That(ps.Any(p => Uses(p.ParameterType)), Is.False);
+            Assert.That(ps[0].ParameterType, Is.EqualTo(typeof(PlayerView)));
+        }
+
         [Test]
         public void M6_IllegalCommandIsRejectedWithoutChange()
         {
