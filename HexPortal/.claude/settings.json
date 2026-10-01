@@ -15,6 +15,7 @@
       "Bash(unity status:*)",
       "Bash(unity command hexportal_refresh:*)",
       "Bash(unity command hexportal_client_state:*)",
+      "Bash(unity command hexportal_client_press:*)",
       "Bash(unity command recompile:*)",
       "Bash(unity command recompile_status:*)",
       "Bash(unity command console_status:*)",
