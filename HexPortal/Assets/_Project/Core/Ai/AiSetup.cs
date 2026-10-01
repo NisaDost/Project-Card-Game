@@ -50,6 +50,7 @@ namespace HexPortal.Core
                     var cells = new List<ICommand>();
                     foreach (var c in legal)
                         if (c is PlaceTowerCommand t && IsBackCenter(t.Cell, view.Viewer)) cells.Add(c);
+                    SeatOrder(cells, view.Viewer);
                     if (cells.Count > 0) best = cells[rng.NextInt(cells.Count)];
                     break;
                 case SetupStep.Placement:
@@ -81,22 +82,29 @@ namespace HexPortal.Core
             if (!hasGuardian)
             {
                 ICommand g = null;
+                int gKey = int.MaxValue;
                 foreach (var c in legal)
                     if (c is PlaceUnitCommand pu && IsClass(view, pu.CardId, UnitClass.Guardian) && Hex.Distance(pu.Cell, tower) == 1
-                        && !trapCells.Contains(pu.Cell)
-                        && (g == null || Hex.Distance(pu.Cell, Board.Portal) < Hex.Distance(((PlaceUnitCommand)g).Cell, Board.Portal)))
+                        && !trapCells.Contains(pu.Cell) && FrontKey(view.Viewer, pu.Cell) < gKey)
+                    {
                         g = c;
+                        gKey = FrontKey(view.Viewer, pu.Cell);
+                    }
                 if (g != null) return g;
             }
             // 2. A Spike Trap in front of the tower.
             if (view.OwnTraps.Count == 0)
             {
                 ICommand trap = null;
+                int tKey = int.MaxValue;
                 foreach (var c in legal)
                     if (c is PlaceTrapCommand pt && DefOf(view, pt.CardId) == "C-20" && Hex.Distance(pt.Cell, tower) == 1
                         && Hex.Distance(pt.Cell, Board.Portal) < towerToPortal && !Occupied(view, pt.Cell)
-                        && (trap == null || Hex.Distance(pt.Cell, Board.Portal) < Hex.Distance(((PlaceTrapCommand)trap).Cell, Board.Portal)))
+                        && FrontKey(view.Viewer, pt.Cell) < tKey)
+                    {
                         trap = c;
+                        tKey = FrontKey(view.Viewer, pt.Cell);
+                    }
                 if (trap != null) return trap;
             }
             // 3. Every other character, spread: the largest smallest distance to the other non-Guardian units, then the
@@ -129,12 +137,23 @@ namespace HexPortal.Core
                     }
                     if (score == bestScore) best.Add(c);
                 }
+                SeatOrder(best, view.Viewer);
                 if (best.Count > 0) return best[rng.NextInt(best.Count)];
             }
             foreach (var c in legal)
                 if (c is FinishSetupCommand) return c;
             return null;
         }
+
+        // Placement commands sorted by their cell in seat order, so a random pick among ties is seat-symmetric.
+        static void SeatOrder(List<ICommand> cmds, PlayerId seat) =>
+            cmds.Sort((x, y) => GreedyAi.SeatIndex(seat, CellOf(x)).CompareTo(GreedyAi.SeatIndex(seat, CellOf(y))));
+
+        static Hex CellOf(ICommand c) =>
+            c is PlaceUnitCommand u ? u.Cell : c is PlaceTowerCommand t ? t.Cell : c is PlaceTrapCommand p ? p.Cell : default(Hex);
+
+        // Closer to the Portal first; ties in seat order (GreedyAi.SeatIndex), so both seats place alike.
+        static int FrontKey(PlayerId seat, Hex h) => Hex.Distance(h, Board.Portal) * 1000 + GreedyAi.SeatIndex(seat, h);
 
         static bool Occupied(PlayerView view, Hex h)
         {

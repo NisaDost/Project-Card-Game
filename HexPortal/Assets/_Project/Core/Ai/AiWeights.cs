@@ -40,6 +40,9 @@ namespace HexPortal.Core
         public const int PortalLeadOpen = 120;      // same with the Portal open
         public const int PortalHoldOpen = 5000;     // own unit on the open Portal
         public const int EnemyOnOpenPortal = 4000;  // enemy unit on the Portal while it is open for the enemy
+        public const int EnemyWaiterHealth = 150;   // per Health of that enemy unit (damaging the waiter counts)
+        public const int BlockOpenEnemyPortal = 3500; // own unit on the Portal while it is open for the enemy (W-01 block)
+        public const int EnemyNearOpenPortal = 150; // per enemy unit and per step closer than 3 to the Portal open for it
 
         // ---- Tower threat ----
         public const int TowerThreat = 80;          // per enemy unit and per step closer than TowerThreatRange + 1

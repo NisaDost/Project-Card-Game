@@ -7,11 +7,15 @@ namespace HexPortal.Core
     /// memory, no event tagging). Exact: the viewer's units, tower, hand, Mana, Energy, traps, quests, passive; enemy units
     /// on Visible cells; the enemy tower if seen (towers never move, so a ghost tower is exact; Health is public V-09).
     /// Assumed: ghost enemy units stand where they were last seen; hidden enemy units are absent; an unseen enemy tower
-    /// is not on the board. Unknown → empty: the opponent's hand, traps, quests, Mana and Energy, the pools (only counts
+    /// is not on the board; enemy Riders have Charge ready (U-02); a revealed enemy P-04 is used up if the enemy tower is
+    /// below full Health, else partly used (WallEstimate). Unknown → empty: the opponent's hand, traps, quests, Mana and Energy, the pools (only counts
     /// are public; draws are scored by expected value, never simulated), the pending map event.
     /// Hidden terrain is the mirror cell's terrain (B-04; every map change is symmetric, E-03).</summary>
     internal static class BeliefState
     {
+        /// <summary>P-04 revealed, enemy tower still at full Health: assumed blocked so far (AI estimate, not a rule).</summary>
+        const int WallEstimate = 1;
+
         internal static GameState From(PlayerView view)
         {
             var me = view.Viewer;
@@ -70,15 +74,20 @@ namespace HexPortal.Core
             s.GetProgress(me).PassiveRevealed = view.PassiveRevealed;
             if (view.OpponentPassive != null)
             {
-                s.SetPassiveChoice(opp, Passive(view.OpponentPassive));
+                var def = Passive(view.OpponentPassive);
+                s.SetPassiveChoice(opp, def);
                 s.GetProgress(opp).PassiveRevealed = true;
+                // P-04: the blocked amount is hidden. Towers are never healed (U-05), so a tower below full Health means the
+                // wall is used up; otherwise it was revealed by a smaller hit: a middle estimate.
+                if (def.Id == "P-04")
+                    s.GetProgress(opp).WallBlocked = view.EnemyTowerHealth < Catalog.Tower.Health ? def.Amount : WallEstimate;
             }
 
             var added = new HashSet<int>();
-            foreach (var u in view.OwnUnits) Put(s, u, added);
-            foreach (var u in view.EnemyUnits) Put(s, u, added);
+            foreach (var u in view.OwnUnits) Put(s, u, added, me);
+            foreach (var u in view.EnemyUnits) Put(s, u, added, me);
             foreach (var c in view.Cells)
-                if (c.Unit != null && c.Unit.IsGhost) Put(s, c.Unit, added);
+                if (c.Unit != null && c.Unit.IsGhost) Put(s, c.Unit, added, me);
 
             // V-08: enemy units (and the tower) the viewer sees outside its own sight were revealed by an attack.
             var visible = Visibility.VisibleCells(s, me);
@@ -91,7 +100,7 @@ namespace HexPortal.Core
             return s;
         }
 
-        static void Put(GameState s, UnitView v, HashSet<int> added)
+        static void Put(GameState s, UnitView v, HashSet<int> added, PlayerId viewer)
         {
             if (!added.Add(v.Id)) return;
             var u = new Unit(v.Id, v.Owner, v.Class, v.Biome, v.Pos)
@@ -102,6 +111,8 @@ namespace HexPortal.Core
             };
             if (v.BuffId != null) u.Buff = new ActiveEffect(Support(v.BuffId)) { TurnsLeft = v.BuffTurnsLeft };
             if (v.DebuffId != null) u.Debuff = new ActiveEffect(Support(v.DebuffId)) { TurnsLeft = v.DebuffTurnsLeft };
+            // U-02: an enemy Rider's last move is hidden (V-05): assume Charge is ready (conservative risk).
+            if (v.Owner != viewer && v.Class == UnitClass.Rider) u.MovedLastOwnTurn = true;
             s.PutUnit(u);
         }
 

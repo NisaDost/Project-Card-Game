@@ -18,6 +18,8 @@ namespace HexPortal.Core
         /// <summary>A move onto the Portal while it is open for the AI (W-01, AI-03 guard).</summary>
         public bool PortalStep;
         public int Index;
+        /// <summary>Seat-symmetric tie order (GreedyAi.TieKey), before the legal-list index.</summary>
+        public long TieKey;
     }
 
     /// <summary>
@@ -50,7 +52,8 @@ namespace HexPortal.Core
             return pool[aiRng.NextInt(Math.Min(Catalog.AiEasyTopMoves, pool.Count))].Command;
         }
 
-        /// <summary>Every legal command scored, best first. Ties: EndTurn first (nothing beats it), then legal-list order.</summary>
+        /// <summary>Every legal command scored, best first. Ties: EndTurn first (nothing beats it), then the seat-symmetric
+        /// TieKey, then legal-list order.</summary>
         internal static List<AiCandidate> Rank(PlayerView view, IReadOnlyList<ICommand> legal)
         {
             var belief = BeliefState.From(view);
@@ -60,7 +63,7 @@ namespace HexPortal.Core
             for (int i = 0; i < legal.Count; i++)
             {
                 var c = legal[i];
-                var cand = new AiCandidate { Command = c, Index = i };
+                var cand = new AiCandidate { Command = c, Index = i, TieKey = TieKey(c, belief, ctx.Me) };
                 list.Add(cand);
                 if (c is EndTurnCommand) continue;
                 var sim = belief.Clone();
@@ -86,9 +89,58 @@ namespace HexPortal.Core
                 if (x.Score != y.Score) return y.Score.CompareTo(x.Score);
                 bool ex = x.Command is EndTurnCommand, ey = y.Command is EndTurnCommand;
                 if (ex != ey) return ex ? -1 : 1;
+                if (x.TieKey != y.TieKey) return x.TieKey.CompareTo(y.TieKey);
                 return x.Index.CompareTo(y.Index);
             });
             return list;
+        }
+
+        /// <summary>Board.Cells index as the seat sees the board: B's view is rotated 180° (B-05), so equal scores break
+        /// the same way for both seats.</summary>
+        internal static int SeatIndex(PlayerId seat, Hex h) => Board.IndexOf(seat == PlayerId.A ? h : h.Mirror());
+
+        static int SeatDirection(PlayerId seat, int dir) => seat == PlayerId.A ? dir : (dir + 3) % 6; // Mirror negates
+
+        /// <summary>Tie order: command kind, then the acting unit's / target cell, then the destination, all in seat order.</summary>
+        static long TieKey(ICommand c, GameState belief, PlayerId me)
+        {
+            int kind, primary = 0, secondary = 0;
+            switch (c)
+            {
+                case MoveCommand m:
+                    kind = 0;
+                    primary = UnitCell(belief, m.UnitId, me);
+                    secondary = SeatIndex(me, m.Dest);
+                    break;
+                case AttackCommand a:
+                    kind = 1;
+                    primary = UnitCell(belief, a.UnitId, me);
+                    secondary = SeatIndex(me, a.Target);
+                    break;
+                case OverwatchCommand o:
+                    kind = 2;
+                    primary = UnitCell(belief, o.UnitId, me);
+                    break;
+                case DeployCommand d:
+                    kind = 3;
+                    primary = SeatIndex(me, d.Cell);
+                    break;
+                case PlayCardCommand p:
+                    kind = 4;
+                    primary = SeatIndex(me, p.Target);
+                    secondary = p.Dest.HasValue ? SeatIndex(me, p.Dest.Value) : p.Direction >= 0 ? SeatDirection(me, p.Direction) : 0;
+                    break;
+                default:
+                    kind = 5;
+                    break;
+            }
+            return ((long)kind * 1000 + primary) * 1000 + secondary;
+        }
+
+        static int UnitCell(GameState belief, int unitId, PlayerId me)
+        {
+            var u = belief.GetUnit(unitId);
+            return u == null ? 0 : SeatIndex(me, u.Pos);
         }
 
         // ---------- Draw and pre-pick (T-04 step 4, T-11, AI-06) ----------
@@ -240,7 +292,18 @@ namespace HexPortal.Core
                 score -= lead * (ctx.PortalOpen ? AiWeights.PortalLeadOpen : ctx.Completed > 0 ? AiWeights.PortalLeadOneQuest : AiWeights.PortalLead);
             var onPortal = s.UnitAt(Board.Portal);
             if (onPortal != null && onPortal.Owner == me && ctx.PortalOpen) score += AiWeights.PortalHoldOpen;
-            if (onPortal != null && onPortal.Owner != me && ctx.EnemyPortalOpen) score -= AiWeights.EnemyOnOpenPortal;
+            if (ctx.EnemyPortalOpen)
+            {
+                // Stop the opponent's Portal win: block the Portal, hit or remove a unit waiting on it, keep others away.
+                if (onPortal != null && onPortal.Owner == me) score += AiWeights.BlockOpenEnemyPortal;
+                if (onPortal != null && onPortal.Owner != me)
+                    score -= AiWeights.EnemyOnOpenPortal + AiWeights.EnemyWaiterHealth * onPortal.Health;
+                foreach (var e in enemies)
+                {
+                    int d = Hex.Distance(e.Pos, Board.Portal);
+                    if (d >= 1 && d < 3) score -= AiWeights.EnemyNearOpenPortal * (3 - d);
+                }
+            }
 
             // Threat to the own tower.
             if (ownTower.IsPlaced)

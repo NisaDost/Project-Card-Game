@@ -11,6 +11,8 @@
 
   <ItemGroup>
     <Compile Include="../../Assets/_Project/Core/**/*.cs" Link="Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- The Sim's game runner and report (not its Main), for the deterministic Sim test. -->
+    <Compile Include="../Sim/SimRunner.cs;../Sim/SimReport.cs" Link="Sim/%(Filename)%(Extension)" />
     <!-- Build-only: makes `dotnet test` fail if Core does not compile for netstandard2.1 (Unity). -->
     <ProjectReference Include="../Core.Build/Core.Build.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>

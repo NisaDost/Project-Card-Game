@@ -26,6 +26,7 @@
 /Tools/**/bin/
 /Tools/**/obj/
 /Tools/**/TestResults/
+/Tools/Sim/out/
 
 # Claude Code local state
 .claude/settings.local.json

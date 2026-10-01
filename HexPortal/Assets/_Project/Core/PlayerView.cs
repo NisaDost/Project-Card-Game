@@ -152,6 +152,7 @@ namespace HexPortal.Core
 
         public static PlayerView For(GameState s, PlayerId p)
         {
+            if (s.Light) throw new System.InvalidOperationException("PlayerView needs the fog memory; a light (AI simulation) state has none.");
             var o = p.Opponent();
             bool setup = s.InSetup;
             var fog = s.GetFog(p);

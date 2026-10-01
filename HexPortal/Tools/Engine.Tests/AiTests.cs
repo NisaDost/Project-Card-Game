@@ -207,6 +207,112 @@ namespace HexPortal.Tests
             Assert.That(guardian, Is.GreaterThan(0));
         }
 
+        [Test]
+        public void AI01_PlayerViewRefusesALightState()
+        {
+            var tb = new TestBoard();
+            tb.Unit(UnitClass.Guardian, A, D(6, 6));
+            var belief = BeliefState.From(PlayerView.For(tb.Build(), A));
+            Assert.Throws<InvalidOperationException>(() => PlayerView.For(belief, A));
+        }
+
+        [Test]
+        public void AI02_AssumesEnemyRidersCanCharge()
+        {
+            var tb = new TestBoard();
+            tb.Unit(UnitClass.Guardian, A, D(6, 6));
+            int rider = tb.Unit(UnitClass.Rider, B, D(7, 5));
+            var s = tb.Build();
+            Assert.That(s.GetUnit(rider).MovedLastOwnTurn, Is.False);
+            Assert.That(BeliefState.From(PlayerView.For(s, A)).GetUnit(rider).MovedLastOwnTurn, Is.True, "U-02 Charge assumed ready");
+        }
+
+        /// <summary>P-04 revealed and the enemy tower below full Health: the wall is used up (towers never heal), so the
+        /// AI keeps attacking the tower. At full Health the belief takes a middle estimate.</summary>
+        [Test]
+        public void AI02_KeepsAttackingAThickWallTowerOnceTheWallIsUsedUp()
+        {
+            var tb = new TestBoard();
+            int archer = tb.Unit(UnitClass.Archer, A, D(9, 3)); // straight line, distance 3 from B's tower (6,0): out of its range
+            tb.Passive(B, "P-04");
+            tb.Tower(B, TestBoard.DefaultTowerB, 9);
+            var s = tb.Build();
+            s.GetProgress(B).PassiveRevealed = true;
+            s.GetProgress(B).WallBlocked = 3;
+            ExploreAll(s, A);
+            Assert.That(BeliefState.From(PlayerView.For(s, A)).GetProgress(B).WallBlocked, Is.EqualTo(3));
+            var attack = new AttackCommand(A, archer, TestBoard.DefaultTowerB);
+            Assert.That(Engine.GetLegalCommands(s, A), Does.Contain(attack));
+            Assert.That(Choose(s, A, AiLevel.Normal), Is.EqualTo(attack));
+
+            s.GetTower(B).Health = Catalog.Tower.Health; // revealed by a smaller hit (real amount hidden): estimate
+            s.GetProgress(B).WallBlocked = 2;
+            Assert.That(BeliefState.From(PlayerView.For(s, A)).GetProgress(B).WallBlocked, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AI02_BlocksTheOpenEnemyPortal()
+        {
+            var tb = new TestBoard();
+            tb.Quests(B, "Q-10", "Q-11", "Q-12").QuestStatus(B, "Q-10", QuestStatus.Completed).QuestStatus(B, "Q-11", QuestStatus.Completed);
+            int guardian = tb.Unit(UnitClass.Guardian, A, D(5, 5));
+            var s = tb.Build();
+            Assert.That(PlayerView.For(s, A).OpponentCompletedQuests.Count, Is.EqualTo(2));
+            Assert.That(Choose(s, A, AiLevel.Normal), Is.EqualTo(new MoveCommand(A, guardian, Board.Portal)));
+        }
+
+        [Test]
+        public void AI02_AttacksAnEnemyWaitingOnTheOpenPortal()
+        {
+            var tb = new TestBoard();
+            tb.Quests(B, "Q-10", "Q-11", "Q-12").QuestStatus(B, "Q-10", QuestStatus.Completed).QuestStatus(B, "Q-11", QuestStatus.Completed);
+            int mage = tb.Unit(UnitClass.Mage, A, D(6, 6));      // range 2 to both Guardians, non-lethal hits
+            tb.Unit(UnitClass.Guardian, B, Board.Portal);
+            tb.Unit(UnitClass.Guardian, B, D(10, 6));
+            var s = tb.Build();
+            Assert.That(Choose(s, A, AiLevel.Normal), Is.EqualTo(new AttackCommand(A, mage, Board.Portal)));
+        }
+
+        /// <summary>Equal scores break the same way for both seats: the 180° mirror of a position (B to act) gets the mirror
+        /// of A's ranking, command by command, with the same scores.</summary>
+        [Test]
+        public void AI02_MirroredPositionGivesTheMirroredChoice()
+        {
+            GameState Build(PlayerId p)
+            {
+                Hex M(int x, int y) => p == A ? D(x, y) : D(12 - x, 8 - y);
+                var tb = new TestBoard();
+                tb.Unit(UnitClass.Guardian, p, M(6, 6)); // two equal moves (5,5) and (7,5): a tie
+                tb.Unit(UnitClass.Archer, p, M(2, 6));
+                foreach (var r in new[] { M(4, 6), M(8, 6), M(5, 7), M(7, 7) }) tb.Rock(r);
+                tb.Active(p);
+                var st = tb.Build();
+                ExploreAll(st, p);
+                return st;
+            }
+            ICommand Mirror(ICommand c)
+            {
+                switch (c)
+                {
+                    case MoveCommand m: return new MoveCommand(B, m.UnitId, m.Dest.Mirror());
+                    case AttackCommand a: return new AttackCommand(B, a.UnitId, a.Target.Mirror());
+                    case OverwatchCommand o: return new OverwatchCommand(B, o.UnitId);
+                    case EndTurnCommand _: return new EndTurnCommand(B);
+                    default: throw new InvalidOperationException(c.ToString());
+                }
+            }
+            var ra = Rank(Build(A), A);
+            var rb = Rank(Build(B), B);
+            Assert.That(ra.Count, Is.EqualTo(rb.Count));
+            Assert.That(ra.Select(c => c.Score).Distinct().Count(), Is.LessThan(ra.Count), "the scenario has ties");
+            for (int i = 0; i < ra.Count; i++)
+            {
+                Assert.That(rb[i].Command, Is.EqualTo(Mirror(ra[i].Command)), "rank " + i);
+                Assert.That(rb[i].Score, Is.EqualTo(ra[i].Score), "rank " + i);
+            }
+            Assert.That(Choose(Build(B), B, AiLevel.Normal), Is.EqualTo(Mirror(Choose(Build(A), A, AiLevel.Normal))));
+        }
+
         // ---------- AI-03: Easy / Normal and the EndTurn guards ----------
 
         static GameState BiomeScenario(out int guardian)
