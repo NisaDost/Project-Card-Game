@@ -44,7 +44,8 @@ namespace HexPortal.Core
 
             var tower = state.GetTower(side);
             int dist = Hex.Distance(tower.Pos, target.Pos);
-            if (state.IsTowerShotAvailable(side) && dist >= Catalog.Tower.MinRange && dist <= Catalog.Tower.MaxRange
+            // IsPlaced: always true in play; false only for an unknown enemy tower in an AI belief state.
+            if (tower.IsPlaced && state.IsTowerShotAvailable(side) && dist >= Catalog.Tower.MinRange && dist <= Catalog.Tower.MaxRange
                 && Combat.IsValidTarget(state, side, target.Pos, visible))
             {
                 state.SetTowerShotAvailable(side, false);

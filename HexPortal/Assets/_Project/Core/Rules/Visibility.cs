@@ -79,15 +79,19 @@ namespace HexPortal.Core
             UpdateMemory(state);
         }
 
-        internal static void UpdateMemory(GameState state) =>
+        internal static void UpdateMemory(GameState state)
+        {
+            if (state.InSetup || state.Light) return;
             UpdateMemory(state, VisibleCells(state, PlayerId.A), VisibleCells(state, PlayerId.B));
+        }
 
         /// <summary>V-02, V-03: every Visible cell gets a fresh snapshot; a cell that left sight becomes Explored and
         /// keeps the snapshot of its last Visible moment. Interim (V-05): a ghost of a unit that is now seen live
-        /// elsewhere is dropped, so one unit never shows twice. Not during setup (S-07: fog starts with round 1).</summary>
+        /// elsewhere is dropped, so one unit never shows twice. Not during setup (S-07: fog starts with round 1), not in
+        /// light mode (AI simulation).</summary>
         internal static void UpdateMemory(GameState state, ISet<Hex> visibleA, ISet<Hex> visibleB)
         {
-            if (state.InSetup) return;
+            if (state.InSetup || state.Light) return;
             foreach (var p in new[] { PlayerId.A, PlayerId.B })
             {
                 var mem = state.GetFog(p);
@@ -118,6 +122,7 @@ namespace HexPortal.Core
         /// public event carries the change.</summary>
         internal static void TerrainChanged(GameState state, IEnumerable<Hex> cells, bool dropGhosts)
         {
+            if (state.Light) return;
             foreach (var p in new[] { PlayerId.A, PlayerId.B })
             {
                 var mem = state.GetFog(p);

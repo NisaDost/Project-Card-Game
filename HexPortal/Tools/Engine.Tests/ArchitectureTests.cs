@@ -43,6 +43,44 @@ namespace HexPortal.Tests
             AssertNoMatch(@"\bGuid\.NewGuid\b", "Use sequential ids.");
         }
 
+        /// <summary>AI-01 (static part): the AI decides from a PlayerView only. In Core/Ai:
+        /// (1) no code calls PlayerView.For, Engine.GetLegalCommands or Match.Create (the caller passes the view and the legal
+        /// list); (2) a GameState is created only in BeliefState.cs (`new GameState(`), and no static field holds one;
+        /// (3) GameState appears in no public/internal/protected member signature except BeliefState.From(PlayerView).
+        /// Private helpers may take the belief state (it is built from the view alone). The behavioural part is
+        /// AiTests.AI01_ChoiceIsTheSameWhenHiddenDataIsScrambled.</summary>
+        [Test]
+        public void Arch_AiUsesOnlyThePlayerView()
+        {
+            var aiDir = Path.Combine(CoreDir(), "Ai");
+            Assert.That(Directory.Exists(aiDir), "Core/Ai missing");
+            var files = Directory.GetFiles(aiDir, "*.cs", SearchOption.AllDirectories);
+            Assert.That(files, Is.Not.Empty);
+            var hits = new System.Collections.Generic.List<string>();
+            int fromSignatures = 0;
+            foreach (var f in files)
+            {
+                bool belief = Path.GetFileName(f) == "BeliefState.cs";
+                var lines = File.ReadAllLines(f);
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    var line = Regex.Replace(lines[i], @"//.*$", ""); // code only, not comments
+                    string where = Path.GetFileName(f) + ":" + (i + 1) + ": " + lines[i].Trim();
+                    if (Regex.IsMatch(line, @"PlayerView\s*\.\s*For\s*\(|GetLegalCommands\s*\(|Match\s*\.\s*Create\s*\("))
+                        hits.Add("calls the real-state API: " + where);
+                    if (!belief && Regex.IsMatch(line, @"\bnew\s+GameState\s*\(")) hits.Add("creates a GameState: " + where);
+                    if (Regex.IsMatch(line, @"\bstatic\b[^(=]*\bGameState\b\s+\w+\s*(=|;)")) hits.Add("static GameState field: " + where);
+                    if (Regex.IsMatch(line, @"\b(public|internal|protected)\b[^=]*\bGameState\b"))
+                    {
+                        if (belief && Regex.IsMatch(line, @"\binternal\s+static\s+GameState\s+From\s*\(\s*PlayerView\s+\w+\s*\)")) fromSignatures++;
+                        else hits.Add("GameState in a non-private signature: " + where);
+                    }
+                }
+            }
+            Assert.That(hits, Is.Empty);
+            Assert.That(fromSignatures, Is.EqualTo(1), "BeliefState.From(PlayerView) is the one entry point");
+        }
+
         [Test]
         public void Arch_CoreHasNoRecordOrInit()
         {

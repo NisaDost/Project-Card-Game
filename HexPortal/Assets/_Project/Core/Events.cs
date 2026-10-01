@@ -36,6 +36,11 @@ namespace HexPortal.Core
 
         internal void Add(GameEvent e)
         {
+            if (state.Light) // AI simulation: no filtering, no fog memory
+            {
+                Items.Add(e);
+                return;
+            }
             var va = Visibility.VisibleCells(state, PlayerId.A);
             var vb = Visibility.VisibleCells(state, PlayerId.B);
             EventFilter.Tag(state, e, va, vb);

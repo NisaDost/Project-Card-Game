@@ -588,6 +588,38 @@ namespace HexPortal.Tests
             foreach (var p in Players) Assert.That(Serialize(PlayerView.For(s2, p)), Is.EqualTo(Serialize(PlayerView.For(s1, p))));
         }
 
+        /// <summary>Light mode (AI simulations) skips fog-memory updates and per-event visibility tagging only: the same
+        /// random legal command sequences give the same legal lists, events (types, in order) and state hash without fog
+        /// memory, with and without it.</summary>
+        [Test]
+        public void LightMode_RulesOutcomesMatchFullMode()
+        {
+            int commands = 0;
+            for (ulong seed = 31; seed <= 40; seed++)
+            {
+                var rng = new Rng(seed * 13);
+                var full = Match.Create(seed);
+                var light = Match.Create(seed);
+                light.Light = true;
+                Assert.That(light.Clone().Light, Is.True, "Clone keeps the mode");
+                for (int i = 0; i < 2000 && !full.IsOver; i++)
+                {
+                    var c = NextUniform(full, rng);
+                    var evFull = Engine.Apply(full, c);
+                    var evLight = Engine.Apply(light, c);
+                    commands++;
+                    Assert.That(evLight.Select(e => e.GetType()), Is.EqualTo(evFull.Select(e => e.GetType())), "seed " + seed + ": " + c);
+                    Assert.That(evLight.All(e => e.ViewFor(A) == null && e.ViewFor(B) == null), "light events are not tagged");
+                    Assert.That(StateHash.Compute(light, false), Is.EqualTo(StateHash.Compute(full, false)), "seed " + seed + ": " + c);
+                    foreach (var p in Players)
+                        Assert.That(Engine.GetLegalCommands(light, p), Is.EqualTo(Engine.GetLegalCommands(full, p)));
+                }
+                Assert.That(full.IsOver, Is.True);
+                Assert.That(StateHash.Compute(light), Is.Not.EqualTo(StateHash.Compute(full)), "light mode really skips the fog memory");
+            }
+            Assert.That(commands, Is.GreaterThan(1000));
+        }
+
         // ---------- Full matches (M4 done criterion) ----------
 
         const int FullMatches = 200;

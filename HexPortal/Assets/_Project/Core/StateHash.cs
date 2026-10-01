@@ -9,7 +9,10 @@ namespace HexPortal.Core
         const ulong Prime = 1099511628211UL;
         static readonly CardPool[] Slots = { CardPool.Character, CardPool.Buff, CardPool.DebuffTrap };
 
-        public static ulong Compute(GameState s)
+        public static ulong Compute(GameState s) => Compute(s, true);
+
+        /// <summary><paramref name="includeFog"/> false: everything except the fog memory (light-mode comparisons).</summary>
+        public static ulong Compute(GameState s, bool includeFog)
         {
             ulong h = Offset;
             Add(ref h, s.Round);
@@ -43,6 +46,7 @@ namespace HexPortal.Core
                 var fog = s.GetFog(p);
                 foreach (var c in Board.Cells)
                 {
+                    if (!includeFog) break;
                     var seen = fog.GetLastSeen(c);
                     Add(ref h, (int)fog.Get(c));
                     Add(ref h, (int)seen.Tile.Biome * 8 + (int)seen.Tile.Marker);

@@ -44,6 +44,11 @@ namespace HexPortal.Core
         /// <summary>True until both players finished setup (S-05…S-07).</summary>
         internal bool InSetup { get; set; }
 
+        /// <summary>Light simulation mode (AI belief states): no fog-memory updates and no per-event visibility tagging
+        /// (events are not filtered: ViewFor returns null). Rules outcomes are identical (LightMode test); PlayerView and
+        /// EventFilter must not be used on a light state.</summary>
+        internal bool Light { get; set; }
+
         public PlayerId ActivePlayer { get; internal set; }
         /// <summary>T-10: 1-based; increments when B ends its turn.</summary>
         public int Round { get; internal set; }
@@ -123,6 +128,7 @@ namespace HexPortal.Core
             Array.Copy(o.dealtHandCount, dealtHandCount, 2);
             Rng = o.Rng.Clone();
             InSetup = o.InSetup;
+            Light = o.Light;
             ActivePlayer = o.ActivePlayer;
             Round = o.Round;
             Result = o.Result;
@@ -285,6 +291,15 @@ namespace HexPortal.Core
             var u = new Unit(NextUnitId++, owner, cls, biome, pos);
             units.Add(u); // ids ascend, so the list stays in id order
             return u;
+        }
+
+        /// <summary>Puts a unit with a known id (BeliefState). Keeps the id order; later units get higher ids.</summary>
+        internal void PutUnit(Unit u)
+        {
+            int i = 0;
+            while (i < units.Count && units[i].Id < u.Id) i++;
+            units.Insert(i, u);
+            if (u.Id >= NextUnitId) NextUnitId = u.Id + 1;
         }
 
         internal void RemoveUnit(Unit u) => units.Remove(u);
