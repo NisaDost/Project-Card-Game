@@ -23,6 +23,7 @@
                 <ui:VisualElement name="energy-pips" class="pips" />
             </ui:VisualElement>
             <ui:Label name="timer" class="timer" />
+            <ui:Label name="timer-bank" class="timer" />
             <ui:Button name="quest-btn" class="btn" />
         </ui:VisualElement>
 

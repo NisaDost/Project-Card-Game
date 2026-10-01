@@ -26,7 +26,7 @@ namespace HexPortal.Game
 
         readonly VisualElement screenMenu, screenQuests, screenPassive, screenHandoff, screenResult, hud, questPanel, cardDetail, dragCard;
         readonly VisualElement hand, questOptions, passiveOptions, manaPips, energyPips;
-        readonly Label ownInfo, oppInfo, turnBanner, eventBanner, manaText, energyText, timer, prompt, questText, detailText;
+        readonly Label timerBank, ownInfo, oppInfo, turnBanner, eventBanner, manaText, energyText, timer, prompt, questText, detailText;
         readonly Button[] market = new Button[3];
         readonly Button blindBtn, endBtn, overwatchBtn, questsConfirm, menuTimer;
         readonly List<string> pickedQuests = new List<string>();
@@ -65,7 +65,7 @@ namespace HexPortal.Game
             manaPips = root.Q("mana-pips"); energyPips = root.Q("energy-pips");
             ownInfo = root.Q<Label>("own-info"); oppInfo = root.Q<Label>("opp-info"); turnBanner = root.Q<Label>("turn-banner");
             eventBanner = root.Q<Label>("event-banner"); manaText = root.Q<Label>("mana-text"); energyText = root.Q<Label>("energy-text");
-            timer = root.Q<Label>("timer"); prompt = root.Q<Label>("prompt"); questText = root.Q<Label>("quest-text");
+            timer = root.Q<Label>("timer"); timerBank = root.Q<Label>("timer-bank"); prompt = root.Q<Label>("prompt"); questText = root.Q<Label>("quest-text");
             detailText = root.Q<Label>("detail-text");
             for (int i = 0; i < 3; i++)
             {
@@ -182,18 +182,42 @@ namespace HexPortal.Game
             foreach (var id in v.QuestOffer)
             {
                 var qid = id;
-                var b = new Button { text = Strings.Name(qid) + "\n" + Strings.Text(qid) };
+                var b = new Button { text = Strings.Name(qid) + "\n" + Strings.Text(qid), userData = qid };
                 b.AddToClassList("btn"); b.AddToClassList("option");
                 b.clicked += () =>
                 {
                     if (pickedQuests.Remove(qid)) b.RemoveFromClassList("selected");
-                    else if (pickedQuests.Count < Catalog.QuestPick) { pickedQuests.Add(qid); b.AddToClassList("selected"); }
-                    questsConfirm.SetEnabled(pickedQuests.Count == Catalog.QuestPick);
+                    else { pickedQuests.Add(qid); b.AddToClassList("selected"); }
+                    questsConfirm.SetEnabled(QuestPickIsLegal);
                 };
                 questOptions.Add(b);
             }
-            questsConfirm.SetEnabled(false);
+            questsConfirm.SetEnabled(QuestPickIsLegal);
         }
+
+        /// <summary>S-03: Confirm is enabled only when the current selection is a legal ChooseQuestsCommand.</summary>
+        public bool QuestPickIsLegal
+        {
+            get
+            {
+                var cmd = new ChooseQuestsCommand(match.Viewer, pickedQuests);
+                foreach (var c in match.Legal)
+                    if (cmd.Equals(c)) return true;
+                return false;
+            }
+        }
+
+        /// <summary>Test/CLI hook: toggles a quest option as a tap on its button would.</summary>
+        public void ToggleQuest(string questId)
+        {
+            foreach (var el in questOptions.Children())
+                if (el is Button b && b.userData as string == questId)
+                    using (var e = NavigationSubmitEvent.GetPooled()) { e.target = b; b.SendEvent(e); }
+        }
+
+        public bool QuestConfirmEnabled => questsConfirm.enabledSelf;
+        public string OpponentInfoText => oppInfo.text;
+        public string QuestPanelText => questText.text;
 
         void OnConfirmQuests() => match.Apply(new ChooseQuestsCommand(match.Viewer, pickedQuests));
 
@@ -219,7 +243,8 @@ namespace HexPortal.Game
             ownInfo.text = Strings.Player(v.Viewer) + "  ·  " + Strings.Tower + " " + v.OwnTowerHealth
                 + "  ·  " + (setup ? Strings.Setup : Strings.Round + v.Round);
             oppInfo.text = Strings.Player(v.Viewer.Opponent()) + "  ·  " + Strings.Tower + " " + v.EnemyTowerHealth
-                + "  ·  " + Strings.Hand + " " + v.OpponentHandCount + "  ·  " + Strings.OppQuests + v.OpponentCompletedQuests.Count;
+                + "  ·  " + Strings.Hand + " " + v.OpponentHandCount + "  ·  " + Strings.OppQuests + v.OpponentCompletedQuests.Count
+                + "  ·  " + Strings.OppFailed + v.OpponentFailedQuests.Count; // Q-03, Q-04, V-09
             turnBanner.text = setup ? Strings.Setup : myTurn ? Strings.YourTurn : Strings.OpponentTurn;
             eventBanner.style.display = v.AnnouncedEvent != null ? DisplayStyle.Flex : DisplayStyle.None;
             if (v.AnnouncedEvent != null) eventBanner.text = Strings.Event + Strings.Name(v.AnnouncedEvent) + " (" + Strings.Round + v.AnnouncedEventRound + ")";
@@ -259,6 +284,11 @@ namespace HexPortal.Game
                 q.Append('\n').Append(Strings.OppQuests);
                 foreach (var id in v.OpponentCompletedQuests) q.Append(Strings.Name(id)).Append(' ');
             }
+            if (v.OpponentFailedQuests.Count > 0) // Q-04, V-09
+            {
+                q.Append('\n').Append(Strings.OppFailed);
+                foreach (var id in v.OpponentFailedQuests) q.Append(Strings.Name(id)).Append(' ');
+            }
             questText.text = q.ToString();
 
             BuildHand(v);
@@ -280,13 +310,31 @@ namespace HexPortal.Game
         public void TickClock()
         {
             if (Current != Screen.Board || !match.HasMatch) return;
-            if (!match.TimerEnabled) { timer.text = "∞"; return; }
+            if (!match.TimerEnabled) { timer.text = "∞"; timerBank.style.display = DisplayStyle.None; return; }
             var v = match.View;
             int t = Mathf.CeilToInt(v.Phase == GamePhase.Setup ? match.SetupSecondsLeft : match.TurnSecondsLeft);
             int b = Mathf.CeilToInt(match.BankSecondsLeft(match.Viewer));
-            if (t == shownTurn && b == shownBank) return; // rebuild the text only when a second changes
+            if (v.Phase == GamePhase.Setup) b = -1;
+            if (t == shownTurn && b == shownBank) return;
             shownTurn = t; shownBank = b;
-            timer.text = v.Phase == GamePhase.Setup ? t + " sn" : t + " sn  ·  " + Strings.Bank + b;
+            timer.text = Seconds(t); // cached strings: no allocation per second
+            timerBank.text = b < 0 ? "" : BankText(b);
+            timerBank.style.display = b < 0 ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
+        static readonly string[] secondsText = new string[Mathf.Max(Catalog.PlacementSeconds, Catalog.TurnSeconds) + 1];
+        static readonly string[] bankText = new string[Catalog.TimeBankSeconds + 1];
+
+        static string Seconds(int s)
+        {
+            s = Mathf.Clamp(s, 0, secondsText.Length - 1);
+            return secondsText[s] ?? (secondsText[s] = s + " sn");
+        }
+
+        static string BankText(int s)
+        {
+            s = Mathf.Clamp(s, 0, bankText.Length - 1);
+            return bankText[s] ?? (bankText[s] = Strings.Bank + s);
         }
 
         static string CardName(CardInstance c) =>

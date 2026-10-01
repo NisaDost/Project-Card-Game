@@ -145,7 +145,9 @@ namespace HexPortal.Game
             }
             else
             {
-                AiPrePick();
+                foreach (var e in all)
+                    if (e is MarketRefilled) aiPrePickTurn = -1; // the Market changed: the AI re-evaluates its pre-pick
+                mine.AddRange(AiPrePick());
                 Refresh();
                 if (view.TurnIndex != turnBefore) ResetClock();
                 EventsApplied?.Invoke(mine);
@@ -155,15 +157,16 @@ namespace HexPortal.Game
         }
 
         /// <summary>AI-06: once per human turn, the waiting AI sets its pre-pick (T-11).</summary>
-        void AiPrePick()
+        List<GameEvent> AiPrePick()
         {
-            if (state.IsOver || state.Phase != GamePhase.Playing || state.ActivePlayer == AiSeat || aiPrePickTurn == state.TurnIndex) return;
+            var none = new List<GameEvent>();
+            if (state.IsOver || state.Phase != GamePhase.Playing || state.ActivePlayer == AiSeat || aiPrePickTurn == state.TurnIndex) return none;
             aiPrePickTurn = state.TurnIndex;
             var aiLegal = Engine.GetLegalCommands(state, AiSeat);
-            if (aiLegal.Count == 0) return;
+            if (aiLegal.Count == 0) return none;
             var c = GreedyAi.Choose(PlayerView.For(state, AiSeat), aiLegal, AiLevel, aiRng);
-            try { Engine.Apply(state, c); } // owner-only event (PrePickSet): nothing for the human to see
-            catch (IllegalCommandException e) { Debug.LogWarning("[MatchController] AI pre-pick rejected: " + e.Message); }
+            try { return EventFilter.For(Engine.Apply(state, c), Viewer); } // PrePickSet is owner-only: normally empty
+            catch (IllegalCommandException e) { Debug.LogWarning("[MatchController] AI pre-pick rejected: " + e.Message); return none; }
         }
 
         /// <summary>T-09 / S-06 clock. Call once per frame with the frame time.</summary>

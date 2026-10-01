@@ -53,6 +53,7 @@ namespace HexPortal.Game
         public const string Passive = "Pasif: ";
         public const string OppPassive = "Rakip pasifi: ";
         public const string OppQuests = "Rakibin tamamladığı: ";
+        public const string OppFailed = "Rakibin başarısız görevi: ";
         public const string Setup = "Hazırlık";
 
         public static string Player(PlayerId p) => p == PlayerId.A ? PlayerA : PlayerB;

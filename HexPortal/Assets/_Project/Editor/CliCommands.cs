@@ -45,6 +45,7 @@ namespace HexPortal.Editor
         [CliCommand("hexportal_client_press", "HexPortal: press a named UI button in the running client (Play mode only)")]
         static string Press([CliArg("button", "UXML name of the button", Required = true)] string button)
         {
+            if (!EditorApplication.isPlaying) return "{\"pressed\":false,\"error\":\"not in Play mode\"}";
             var app = HexPortal.Game.GameApp.Instance;
             if (app == null) return "{\"pressed\":false,\"error\":\"not playing\"}";
             var b = UnityEngine.UIElements.UQueryExtensions.Q<UnityEngine.UIElements.Button>(app.Ui.Root, button);

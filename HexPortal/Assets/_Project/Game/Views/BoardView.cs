@@ -17,7 +17,7 @@ namespace HexPortal.Game
         readonly Color[] highlightColor = new Color[59];
         readonly bool[] eventCell = new bool[59];
         readonly float[] flashUntil = new float[59];
-        bool anyEvent;
+        bool anyEvent, flashing;
 
         public int HighlightCount { get; private set; }
 
@@ -104,7 +104,9 @@ namespace HexPortal.Game
         public void Flash(Hex h)
         {
             int i = Board.IndexOf(h);
-            if (i >= 0) flashUntil[i] = Time.time + 0.6f;
+            if (i < 0) return;
+            flashUntil[i] = Time.time + 0.6f;
+            flashing = true;
         }
 
         void ApplyHighlights()
@@ -120,12 +122,15 @@ namespace HexPortal.Game
         void Update()
         {
             // UX-06 pulse for announced event cells, and short flashes for traps/shots. No allocations.
+            if (!anyEvent && !flashing) return; // nothing pulsing or flashing
+            bool stillFlashing = false;
             float pulse = 0.35f + 0.3f * Mathf.Sin(Time.time * 5f);
             for (int i = 0; i < highlights.Length; i++)
             {
                 bool flash = flashUntil[i] > Time.time;
                 if (flash)
                 {
+                    stillFlashing = true;
                     highlights[i].gameObject.SetActive(true);
                     Gfx.SetColor(highlights[i], Gfx.FlashHl);
                 }
@@ -141,6 +146,7 @@ namespace HexPortal.Game
                     Gfx.SetColor(highlights[i], c);
                 }
             }
+            flashing = stillFlashing;
         }
     }
 }
