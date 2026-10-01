@@ -1,6 +1,6 @@
 # Progress
 
-Current milestone: **M5**
+Current milestone: **M6**
 
 Milestone definitions and "done" criteria: GDD §17.
 
@@ -11,7 +11,7 @@ Milestone definitions and "done" criteria: GDD §17.
 | M2 Units | ✅ Done (2026-09-30) | 197 tests green. Movement, combat, cover (V-11), tower shot, overwatch, Energy/actions, V-02/V-07, W-02, replay + random legal/illegal command tests |
 | M3 Cards | ✅ Done (2026-09-30) | 287 tests green, Unity compiles. Mana, Control Zone, deploy, 12 support cards, traps, pools/Market/hands, mandatory first draw, T-11 pre-pick (engine), U-23, U-27 deploy trigger, U-29 trap-before-shots. GDD v2.7 |
 | M4 Match | ✅ Done (2026-10-01) | 412 tests green, Unity compiles. M4a: setup, fog memory, V-08, PlayerView, EventFilter (fails closed), T-09/W-04. M4b: quests, passives, map events, W-01/W-03. 200 random-legal matches all end with a W-* (W-01 64, W-03 tower 9 / quests 85 / unit HP 33 / draw 2, W-04 7), no legal command rejected, replays identical, leak scan after every command. GDD v2.10 |
-| M5 AI + Sim | ⏳ code done, balance open | M5a + M5b (2026-10-01): GreedyAi, Sim (--swap/--first/--parallel/--json). 437 green. 1000 Normal-vs-Normal games: 58 s serial / ~15 s parallel; AI decision avg 0.72 ms, max 22 ms. **Done criterion NOT met:** seat A wins 54.8–59.5% (swap run 57.4%; configs even 1006/990 → first-seat effect). ~89% W-01, median 6 rounds, ~12% reach round 15. Waiting for balance-analyst proposals + PM decision |
+| M5 AI + Sim | ✅ Done (2026-10-01) — balance open, deferred by the user to after M6 | GreedyAi on PlayerView (AI-01 proofs), Sim tool. 438 green. 1000 games ~1 min serial; AI decision avg 0.72 ms. Seat A 57% (target 45–55%), ~89% W-01, median 6 rounds; see docs/balance/M5-2026-10-01.md |
 | M6 Graybox client | ⏳ | |
 | M7 Demo polish (Faz 2) | ⏳ | |
 
@@ -44,6 +44,7 @@ Milestone definitions and "done" criteria: GDD §17.
 - **Faz 3 (online):** Unit ids must be per-view in online play. Sequential ids let the opponent count deployed units (accepted offline, M4a K2).
 
 ## Decisions
+- 2026-10-01 — M5 balance (user decision): no Catalog/GDD numbers change for now; seat balance, Portal dominance and match length are revisited after the M6 human tests (GDD §18 open question). Measured 7 variants × 4000 games (docs/balance/M5-2026-10-01.md); the only lever beyond noise was A's round-1 Energy 3→2 (with hold 3: A 54.4%; plus B Mana bonus 2: A 53.8%). B +1 round-1 Energy had no effect; hold 3 only shifts timing (median 6→7), W-01 share stays ~89%. Raw JSONs stayed in the session scratchpad, not in the repo.
 - 2026-10-01 — M5a (PM D1): the AI belief copies the terrain of never-seen cells from the mirror cell (B-04; events change mirror pairs); a human can infer the same, so keeping Hidden cells hidden after events (E-05) is only a visual choice.
 - 2026-10-01 — M4b (GDD v2.9/v2.10): P-01 returned unit can't act that turn and a poison death at turn start returns only at the next own turn start; Q-16 failure is revealed at the owner's next turn end or round 6 end; P-06 only on a stop; W-01 needs the Portal already open at the turn end of the wait and the same unit; E-04 announcement by terrain only, occupancy at resolution; E-05 Hidden cells stay Hidden, ghosts removed on E-10/E-12 cells. Accepted inherent inferences (Leak B exceptions): resolution skips, P-01/Mirror cells among empty home cells, W-03 criterion 3, public completion of position quests.
 - 2026-09-30 — S-08 implementation (PM): until both players finish setup, PlayerView shows the opponent's hand count as the dealt count (9); the live count only after both finish. Leak tests check event positions too (only exceptions: TrapTriggered cell, C-33; push stop cell, V-11) and the observer side of event indistinguishability. EventFilter fails closed on unknown event types.

@@ -400,6 +400,7 @@ Detaylar `CLAUDE.md` ve `.claude/rules/` altındadır.
 - Oyunun kalıcı adı.
 - Kolay/Normal dışında zorluk seviyesi gerekli mi?
 - Faz 3 online altyapısı: kendi sunucumuz (Azure + SignalR) mı, hazır bir servis mi?
+- **Denge (M5 sonucu, 2026-10-01):** Açgözlü yapay zekâyla A koltuğu %57 kazanıyor (hedef %45–55). Maçların ~%89'u Portal zaferiyle bitiyor, medyan 6 raunt (hedeften kısa). Ölçülen en etkili kol: A'nın 1. raunt Enerjisi 3 → 2 (+ Tut 3 tur) ile A %54. Kullanıcı kararı: Sayılar şimdilik değişmeyecek; denge ve Portal baskınlığı M6'daki insan testlerinden sonra yeniden ele alınacak.
 - v2.0'daki yeni sayılar (karakter Maliyetleri, Enerji = 3, Görüş değerleri, kule Saldırı 2 / menzil 1–2, tur süresi 30 sn, Kontrol Alanı mesafesi 1) ilk tahmindir; M5 simülasyonundan sonra gözden geçirilecek.
 
 ---
