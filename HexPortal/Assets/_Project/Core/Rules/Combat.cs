@@ -134,12 +134,20 @@ namespace HexPortal.Core
                 {
                     events.Add(new UnitDied(u.Id, u.Owner, sourcePlayer)); // tagged while the unit is still on its cell
                     state.RemoveUnit(u);
+                    Quests.OnUnitDied(state, u, sourcePlayer);         // Q-12, Q-16 (hidden until judged)
+                    Passives.OnUnitDied(state, u);                     // P-01
                     Pools.DeathDraw(state, u.Owner, events);
                 }
                 return;
             }
             var t = state.TowerAt(target);
             if (t == null) throw new InvalidOperationException("Nothing to damage on " + target);
+            if (amount > 0)
+            {
+                amount = Passives.ThickWall(state, t, amount, events); // P-04
+                if (amount == 0) return;                               // all blocked: no damage (U-20)
+            }
+            if (sourcePlayer != t.Owner) state.GetProgress(sourcePlayer).TowerDamage += amount; // Q-13: blocked damage excluded
             t.Health = Math.Max(0, t.Health - amount);
             events.Add(new DamageDealt(sourcePlayer, sourceUnitId, target, DamageDealt.Tower, amount, kind));
             if (t.Health == 0) Turn.TowerDestroyed(state, t, events);

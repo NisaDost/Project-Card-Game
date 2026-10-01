@@ -112,6 +112,24 @@ namespace HexPortal.Core
             }
         }
 
+        /// <summary>E-05 (v2.9, v2.10): after a map event, each player's Explored snapshot of a changed cell gets the new
+        /// terrain. A ghost unit stays (no unit is revealed) unless <paramref name="dropGhosts"/> (E-10/E-12: the event proves
+        /// the cell empty). Visible cells were refreshed by the event itself. A Hidden cell stays Hidden (never seen); the
+        /// public event carries the change.</summary>
+        internal static void TerrainChanged(GameState state, IEnumerable<Hex> cells, bool dropGhosts)
+        {
+            foreach (var p in new[] { PlayerId.A, PlayerId.B })
+            {
+                var mem = state.GetFog(p);
+                foreach (var h in cells)
+                {
+                    if (mem.Get(h) != CellVisibility.Explored) continue;
+                    var seen = mem.GetLastSeen(h).WithTile(state.Map.Get(h));
+                    mem.Set(h, CellVisibility.Explored, dropGhosts ? seen.WithoutUnit() : seen);
+                }
+            }
+        }
+
         // The cell as the viewer sees it now: terrain, and an enemy unit (alive) or the enemy tower. Own pieces are
         // never stored: the viewer always knows them.
         static LastSeen Capture(GameState state, Hex h, PlayerId viewer)

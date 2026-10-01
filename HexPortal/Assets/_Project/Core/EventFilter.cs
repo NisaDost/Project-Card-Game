@@ -46,6 +46,7 @@ namespace HexPortal.Core
                 case OverwatchEnded x: return Sees(s, x.UnitId, p, vis) ? e : null;
                 case OverwatchFired x: return Sees(s, x.UnitId, p, vis) ? e : null; // the shooter is revealed first (V-08)
                 case UnitDeployed x: return Sees(s, x.UnitId, p, vis) ? e : null;
+                case UnitRevived x: return Sees(s, x.UnitId, p, vis) ? e : null;   // P-01: like a deploy
                 case TowerShot x: return x.Owner == p || vis.Contains(s.GetTower(x.Owner).Pos) ? e : null;
                 case CardDrawn d: // V-09: hand counts are public; a Market card was public already
                     return d.Player == p || d.Source == DrawSource.Market ? e : new CardDrawn(d.Player, 0, d.Source);
@@ -69,6 +70,12 @@ namespace HexPortal.Core
                 case GameOver _:
                 case SetupFinished _:
                 case TurnTimedOut _:
+                case QuestCompleted _:      // Q-03, V-09
+                case QuestFailed _:         // Q-04, V-09
+                case PassiveRevealed _:     // P-00, V-09
+                case TowerDamageBlocked _:  // P-04: tower Health is public (V-09)
+                case MapEventAnnounced _:   // E-05
+                case MapEventResolved _:    // E-05
                     return e;
                 default: // fail closed: a new event type must get an explicit visibility rule here
                     throw new System.InvalidOperationException("No visibility rule for event " + e.GetType().Name);

@@ -14,7 +14,7 @@ namespace HexPortal.Core
             if (p == PlayerId.B && state.Round == 1) mana += Catalog.ManaFirstRoundBonusB;
             foreach (var u in state.Units)
                 if (u.Owner == p && state.Map.Get(u.Pos).Marker == Marker.Wellspring) mana += Catalog.WellspringManaBonus;
-            // P-03 (Quick Start) is M4.
+            // P-03 (Quick Start) is added by Turn.StartTurn (it reveals the passive).
             return mana;
         }
 

@@ -44,7 +44,7 @@ namespace HexPortal.Core
         }
     }
 
-    public enum DamageKind { Attack, Splash, TowerShot, Overwatch, Trap, Poison }
+    public enum DamageKind { Attack, Splash, TowerShot, Overwatch, Trap, Poison, PortalWarden }
 
     public sealed class UnitMoved : GameEvent
     {
@@ -305,6 +305,77 @@ namespace HexPortal.Core
         public readonly PlayerId Player;
         public readonly int Count;
         public TurnTimedOut(PlayerId player, int count) { Player = player; Count = count; }
+    }
+
+    // ---------- Quests (Q), passives (P), map events (E): public (V-09) ----------
+
+    /// <summary>Q-03. Public.</summary>
+    public sealed class QuestCompleted : GameEvent
+    {
+        public readonly PlayerId Player;
+        public readonly string QuestId;
+        public QuestCompleted(PlayerId player, string questId) { Player = player; QuestId = questId; }
+    }
+
+    /// <summary>Q-04. Public.</summary>
+    public sealed class QuestFailed : GameEvent
+    {
+        public readonly PlayerId Player;
+        public readonly string QuestId;
+        public QuestFailed(PlayerId player, string questId) { Player = player; QuestId = questId; }
+    }
+
+    /// <summary>P-00: the passive took effect for the first time. Public; its effect events follow.</summary>
+    public sealed class PassiveRevealed : GameEvent
+    {
+        public readonly PlayerId Player;
+        public readonly string PassiveId;
+        public PassiveRevealed(PlayerId player, string passiveId) { Player = player; PassiveId = passiveId; }
+    }
+
+    /// <summary>P-01: the first dead unit returned as a new unit. Seen like a deploy (owner, or the cell is Visible).</summary>
+    public sealed class UnitRevived : GameEvent
+    {
+        public readonly int UnitId;
+        public readonly PlayerId Owner;
+        public readonly Data.UnitClass Class;
+        public readonly Data.Biome Biome;
+        public readonly Hex Cell;
+        public UnitRevived(int unitId, PlayerId owner, Data.UnitClass cls, Data.Biome biome, Hex cell)
+        {
+            UnitId = unitId; Owner = owner; Class = cls; Biome = biome; Cell = cell;
+        }
+    }
+
+    /// <summary>P-04: tower damage absorbed by Thick Wall (no DamageDealt for that part). Public (tower Health, V-09).</summary>
+    public sealed class TowerDamageBlocked : GameEvent
+    {
+        public readonly PlayerId Owner;
+        public readonly int Amount;
+        public TowerDamageBlocked(PlayerId owner, int amount) { Owner = owner; Amount = amount; }
+    }
+
+    /// <summary>E-02, E-05: the next map event, its round and cells (order: see MapEvents). Public.</summary>
+    public sealed class MapEventAnnounced : GameEvent
+    {
+        public readonly string DefId;
+        public readonly int Round;
+        public readonly IReadOnlyList<Hex> Cells;
+        public MapEventAnnounced(string defId, int round, IReadOnlyList<Hex> cells) { DefId = defId; Round = round; Cells = cells; }
+    }
+
+    /// <summary>E-01, E-04, E-05: the event happened. Cells[i] now has Tiles[i]; Skipped pairs were no longer eligible.
+    /// Public.</summary>
+    public sealed class MapEventResolved : GameEvent
+    {
+        public readonly string DefId;
+        public readonly IReadOnlyList<Hex> Cells;
+        public readonly IReadOnlyList<Tile> Tiles;
+        public readonly IReadOnlyList<Hex> Skipped;
+        public MapEventResolved(string defId, IReadOnlyList<Hex> cells, IReadOnlyList<Tile> tiles, IReadOnlyList<Hex> skipped)
+        {
+            DefId = defId; Cells = cells; Tiles = tiles; Skipped = skipped;
+        }
     }
 
     // ---------- Fog (V): redacted views and reveals ----------

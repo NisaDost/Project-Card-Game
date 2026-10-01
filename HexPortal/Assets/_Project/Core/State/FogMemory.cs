@@ -33,6 +33,10 @@ namespace HexPortal.Core
 
         public bool HasUnit => UnitId != 0;
 
+        /// <summary>The same snapshot on other terrain (E-05).</summary>
+        public LastSeen WithTile(Tile tile) =>
+            new LastSeen(tile, UnitId, UnitOwner, UnitClass, UnitBiome, UnitHealth, HasTower, TowerOwner, TowerHealth);
+
         /// <summary>The same snapshot without its unit.</summary>
         public LastSeen WithoutUnit() => new LastSeen(Tile, 0, PlayerId.A, UnitClass.Guardian, Biome.None, 0, HasTower, TowerOwner, TowerHealth);
 

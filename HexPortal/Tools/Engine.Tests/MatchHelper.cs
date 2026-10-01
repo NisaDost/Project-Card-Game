@@ -16,7 +16,14 @@ namespace HexPortal.Tests
         /// <summary>Swap opponent hand cards with same-pool pool cards, shuffle the pools and replace the Rng. Off: replace
         /// the opponent's hand card identities in place (same ids, same pools), pools and Rng untouched.</summary>
         public bool Full = true;
+        /// <summary>The opponent's quest offer, its ACTIVE chosen quests (completed/failed ones are public and kept) and
+        /// the hidden quest progress (kills, tower damage, traps sprung, hold streaks).</summary>
         public bool Quests = true;
+        /// <summary>The opponent's passive offer and, while unrevealed (P-00), the chosen passive and its hidden state.</summary>
+        public bool Passive = true;
+        /// <summary>With Passive: also randomize the hidden P-01 state (death recorded / return pending). Event checks keep
+        /// it, so a scrambled passive never gains a pending return that the real one did not have.</summary>
+        public bool PassiveState = true;
         public bool Money = true;       // opponent Mana / Energy
         public int MinMana;             // scrambled Mana is in [MinMana, MinMana + 8)
         public int MinEnergy;           // scrambled Energy is in [MinEnergy, EnergyPerTurn]
@@ -100,6 +107,28 @@ namespace HexPortal.Tests
             return Choose(Engine.GetLegalCommands(s, s.ActivePlayer), rng);
         }
 
+        /// <summary>Full-match play: a command chosen uniformly from GetLegalCommands of a player who may act (setup: either
+        /// open player; play: the active player, sometimes the waiting player's pre-pick), with occasional clock commands.</summary>
+        public static ICommand NextUniform(GameState s, Rng rng)
+        {
+            if (s.Phase == GamePhase.Setup)
+            {
+                var open = Players.Where(p => !s.IsSetupFinished(p)).ToList();
+                var p = open[rng.NextInt(open.Count)];
+                if (rng.NextInt(40) == 0) return new SetupTimeoutCommand(p);
+                var setupLegal = Engine.GetLegalCommands(s, p);
+                return setupLegal[rng.NextInt(setupLegal.Count)];
+            }
+            if (rng.NextInt(10) == 0)
+            {
+                var pre = Engine.GetLegalCommands(s, s.ActivePlayer.Opponent());
+                return pre[rng.NextInt(pre.Count)];
+            }
+            if (rng.NextInt(50) == 0) return new TurnTimeoutCommand(s.ActivePlayer);
+            var legal = Engine.GetLegalCommands(s, s.ActivePlayer);
+            return legal[rng.NextInt(legal.Count)];
+        }
+
         // ---------- Canonical serializers ----------
 
         public static string Serialize(PlayerView v)
@@ -128,6 +157,11 @@ namespace HexPortal.Tests
             sb.Append("quests=").Append(string.Join(",", v.QuestOffer)).Append(" chosen=").Append(string.Join(",", v.QuestChoices)).Append('\n');
             sb.Append("passives=").Append(string.Join(",", v.PassiveOffer)).Append(" chosen=").Append(v.PassiveChoice).Append('\n');
             sb.Append("traps=").Append(string.Join(",", v.OwnTraps.Select(t => t.CardId + ":" + t.DefId + "@" + t.Pos))).Append('\n');
+            sb.Append("questStatus=").Append(string.Join(",", v.QuestStatuses)).Append(" oppDone=").Append(string.Join(",", v.OpponentCompletedQuests))
+              .Append(" oppFailed=").Append(string.Join(",", v.OpponentFailedQuests)).Append('\n');
+            sb.Append("passiveRevealed=").Append(v.PassiveRevealed).Append(" oppPassive=").Append(v.OpponentPassive).Append('\n');
+            sb.Append("event=").Append(v.AnnouncedEvent).Append('@').Append(v.AnnouncedEventRound)
+              .Append(' ').Append(string.Join(",", v.AnnouncedEventCells)).Append('\n');
             sb.Append("oppHand=").Append(v.OpponentHandCount)
               .Append(" market=").Append(string.Join(",", v.Market.Select(c => c == null ? "-" : c.Id + ":" + c.DefId)))
               .Append(" pools=").Append(string.Join(",", v.PoolCounts))
@@ -218,18 +252,37 @@ namespace HexPortal.Tests
                 s.Rng = new Rng(rng.NextULong());
             }
 
+            var prog = s.GetProgress(o);
             if (spec.Quests)
             {
-                var quests = Catalog.Quests.ToList();
-                rng.Shuffle(quests);
-                var qOffer = quests.Take(Catalog.QuestOffer).ToList();
-                s.SetQuestOffer(o, qOffer);
-                if (s.GetQuestChoices(o).Count > 0) s.SetQuestChoices(o, qOffer.Take(Catalog.QuestPick).ToList());
+                var old = s.GetQuestChoices(o).ToList();
+                var kept = old.Where((q, i) => prog.GetQuestStatus(i) != QuestStatus.Active).ToList(); // Q-03, Q-04: public
+                var pool = Catalog.Quests.Where(q => !kept.Contains(q)).ToList();
+                rng.Shuffle(pool);
+                int next = 0;
+                var choices = old.Select((q, i) => prog.GetQuestStatus(i) != QuestStatus.Active ? q : pool[next++]).ToList();
+                s.SetQuestOffer(o, choices.Concat(pool.Skip(next)).Take(Catalog.QuestOffer).ToList());
+                if (old.Count > 0) s.SetQuestChoices(o, choices);
+                prog.Kills = rng.NextInt(0, 3);
+                prog.TowerDamage = rng.NextInt(0, 6);
+                prog.TrapsSprung = rng.NextInt(0, 2);
+                prog.UnitsLost = rng.NextInt(0, 2); // Q-16 (v2.10): hidden until the owner's turn end / round end
+                foreach (var h in Board.Cells) prog.SetHoldStreak(h, rng.NextInt(0, 3));
+            }
+            if (spec.Passive && !prog.PassiveRevealed)
+            {
                 var passives = Catalog.Passives.ToList();
                 rng.Shuffle(passives);
                 var pOffer = passives.Take(Catalog.PassiveOffer).ToList();
                 s.SetPassiveOffer(o, pOffer);
                 if (s.GetPassiveChoice(o) != null) s.SetPassiveChoice(o, pOffer[rng.NextInt(pOffer.Count)]);
+                if (spec.PassiveState)
+                {
+                    prog.LastBreathUsed = rng.NextInt(2) == 0;
+                    prog.LastBreathPending = prog.LastBreathUsed && rng.NextInt(2) == 0;
+                    prog.LastBreathClass = (UnitClass)rng.NextInt(5);
+                    prog.LastBreathBiome = (Biome)rng.NextInt(1, 4);
+                }
             }
             if (spec.Money)
             {

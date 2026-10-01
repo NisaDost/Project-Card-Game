@@ -7,8 +7,9 @@ namespace HexPortal.Core
     /// <summary>
     /// The whole match state. Read freely; change only through Engine.Apply (mutators are internal).
     /// Units are kept in ascending id order, so every iteration over Units is deterministic.
-    /// Hidden information (redacted by PlayerView): hands, pool order, traps, pre-picks, quests, passives,
-    /// Mana/Energy of the opponent, units outside the viewer's sight, the match Rng.
+    /// Hidden information (redacted by PlayerView): hands, pool order, traps, pre-picks, active quests and quest progress,
+    /// unrevealed passives and their state, Mana/Energy of the opponent, units outside the viewer's sight, the match Rng.
+    /// Public: completed/failed quests, revealed passives, the announced map event (V-09, E-05).
     /// </summary>
     public sealed class GameState
     {
@@ -33,6 +34,8 @@ namespace HexPortal.Core
         readonly int[] consecutiveTimeouts = new int[2];     // T-09, W-04
         readonly int[] dealtHandCount = new int[2];          // S-02: hand size right after dealing (S-08 view)
         readonly FogMemory[] fog = { new FogMemory(), new FogMemory() }; // V-10
+        readonly PlayerProgress[] progress = { new PlayerProgress(), new PlayerProgress() }; // Q, P, W-01
+        readonly List<Hex> pendingEventCells = new List<Hex>(); // E-02, E-04
 
         /// <summary>The match stream (deals, offers, draws, Market refills, Mirror Trap, setup auto-completion).
         /// Separate from the map stream.</summary>
@@ -109,7 +112,11 @@ namespace HexPortal.Core
                 questChoices[p].AddRange(o.questChoices[p]);
                 passiveOffer[p].AddRange(o.passiveOffer[p]);
                 fog[p] = o.fog[p].Clone();
+                progress[p] = o.progress[p].Clone();
             }
+            pendingEventCells.AddRange(o.pendingEventCells);
+            PendingEvent = o.PendingEvent;
+            PendingEventRound = o.PendingEventRound;
             Array.Copy(o.passiveChoice, passiveChoice, 2);
             Array.Copy(o.setupFinished, setupFinished, 2);
             Array.Copy(o.consecutiveTimeouts, consecutiveTimeouts, 2);
@@ -229,6 +236,41 @@ namespace HexPortal.Core
 
         /// <summary>V-10: the player's exploration map and last-seen snapshots.</summary>
         public FogMemory GetFog(PlayerId p) => fog[(int)p];
+
+        /// <summary>Quest progress, passive state and the W-01 watch (hidden from the opponent, see PlayerProgress).</summary>
+        public PlayerProgress GetProgress(PlayerId p) => progress[(int)p];
+
+        /// <summary>Q-03, Q-04. Throws if <paramref name="questId"/> is not one of p's chosen quests.</summary>
+        public QuestStatus GetQuestStatus(PlayerId p, string questId)
+        {
+            var choices = questChoices[(int)p];
+            for (int i = 0; i < choices.Count; i++)
+                if (choices[i].Id == questId) return progress[(int)p].GetQuestStatus(i);
+            throw new ArgumentException(questId + " is not a quest of " + p, nameof(questId));
+        }
+
+        /// <summary>W-01, W-03: public (Q-03).</summary>
+        public int CompletedQuestCount(PlayerId p)
+        {
+            int n = 0;
+            for (int i = 0; i < questChoices[(int)p].Count; i++)
+                if (progress[(int)p].GetQuestStatus(i) == QuestStatus.Completed) n++;
+            return n;
+        }
+
+        /// <summary>E-02: the announced map event (public), or null.</summary>
+        public MapEventDef PendingEvent { get; private set; }
+        /// <summary>E-01: the round the pending event happens at.</summary>
+        public int PendingEventRound { get; private set; }
+        /// <summary>E-03, E-04: its cells, chosen at the announcement (see MapEvents for the order).</summary>
+        public IReadOnlyList<Hex> PendingEventCells => pendingEventCells;
+
+        internal void SetPendingEvent(MapEventDef def, int round, IEnumerable<Hex> cells)
+        {
+            PendingEvent = def;
+            PendingEventRound = def == null ? 0 : round;
+            Replace(pendingEventCells, cells ?? new Hex[0]);
+        }
 
         static void Replace<T>(List<T> list, IEnumerable<T> items)
         {

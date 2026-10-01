@@ -28,6 +28,18 @@ namespace HexPortal.Core
                 AddString(ref h, s.GetPassiveChoice(p) == null ? "" : s.GetPassiveChoice(p).Id);
                 var tw = s.GetTower(p);
                 Add(ref h, (tw.IsPlaced ? 1 : 0) + 2 * (tw.RevealedUntilTurn + 1));
+                var pr = s.GetProgress(p);
+                for (int i = 0; i < Data.Catalog.QuestPick; i++) Add(ref h, (int)pr.GetQuestStatus(i));
+                Add(ref h, pr.Kills);
+                Add(ref h, pr.TowerDamage);
+                Add(ref h, pr.TrapsSprung);
+                Add(ref h, pr.UnitsLost);
+                Add(ref h, pr.LastBreathDeathTurn);
+                Add(ref h, (pr.PassiveRevealed ? 1 : 0) | (pr.LastBreathUsed ? 2 : 0) | (pr.LastBreathPending ? 4 : 0) | (pr.MerchantUsed ? 8 : 0));
+                Add(ref h, (int)pr.LastBreathClass * 8 + (int)pr.LastBreathBiome);
+                Add(ref h, pr.WallBlocked);
+                Add(ref h, pr.PortalUnitId);
+                foreach (var c in Board.Cells) Add(ref h, pr.GetHoldStreak(c));
                 var fog = s.GetFog(p);
                 foreach (var c in Board.Cells)
                 {
@@ -85,6 +97,14 @@ namespace HexPortal.Core
                 Add(ref h, t.Pos.Q);
                 Add(ref h, t.Pos.R);
                 Add(ref h, t.Card.Id);
+            }
+            AddString(ref h, s.PendingEvent == null ? "" : s.PendingEvent.Id);
+            Add(ref h, s.PendingEventRound);
+            Add(ref h, s.PendingEventCells.Count);
+            foreach (var c in s.PendingEventCells)
+            {
+                Add(ref h, c.Q);
+                Add(ref h, c.R);
             }
             ulong rng = s.Rng.Clone().NextULong(); // the stream position, without advancing it
             Add(ref h, (int)rng);

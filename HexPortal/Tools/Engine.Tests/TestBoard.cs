@@ -65,6 +65,44 @@ namespace HexPortal.Tests
             return this;
         }
 
+        public TestBoard Rune(Hex h)
+        {
+            map.Set(h, new Tile(map.Get(h).Biome, Marker.RuneStone));
+            return this;
+        }
+
+        /// <summary>Sets p's chosen quests (and offer) directly, all Active (S-03 skipped).</summary>
+        public TestBoard Quests(PlayerId p, params string[] ids)
+        {
+            var defs = ids.Select(id => Catalog.Quests.Single(q => q.Id == id)).ToList();
+            State.SetQuestOffer(p, defs);
+            State.SetQuestChoices(p, defs);
+            return this;
+        }
+
+        public TestBoard QuestStatus(PlayerId p, string id, Core.QuestStatus status)
+        {
+            var choices = State.GetQuestChoices(p).Select(q => q.Id).ToList();
+            State.GetProgress(p).SetQuestStatus(choices.IndexOf(id), status);
+            return this;
+        }
+
+        /// <summary>Sets p's chosen passive directly (S-04 skipped), not revealed.</summary>
+        public TestBoard Passive(PlayerId p, string id)
+        {
+            var d = Catalog.Passives.Single(x => x.Id == id);
+            State.SetPassiveOffer(p, new[] { d });
+            State.SetPassiveChoice(p, d);
+            return this;
+        }
+
+        /// <summary>A map event already announced for <paramref name="round"/> with these cells (E-02, E-04).</summary>
+        public TestBoard PendingEvent(string defId, int round, params Hex[] cells)
+        {
+            State.SetPendingEvent(Catalog.MapEvents.Single(e => e.Id == defId), round, cells);
+            return this;
+        }
+
         public TestBoard Tower(PlayerId owner, Hex pos, int health = -1)
         {
             var t = State.GetTower(owner);

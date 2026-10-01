@@ -79,7 +79,8 @@ namespace HexPortal.Core
 
     /// <summary>
     /// Everything one player may know (V-05, V-09, V-10, S-08), as a self-contained read model. The AI (AI-01) and the
-    /// client read only this. Never contains: the opponent's hand contents, quests, passive, traps, pre-pick, Mana or
+    /// client read only this. Never contains: the opponent's hand contents, active quests or quest progress, unrevealed
+    /// passive, traps, pre-pick, Mana or
     /// Energy, pool order, the Rng, or enemy units/tower outside the viewer's Visible cells (ghosts excepted).
     /// </summary>
     public sealed class PlayerView
@@ -122,6 +123,20 @@ namespace HexPortal.Core
         public IReadOnlyList<string> PassiveOffer { get; private set; }
         public string PassiveChoice { get; private set; }
         public IReadOnlyList<TrapView> OwnTraps { get; private set; }
+        /// <summary>Q-03, Q-04: status of each own chosen quest, aligned with QuestChoices.</summary>
+        public IReadOnlyList<QuestStatus> QuestStatuses { get; private set; }
+        /// <summary>Q-03, V-09: the opponent's completed quests (their active quests stay hidden).</summary>
+        public IReadOnlyList<string> OpponentCompletedQuests { get; private set; }
+        /// <summary>Q-04, V-09.</summary>
+        public IReadOnlyList<string> OpponentFailedQuests { get; private set; }
+        /// <summary>P-00: the own passive has been revealed to the opponent.</summary>
+        public bool PassiveRevealed { get; private set; }
+        /// <summary>P-00, V-09: the opponent's passive once revealed, else null.</summary>
+        public string OpponentPassive { get; private set; }
+        /// <summary>E-02, E-05: the announced map event (null = none), its round and cells.</summary>
+        public string AnnouncedEvent { get; private set; }
+        public int AnnouncedEventRound { get; private set; }
+        public IReadOnlyList<Hex> AnnouncedEventCells { get; private set; }
 
         /// <summary>V-09: public. During setup: the dealt count (S-08, PM decision), not the live count.</summary>
         public int OpponentHandCount { get; private set; }
@@ -201,6 +216,18 @@ namespace HexPortal.Core
             foreach (var q in s.GetQuestChoices(p)) questChoices.Add(q.Id);
             var passiveOffer = new List<string>();
             foreach (var d in s.GetPassiveOffer(p)) passiveOffer.Add(d.Id);
+            var statuses = new List<QuestStatus>();
+            for (int i = 0; i < s.GetQuestChoices(p).Count; i++) statuses.Add(s.GetProgress(p).GetQuestStatus(i));
+            var oppCompleted = new List<string>();
+            var oppFailed = new List<string>();
+            var oppQuests = s.GetQuestChoices(o);
+            for (int i = 0; i < oppQuests.Count; i++)
+            {
+                var st = s.GetProgress(o).GetQuestStatus(i);
+                if (st == QuestStatus.Completed) oppCompleted.Add(oppQuests[i].Id);
+                else if (st == QuestStatus.Failed) oppFailed.Add(oppQuests[i].Id);
+            }
+            var oppPassive = s.GetPassiveChoice(o);
 
             return new PlayerView
             {
@@ -214,6 +241,11 @@ namespace HexPortal.Core
                 SetupStep = Setup.StepOf(s, p), OpponentSetupFinished = s.IsSetupFinished(o),
                 QuestOffer = questOffer, QuestChoices = questChoices, PassiveOffer = passiveOffer,
                 PassiveChoice = s.GetPassiveChoice(p) == null ? null : s.GetPassiveChoice(p).Id,
+                QuestStatuses = statuses, OpponentCompletedQuests = oppCompleted, OpponentFailedQuests = oppFailed,
+                PassiveRevealed = s.GetProgress(p).PassiveRevealed,
+                OpponentPassive = oppPassive != null && s.GetProgress(o).PassiveRevealed ? oppPassive.Id : null,
+                AnnouncedEvent = s.PendingEvent == null ? null : s.PendingEvent.Id, AnnouncedEventRound = s.PendingEventRound,
+                AnnouncedEventCells = new List<Hex>(s.PendingEventCells),
                 OwnTraps = traps, OpponentHandCount = setup ? s.GetDealtHandCount(o) : s.GetHand(o).Count, Market = market, PoolCounts = counts,
                 OwnConsecutiveTimeouts = s.GetConsecutiveTimeouts(p), OpponentConsecutiveTimeouts = s.GetConsecutiveTimeouts(o),
             };

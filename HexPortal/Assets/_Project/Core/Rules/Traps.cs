@@ -34,11 +34,19 @@ namespace HexPortal.Core
             events.Add(new TrapPlaced(owner, card.Id, h));
         }
 
-        /// <summary>C-32: the unit has stopped on its cell (move, push, teleport incl. Mirror Trap, deploy).
-        /// Only an opponent's trap fires (C-34); it is used up. Passing through never calls this.</summary>
+        /// <summary>The unit has stopped on its cell (move, push, teleport incl. Mirror Trap, deploy, P-01 return):
+        /// the trap there (C-32), then P-06 if the unit is still alive on that cell. Passing through never calls this.</summary>
         internal static void ResolveArrival(GameState state, Unit unit, EventLog events)
         {
             if (state.IsOver || state.GetUnit(unit.Id) == null) return;
+            var cell = unit.Pos;
+            TriggerTrap(state, unit, events);
+            if (!state.IsOver && state.GetUnit(unit.Id) != null && unit.Pos == cell) Passives.PortalWarden(state, unit, events);
+        }
+
+        // C-32: only an opponent's trap fires (C-34); it is used up.
+        static void TriggerTrap(GameState state, Unit unit, EventLog events)
+        {
             Trap trap = null;
             foreach (var t in state.Traps)
                 if (t.Pos == unit.Pos && t.Owner != unit.Owner)
@@ -51,12 +59,16 @@ namespace HexPortal.Core
             state.TrapList.Remove(trap);
             var def = trap.Card.Support;
             events.Add(new TrapTriggered(trap.Owner, trap.Card.Id, def.Id, trap.Pos, unit.Id));
+            state.GetProgress(trap.Owner).TrapsSprung++; // Q-17
+            // C-20 damage and the P-02 bonus (also on the Mirror Trap, dealt before its teleport; v2.8). Shield applies (U-20).
+            int amount = def.Amount + Passives.TrapBonusDamage(state, trap.Owner, events);
+            if (amount > 0)
+            {
+                Combat.DealDamage(state, trap.Owner, DamageDealt.NoUnit, unit.Pos, amount, DamageKind.Trap, events);
+                if (state.IsOver || state.GetUnit(unit.Id) == null) return;
+            }
             switch (def.Effect)
             {
-                case EffectKind.TrapDamage: // C-20 (+ P-02 hook). Shield applies (U-20, C-12).
-                    int amount = def.Amount + Passives.TrapBonusDamage(state, trap.Owner);
-                    Combat.DealDamage(state, trap.Owner, DamageDealt.NoUnit, unit.Pos, amount, DamageKind.Trap, events);
-                    break;
                 case EffectKind.TrapTeleportHome: // C-21: random empty cell of the unit owner's home zone; none = nothing.
                     var cells = new List<Hex>();
                     foreach (var h in Board.Cells)

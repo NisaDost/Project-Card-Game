@@ -1,6 +1,6 @@
 # Progress
 
-Current milestone: **M4**
+Current milestone: **M5**
 
 Milestone definitions and "done" criteria: GDD §17.
 
@@ -10,22 +10,19 @@ Milestone definitions and "done" criteria: GDD §17.
 | M1 Board | ✅ Done (2026-09-30) | 130 tests green, Unity compiles. Seeds 1–1000: 96.2% valid on first attempt, max 3 attempts, 100% distinct, mean cluster 4.03 |
 | M2 Units | ✅ Done (2026-09-30) | 197 tests green. Movement, combat, cover (V-11), tower shot, overwatch, Energy/actions, V-02/V-07, W-02, replay + random legal/illegal command tests |
 | M3 Cards | ✅ Done (2026-09-30) | 287 tests green, Unity compiles. Mana, Control Zone, deploy, 12 support cards, traps, pools/Market/hands, mandatory first draw, T-11 pre-pick (engine), U-23, U-27 deploy trigger, U-29 trap-before-shots. GDD v2.7 |
-| M4 Match | ⏳ M4a done | M4a (2026-09-30): setup S-*, fog memory + V-08, PlayerView, EventFilter (fails closed), T-09/W-04, GameResult, Clone; 347 tests green incl. field-scan + indistinguishability leak tests. M4b next: quests, passives, map events, W-01/W-03, 200-match test |
+| M4 Match | ✅ Done (2026-10-01) | 412 tests green, Unity compiles. M4a: setup, fog memory, V-08, PlayerView, EventFilter (fails closed), T-09/W-04. M4b: quests, passives, map events, W-01/W-03. 200 random-legal matches all end with a W-* (W-01 64, W-03 tower 9 / quests 85 / unit HP 33 / draw 2, W-04 7), no legal command rejected, replays identical, leak scan after every command. GDD v2.10 |
 | M5 AI + Sim | ⏳ | |
 | M6 Graybox client | ⏳ | |
 | M7 Demo polish (Faz 2) | ⏳ | |
 
-## Handoff (2026-09-30)
+## Handoff (2026-10-01)
 
-**State:** M0–M3 done. GDD v2.7. `dotnet test Tools/Engine.Tests --nologo` → 287 green. The Unity CLI bridge (`com.unity.pipeline` 0.8.0-exp.1) drives the open Editor; the game is landscape (GDD v2.5).
+**State:** M0–M4 done. GDD v2.10. `dotnet test Tools/Engine.Tests --nologo` → 412 green (~20 s; the 200-match test is ~17 s). The Unity CLI bridge drives the open Editor; the game is landscape.
 
-**Next work: M4 (Match)** — plan to HexPortal PM first. Scope per GDD §17: setup (S-*), fog/visibility + `PlayerView` and per-player event filtering (V-*), quests (Q-*), passives (P-*), map events (E-*), win conditions W-01/W-03/W-04. Hooks and notes from M3:
-- Setup must call `Pools.Deal`, `Pools.OpenMarket`, then `Turn.StartTurn` (A's first turn draws, T-04 v2.6).
-- `Rules/Passives.cs` has no-op hooks for P-02 (trap +1) and P-05 (market bonus); P-01, P-03, P-04, P-06 are new. P-06: a pushed or teleported unit also "enters" the Portal (every arrival counts, v2.7).
-- C-35: `Traps.RemoveAt` exists for E-10; the `TrapRemoved` event must be shown to the trap's OWNER only (v2.7).
-- Hidden info already in GameState per player: hands, pool order, Market, traps, pre-picks, match Rng. `TrapPlaced`/`CardDrawn` etc. are unfiltered until PlayerView.
-- Q-12 kill credit: `UnitDied.Killer` is set for attack, splash, tower, overwatch, trap and poison kills.
-- `TestBoard` starts with empty pools/Market/hands; use `FullPools()` for draw scenarios.
+**Next work: M5 (AI + Sim)** — plan to HexPortal PM first. PM asked for: AI-01…AI-06; a test proving the AI only uses `PlayerView`; Sim report with A/B win rate, win-type mix and match length; performance (1000 matches in reasonable time, cost of visibility recomputation — see Open items); a first balance-analyst report. Notes from M4:
+- Entry point: `Match.Create(seed)` → setup commands → play. `GetLegalCommands` covers setup and play; `TurnTimeoutCommand`/`SetupTimeoutCommand` are client-clock commands and not listed.
+- `PlayerView.For(state, p)` is the AI's only input (AI-01). `GameState.Clone()` exists. `EventFilter.For(events, p)` gives per-player events.
+- Leak tests: `MatchTests` (field scan + indistinguishability, observer/actor side). The heavy check in the 200-match test runs on seeds with (seed + offset) % 20 == 0; offset 0 by default, `HEXPORTAL_HEAVY_OFFSET` selects another subset (all 20 offsets passed for M4b).
 
 **Working rules:**
 - Plan approvals and GDD decisions come from the "HexPortal PM" session via SendMessage. GDD/skill updates arrive as `C:\Users\Dev\Documents\GDD.md` + `HexPortal-kit.zip`; copy them, check the diff, and commit separately as `[docs] ...`.
@@ -46,6 +43,7 @@ Milestone definitions and "done" criteria: GDD §17.
 - **Faz 3 (online):** Unit ids must be per-view in online play. Sequential ids let the opponent count deployed units (accepted offline, M4a K2).
 
 ## Decisions
+- 2026-10-01 — M4b (GDD v2.9/v2.10): P-01 returned unit can't act that turn and a poison death at turn start returns only at the next own turn start; Q-16 failure is revealed at the owner's next turn end or round 6 end; P-06 only on a stop; W-01 needs the Portal already open at the turn end of the wait and the same unit; E-04 announcement by terrain only, occupancy at resolution; E-05 Hidden cells stay Hidden, ghosts removed on E-10/E-12 cells. Accepted inherent inferences (Leak B exceptions): resolution skips, P-01/Mirror cells among empty home cells, W-03 criterion 3, public completion of position quests.
 - 2026-09-30 — S-08 implementation (PM): until both players finish setup, PlayerView shows the opponent's hand count as the dealt count (9); the live count only after both finish. Leak tests check event positions too (only exceptions: TrapTriggered cell, C-33; push stop cell, V-11) and the observer side of event indistinguishability. EventFilter fails closed on unknown event types.
 - 2026-09-30 — M4a implementation decisions (PM, not GDD): timeout draw is blind, else the first non-empty Market slot; the 3rd timeout ends the game at once; a trap owner doesn't learn the victim or damage unless the unit is visible; a ghost is dropped when the same unit is seen elsewhere, own units are never ghosts; visible enemy units show Health, effects and overwatch but not action flags or Rider-moved-last-turn; a played support card is shown to the opponent only if its target is visible; splash kills being inferable from the public hand count is accepted; sequential unit ids are visible (Faz 3 note). Event indistinguishability is tested on the player's own commands with opponent hand/quest/passive scrambled.
 - 2026-09-30 — Unity CLI allowlist (user-approved): `.claude/settings.json` allows only read-only/reversible verification commands (status, hexportal_refresh, recompile(_status), console(_status), editor_status/play/stop, capture_game_view, get_player_settings, list_tests, run_tests, test_status). `eval`/`eval_file` always need approval. `hexportal_refresh` lives in `Assets/_Project/Editor` (asmdef HexPortal.Editor, Editor only). New files get their `.meta` via refresh without a user click (verified). Game view is set to a 1920×1080 fixed size for captures (Editor-local state, not in git).
@@ -64,6 +62,7 @@ Milestone definitions and "done" criteria: GDD §17.
 - 2026-09-29 — `Tools/Core.Build` (netstandard2.1) is built by `dotnet test`, so Core API use that Unity doesn't have fails the test run.
 
 ## Session log
+- 2026-10-01 — (Dev 2) M4b implemented (rules-engineer). gdd-reviewer: no blocking, OK to commit; follow-ups R1–R5 (PM, v2.10), C1/L1 (v2.9) and leak-test tightening applied. Tightened checks found no Core leak (one missing test exclusion: observer overwatch Mage splash). Planted leaks (unrevealed passive in view, UnitRevived to all) caught. 412 green, Unity clean.
 - 2026-09-30 — (Dev 2) M4a implemented (rules-engineer). GDD v2.8. gdd-reviewer: first pass no blocking (leak-test gaps fixed: position checks, observer-side indistinguishability, fail-closed filter); follow-up pass OK to commit. Planted leaks (raw hidden→visible move, hidden EffectExpired, hidden UnitHealed) were all caught. Accepted extra Leak A exception: Revealed.Cell of a hidden attacker that dies in the same command (V-08). 347 green, Unity clean.
 - 2026-09-30 — (Dev 2) M3 implemented (rules-engineer, 88 new tests), GDD v2.6/v2.7 clarifications (S1–S8, A1–A7, Mirror → no shots). gdd-reviewer: no blocking; major (Mirror-teleported unit drew overwatch) fixed with two U-29 tests; nits: unused `ArrivalKind` parameter kept as the U-27 hook, redundant Visible checks in Control Zone kept as a guard. 287 green, Unity compile clean.
 - 2026-09-30 — (Dev 2) Process docs moved to live Editor verification (3510e35), GDD v2.5 landscape (ee21bba), landscape switch + AI leftover cleanup (a28e36f), CLI allowlist + hexportal_refresh. Next: M3 plan.

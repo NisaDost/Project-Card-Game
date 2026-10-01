@@ -111,7 +111,7 @@ namespace HexPortal.Core
         }
 
         // D-06: uniform over the union of the three pools. Market cards are not in the pools.
-        static void BlindDraw(GameState state, PlayerId p, EventLog events)
+        internal static void BlindDraw(GameState state, PlayerId p, EventLog events)
         {
             int total = 0;
             foreach (var slot in Slots) total += state.GetPool(slot).Count;
