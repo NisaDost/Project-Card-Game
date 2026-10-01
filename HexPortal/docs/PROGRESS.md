@@ -30,6 +30,11 @@ Milestone definitions and "done" criteria: GDD §17.
 - **Unity check:** see CLAUDE.md → Commands (`hexportal_refresh` → `recompile` → `console_status` clean). New `.cs` files get their `.meta` from Unity automatically; commit them.
 - Git identity is `ehza1` (repo-local config, set by the user); never change git config. No push. Python is not installed on this machine.
 
+**Post-build checklist (Android):**
+- `git status -- .` and `git diff -- ProjectSettings Assets/Settings` after every build.
+- `ProjectSettings/UnityConnectSettings.asset` `m_Enabled` flips 0→1 on Android builds: revert it with `git checkout --` (the Editor keeps it in memory, so it can come back). `PostBuildChecks` in Assets/_Project/Editor/BuildGuards.cs logs a warning when it is on.
+- Builds/ is git-ignored; the APK is never committed.
+
 **Open notes:**
 - U-28 "görüşünde" is implemented as the owner's Visible set (V-11). With the current Catalog every unit's range is within its own Sight, so both readings behave the same. No GDD change for now; revisit if Sight or range values change.
 - The main scene is `Assets/Scenes/Main.unity` (not under `_Project/`); it stays there.
@@ -67,6 +72,7 @@ Milestone definitions and "done" criteria: GDD §17.
 - 2026-09-29 — `Tools/Core.Build` (netstandard2.1) is built by `dotnet test`, so Core API use that Unity doesn't have fails the test run.
 
 ## Session log
+- 2026-10-01 — (Dev 2) APK size 41.3 → 55.7 MB between the two Development builds: user assets identical (4.0 MB, same Resources list), no AI-package remnants; the APK is dominated by native libs (libunity 16.5 MB, libil2cpp 14.4 MB compressed, dev builds keep debug info). The second build reused an incremental Gradle project (5 s vs 81 s), most likely packaging/compression of the native libs differed; the first APK was overwritten, so a file-level diff is not possible. Check again on the next clean build; a Release build will be smaller.
 - 2026-10-01 — (Dev 2) M6b: ControlZone in PlayerView (48dc035), AI mode, gate guards, Android settings, Development APK. The Android build flushed UnityConnectSettings m_Enabled 0→1 (reverted), plus URP/Graphics serialization defaults and Input System preloadedAssets (kept). Build target is now Android; reset the Game view to 1920×1080 for captures.
 - 2026-10-01 — (Dev 2) M6a: D2 (400b80a) and hotseat client (unity-client-dev). Verified in the live Editor with captures through setup A/B and the first turns; result screen covered only by PlayMode test. Gaps: PlayerView has no Control Zone set (client highlights only legal targets), hexportal_client_state is not allowlisted (user decision), ghost transparency shader variant may be stripped in builds.
 - 2026-10-01 — (Dev 2) M5b: AI fixes (P-04 belief, light-state guard, stricter arch scan, seat-symmetric tie-break, enemy Rider charge), Portal-defence weights, Sim tool + runs. gdd-reviewer: OK to commit, M5 criterion (A 45–55%) not met. Minor follow-ups: exclude view-only events from Sim's never-triggered list, count pre-picked draws, mirror test for deploy/push, seed arithmetic checks, P-04 comment wording, arch-scan array/tuple/cast patterns.

@@ -24,4 +24,22 @@ namespace HexPortal.Editor
                 throw new BuildFailedException("HexPortal M6 gate: ENABLE_RUNTIME_PIPELINE must never be defined.");
         }
     }
+
+    /// <summary>Post-build checklist: Android builds have flipped Unity Connect on (m_Enabled 1). Warn only;
+    /// revert ProjectSettings/UnityConnectSettings.asset with git before committing.</summary>
+    sealed class PostBuildChecks : IPostprocessBuildWithReport
+    {
+        const string ConnectSettingsPath = "ProjectSettings/UnityConnectSettings.asset";
+
+        public int callbackOrder => 1000;
+
+        public void OnPostprocessBuild(BuildReport report)
+        {
+            // Reads the file only; never calls SaveAssets (that flushes unrelated unsaved settings).
+            if (File.Exists(ConnectSettingsPath)
+                && Regex.IsMatch(File.ReadAllText(ConnectSettingsPath), @"UnityConnectSettings:[\s\S]*?\n  m_Enabled: 1"))
+                UnityEngine.Debug.LogWarning("HexPortal post-build: " + ConnectSettingsPath
+                    + " has m_Enabled: 1 (Unity Connect turned on by the build). Revert it with git before committing.");
+        }
+    }
 }
