@@ -105,6 +105,9 @@ namespace HexPortal.Tests
             var own = s.GetProgress(p);
             var opp = s.GetProgress(o);
             Assert.That(v.QuestStatuses, Is.EqualTo(Enumerable.Range(0, s.GetQuestChoices(p).Count).Select(i => own.GetQuestStatus(i))));
+            // C-02 (M6b): own Control Zone only, Board.Cells order.
+            var zone = ControlZone.Cells(s, p);
+            Assert.That(v.ControlZone, Is.EqualTo(Board.Cells.Where(zone.Contains)));
             // M6 D2: own quest progress only, from owner-known data; Hunter shows seen kills, never the real count.
             Assert.That(v.QuestProgress.Select(q => (q.Id, q.Status)),
                 Is.EqualTo(s.GetQuestChoices(p).Select((q, i) => (q.Id, own.GetQuestStatus(i)))));

@@ -159,6 +159,7 @@ namespace HexPortal.Tests
             sb.Append("traps=").Append(string.Join(",", v.OwnTraps.Select(t => t.CardId + ":" + t.DefId + "@" + t.Pos))).Append('\n');
             sb.Append("questStatus=").Append(string.Join(",", v.QuestStatuses)).Append(" oppDone=").Append(string.Join(",", v.OpponentCompletedQuests))
               .Append(" oppFailed=").Append(string.Join(",", v.OpponentFailedQuests)).Append('\n');
+            sb.Append("zone=").Append(string.Join(",", v.ControlZone)).Append('\n');
             sb.Append("questProgress=").Append(string.Join(";", v.QuestProgress.Select(q =>
                 q.Id + ":" + q.Status + " " + q.Current + "/" + q.Target + " r" + q.Round + " @" + q.Cell))).Append('\n');
             sb.Append("passiveRevealed=").Append(v.PassiveRevealed).Append(" oppPassive=").Append(v.OpponentPassive).Append('\n');

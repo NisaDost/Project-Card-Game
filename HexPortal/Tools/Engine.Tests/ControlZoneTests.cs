@@ -16,6 +16,27 @@ namespace HexPortal.Tests
             new HashSet<Hex>(Board.Cells.Where(c => centers.Any(x => Hex.Distance(c, x) <= 1)));
 
         [Test]
+        public void C02_PlayerViewShowsOnlyTheOwnZoneInBoardOrder()
+        {
+            var b = new TestBoard();
+            b.Unit(UnitClass.Archer, A, H(0, 1));
+            b.Unit(UnitClass.Guardian, B, H(2, -1));
+            var s = b.Build();
+            Assert.That(PlayerView.For(s, A).ControlZone,
+                Is.EqualTo(Board.Cells.Where(Within1(TestBoard.DefaultTowerA, H(0, 1)).Contains)));
+            Assert.That(PlayerView.For(s, B).ControlZone,
+                Is.EqualTo(Board.Cells.Where(Within1(TestBoard.DefaultTowerB, H(2, -1)).Contains)));
+        }
+
+        [Test]
+        public void C02_S05_PlayerViewZoneIsEmptyInSetupBeforeAnythingIsPlaced()
+        {
+            var s = Match.Create(7);
+            Assert.That(PlayerView.For(s, A).ControlZone, Is.Empty);
+            Assert.That(PlayerView.For(s, B).ControlZone, Is.Empty);
+        }
+
+        [Test]
         public void C02_ZoneIsOwnUnitsAndTowerPlusNeighbours()
         {
             var b = new TestBoard();

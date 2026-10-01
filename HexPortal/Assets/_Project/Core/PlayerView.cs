@@ -137,6 +137,9 @@ namespace HexPortal.Core
         public IReadOnlyList<string> PassiveOffer { get; private set; }
         public string PassiveChoice { get; private set; }
         public IReadOnlyList<TrapView> OwnTraps { get; private set; }
+        /// <summary>C-02: the own Control Zone (own units and tower only), Board.Cells order. In setup it is the zone of what
+        /// is placed so far (S-05 traps), empty before anything is placed.</summary>
+        public IReadOnlyList<Hex> ControlZone { get; private set; }
         /// <summary>Q-03, Q-04: status of each own chosen quest, aligned with QuestChoices.</summary>
         public IReadOnlyList<QuestStatus> QuestStatuses { get; private set; }
         /// <summary>M6 D2: own chosen quests with progress, aligned with QuestChoices. Never the opponent's.</summary>
@@ -219,6 +222,11 @@ namespace HexPortal.Core
             foreach (var t in s.Traps)
                 if (t.Owner == p) traps.Add(new TrapView { CardId = t.Card.Id, DefId = t.Card.DefId, Pos = t.Pos });
 
+            var zoneSet = Core.ControlZone.Cells(s, p);
+            var zone = new List<Hex>();
+            foreach (var h in Board.Cells)
+                if (zoneSet.Contains(h)) zone.Add(h);
+
             var market = new List<CardInstance>();
             var counts = new List<int>();
             foreach (var slot in Slots)
@@ -274,7 +282,7 @@ namespace HexPortal.Core
                 OpponentPassive = oppPassive != null && s.GetProgress(o).PassiveRevealed ? oppPassive.Id : null,
                 AnnouncedEvent = s.PendingEvent == null ? null : s.PendingEvent.Id, AnnouncedEventRound = s.PendingEventRound,
                 AnnouncedEventCells = new List<Hex>(s.PendingEventCells),
-                OwnTraps = traps, OpponentHandCount = setup ? s.GetDealtHandCount(o) : s.GetHand(o).Count, Market = market, PoolCounts = counts,
+                OwnTraps = traps, ControlZone = zone,OpponentHandCount = setup ? s.GetDealtHandCount(o) : s.GetHand(o).Count, Market = market, PoolCounts = counts,
                 OwnConsecutiveTimeouts = s.GetConsecutiveTimeouts(p), OpponentConsecutiveTimeouts = s.GetConsecutiveTimeouts(o),
             };
         }
