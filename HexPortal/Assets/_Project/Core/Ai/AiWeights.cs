@@ -130,6 +130,11 @@ namespace HexPortal.Core
 
         public const int PassiveTrapMasterPerTrapCard = 2; // P-02 per trap card in hand
         public const int TowerColumnSpread = 2;            // tower cell: |2q + r| at most this (3 back-row cells)
+        // AI-04 setup combinations (PM S3): the value of a placed piece; Normal picks among the best few that fit.
+        public const int SetupTopCombos = 3;
+        public const int SetupSpikeValue = 2;
+        public static int SetupValue(Data.UnitClass c) =>
+            c == Data.UnitClass.Guardian ? 6 : c == Data.UnitClass.Rider ? 5 : c == Data.UnitClass.Mage ? 5 : c == Data.UnitClass.Archer ? 4 : 3;
         public const int SpreadCap = 3;                    // unit placement: min distance to own pieces, capped
     }
 }

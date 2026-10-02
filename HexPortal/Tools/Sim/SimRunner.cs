@@ -23,6 +23,7 @@ namespace HexPortal.Sim
         public SortedSet<string> Classes = new SortedSet<string>(); // classes that were on the board
         public SortedDictionary<string, int> CardsPlayed = new SortedDictionary<string, int>(); // support cards (incl. setup traps)
         public SortedDictionary<string, int> Deployed = new SortedDictionary<string, int>();    // character classes deployed in play
+        public List<string> SetupPlaced = new List<string>(); // S-05: classes placed in setup (plus "Trap C-xx"), in order
         // Turn-start draws (T-04): "explicit <slot>" (a DrawCommand) or "pre-picked <slot>" (a valid T-11 pre-pick applied).
         public SortedDictionary<string, int> Draws = new SortedDictionary<string, int>();
         public int PortalOpenRound;           // W-01: round of the turn end that completed the 2nd quest; 0 = never
@@ -107,7 +108,11 @@ namespace HexPortal.Sim
                 switch (c)
                 {
                     case PlayCardCommand pc: Add(st.CardsPlayed, s.FindInHand(p, pc.CardId).DefId); break;
-                    case PlaceTrapCommand pt: Add(st.CardsPlayed, s.FindInHand(p, pt.CardId).DefId); break;
+                    case PlaceTrapCommand pt:
+                        Add(st.CardsPlayed, s.FindInHand(p, pt.CardId).DefId);
+                        st.SetupPlaced.Add("Trap " + s.FindInHand(p, pt.CardId).DefId);
+                        break;
+                    case PlaceUnitCommand pu: st.SetupPlaced.Add(s.FindInHand(p, pu.CardId).Character.Class.ToString()); break;
                     case DeployCommand d: Add(st.Deployed, s.FindInHand(p, d.CardId).Character.Class.ToString()); break;
                     case DrawCommand d: Add(st.Draws, "explicit " + (d.Slot == DrawCommand.Blind ? "Blind" : ((CardPool)d.Slot).ToString())); break;
                     case EndTurnCommand _:

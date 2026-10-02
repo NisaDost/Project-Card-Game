@@ -475,10 +475,9 @@ namespace HexPortal.Tests
             var mageTarget = c is AttackCommand ma && before.GetUnit(ma.UnitId).Class == UnitClass.Mage ? ma.Target
                 : moveAttack != null && before.GetUnit(moveAttack.UnitId).Class == UnitClass.Mage ? moveAttack.Target : (Hex?)null;
             bool NearMage(Hex h) => mageTarget.HasValue && Hex.Distance(h, mageTarget.Value) <= 1; // U-04 splash cells
-            // T-05 (v3.2): the move-attack's hit happens only if the target is still valid after the arrival; a Guardian next
-            // to it that the actor sees only from the approach cell covers it (U-11 with V-11: the actor's sight after
-            // the arrival). Pieces next to the target stay put.
-            bool NearTarget(Hex h) => moveAttack != null && Hex.Distance(h, moveAttack.Target) <= 1;
+            // T-05 (v3.2, PM S1): the move-attack's target is locked at command time, so hidden pieces next to it may be
+            // scrambled like everything else.
+            bool NearTarget(Hex h) => false;
             // U-27: a hidden tower that could reach the arrival cell still shoots (the shot reveals it, V-08).
             bool TowerReach(Hex h) => arrival.HasValue && Hex.Distance(h, arrival.Value) <= Catalog.Tower.MaxRange;
             var enemyTower = before.GetTower(observer);

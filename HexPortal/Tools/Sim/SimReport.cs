@@ -160,6 +160,13 @@ namespace HexPortal.Sim
                 classes[c] = Presence(has.Count, players, has.Count(x => x.won), pg.Sum(x => x.s.Deployed.TryGetValue(c, out int k) ? k : 0), "deployed in play");
             }
             root["classes"] = classes;
+            // AI-04 (PM S3): what the AI placed in setup.
+            root["setup placements"] = new SortedDictionary<string, object>
+            {
+                ["pieces (per player-game)"] = Count(pg.SelectMany(x => x.s.SetupPlaced)),
+                ["combinations"] = Count(pg.Select(x => string.Join("+", x.s.SetupPlaced.OrderBy(k => k, StringComparer.Ordinal)))),
+                ["characters per player-game"] = Ratio(pg.Sum(x => x.s.SetupPlaced.Count(k => !k.StartsWith("Trap"))), players),
+            };
 
             var cards = new SortedDictionary<string, object>();
             foreach (var d in Catalog.SupportCards)

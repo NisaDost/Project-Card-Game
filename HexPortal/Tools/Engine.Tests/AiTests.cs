@@ -405,9 +405,17 @@ namespace HexPortal.Tests
         // ---------- AI-04: setup ----------
 
         [Test]
-        public void AI04_SetupPutsTheTowerInTheBackRowAndTheGuardianNextToIt()
+        public void AI04_SetupPutsTheTowerInTheBackRowAndTheGuardianNextToIt_Normal() => SetupChecks(AiLevel.Normal);
+
+        [Test]
+        public void AI04_SetupPutsTheTowerInTheBackRowAndTheGuardianNextToIt_Easy() => SetupChecks(AiLevel.Easy);
+
+        /// <summary>AI-04 with PM S3: the pieces are a combination that fits the 8 setup Mana (≥ 1 character), the Guardian
+        /// stands next to the tower when it is placed, a placed Spike Trap stands in front of the tower, and the class mix
+        /// varies between games.</summary>
+        static void SetupChecks(AiLevel level)
         {
-            int spikeChecks = 0;
+            var mixes = new HashSet<string>();
             for (ulong seed = 1; seed <= 12; seed++)
             {
                 var s = Match.Create(seed);
@@ -418,7 +426,7 @@ namespace HexPortal.Tests
                         if (s.Phase == GamePhase.Setup && !s.IsSetupFinished(p))
                         {
                             var legal = Engine.GetLegalCommands(s, p);
-                            var c = GreedyAi.Choose(PlayerView.For(s, p), legal, AiLevel.Normal, rngs[p]);
+                            var c = GreedyAi.Choose(PlayerView.For(s, p), legal, level, rngs[p]);
                             Assert.That(legal, Does.Contain(c));
                             Assert.That(c, Is.Not.InstanceOf<SetupTimeoutCommand>());
                             if (c is ChooseQuestsCommand q)
@@ -437,21 +445,20 @@ namespace HexPortal.Tests
                     Assert.That(tower.R, Is.EqualTo(p == A ? 6 : -6), "back row");
                     Assert.That(Math.Abs(2 * tower.Q + tower.R), Is.LessThanOrEqualTo(2), "back-row centre (3 cells)");
                     var own = s.Units.Where(u => u.Owner == p).ToList();
-                    // S-05 (v3.0): within the 8 setup Mana: Guardian, Archer and Healer (+ the Spike Trap if dealt).
-                    Assert.That(own.Select(u => u.Class), Is.EquivalentTo(new[] { UnitClass.Guardian, UnitClass.Archer, UnitClass.Healer }));
+                    // S-05 (v3.0), PM S3: a combination within the 8 setup Mana, at least one character.
+                    Assert.That(own.Count, Is.GreaterThanOrEqualTo(Catalog.MinPlacedCharacters));
                     Assert.That(own.Sum(u => u.Def.Cost) + s.Traps.Where(t => t.Owner == p).Sum(t => t.Card.Support.Cost),
                         Is.LessThanOrEqualTo(Catalog.SetupMana));
-                    Assert.That(own.Any(u => u.Class == UnitClass.Guardian && Hex.Distance(u.Pos, tower) == 1), "Guardian next to the tower");
-                    if (dealt[p].Any(c => c.DefId == "C-20"))
+                    if (own.Any(u => u.Class == UnitClass.Guardian))
+                        Assert.That(own.Any(u => u.Class == UnitClass.Guardian && Hex.Distance(u.Pos, tower) == 1), "Guardian next to the tower");
+                    foreach (var trap in s.Traps.Where(t => t.Owner == p))
                     {
-                        var trap = s.Traps.Single(t => t.Owner == p);
                         Assert.That(trap.Card.DefId, Is.EqualTo("C-20"));
                         Assert.That(Hex.Distance(trap.Pos, tower), Is.EqualTo(1));
                         Assert.That(Hex.Distance(trap.Pos, Board.Portal), Is.LessThan(Hex.Distance(tower, Board.Portal)), "in front of the tower");
                         Assert.That(s.UnitAt(trap.Pos), Is.Null);
-                        spikeChecks++;
                     }
-                    else Assert.That(s.Traps.Where(t => t.Owner == p), Is.Empty);
+                    mixes.Add(string.Join(",", own.Select(u => u.Class.ToString()).OrderBy(x => x)));
                     // Spread: at most one adjacent pair among the non-Guardian units.
                     var others = own.Where(u => u.Class != UnitClass.Guardian).ToList();
                     int pairs = 0;
@@ -463,7 +470,30 @@ namespace HexPortal.Tests
                         + " traps " + string.Join(" ", s.Traps.Where(t => t.Owner == p).Select(t => Doubled(t.Pos))));
                 }
             }
-            Assert.That(spikeChecks, Is.GreaterThan(0), "no seed dealt a Spike Trap");
+            Assert.That(mixes.Count, Is.GreaterThan(1), level + ": the class mix never varied");
+        }
+
+        /// <summary>PM S3: every planned combination fits the budget and holds a character while none stands; the plan is
+        /// deterministic for the same AI Rng.</summary>
+        [Test]
+        public void AI04_SetupPlanFitsTheBudget_DeterministicPerRng()
+        {
+            foreach (var level in new[] { AiLevel.Normal, AiLevel.Easy })
+                for (ulong seed = 1; seed <= 20; seed++)
+                {
+                    var s = Match.Create(seed);
+                    foreach (var c in new ICommand[] {
+                        Engine.GetLegalCommands(s, A).OfType<ChooseQuestsCommand>().First() })
+                        Engine.Apply(s, c);
+                    Engine.Apply(s, Engine.GetLegalCommands(s, A).OfType<ChoosePassiveCommand>().First());
+                    Engine.Apply(s, Engine.GetLegalCommands(s, A).OfType<PlaceTowerCommand>().First());
+                    var view = PlayerView.For(s, A);
+                    var legal = Engine.GetLegalCommands(s, A);
+                    var plan = AiSetup.Plan(view, legal, level, new Rng(seed));
+                    Assert.That(plan.Any(c => c.IsCharacter), Is.True);
+                    Assert.That(plan.Sum(c => c.IsCharacter ? Unit.DefOf(c.Character.Class).Cost : c.Support.Cost), Is.LessThanOrEqualTo(Catalog.SetupMana));
+                    Assert.That(AiSetup.Plan(view, legal, level, new Rng(seed)).Select(c => c.Id), Is.EqualTo(plan.Select(c => c.Id)));
+                }
         }
 
         // ---------- AI-06 / T-04: draws and pre-picks ----------

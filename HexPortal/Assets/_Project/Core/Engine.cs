@@ -161,10 +161,14 @@ namespace HexPortal.Core
             if (!Combat.LegalTargetsFrom(state, u, cmd.Approach, visible).Contains(cmd.Target))
                 throw new IllegalCommandException("Illegal target: " + cmd);
 
+            // v3.2 (PM S1): the target is locked now. After the arrival only the unit's death or displacement (Mirror Trap)
+            // or the target's death cancels the attack; newly seen cover or other visibility changes do not.
+            var targetUnit = state.UnitAt(cmd.Target);
             Turn.SpendAction(state, u, Catalog.MoveAttackEnergy);
             Arrive(state, u, cmd.Approach, events);
             if (state.IsOver || state.GetUnit(u.Id) == null || u.Pos != cmd.Approach) return;
-            if (!Combat.LegalTargets(state, u).Contains(cmd.Target)) return;
+            if (targetUnit != null ? state.GetUnit(targetUnit.Id) == null || targetUnit.Pos != cmd.Target
+                                   : !Combat.HoldsEnemy(state, u.Owner, cmd.Target)) return;
             Combat.ResolveAttack(state, u, cmd.Target, DamageKind.Attack, true, events);
             Defense.ResolveAttackTriggers(state, u, events);
         }

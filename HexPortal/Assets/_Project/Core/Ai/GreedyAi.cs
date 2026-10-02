@@ -39,7 +39,7 @@ namespace HexPortal.Core
             if (view == null) throw new ArgumentNullException(nameof(view));
             if (legal == null || legal.Count == 0) throw new ArgumentException("No legal command to choose from.", nameof(legal));
             if (aiRng == null) throw new ArgumentNullException(nameof(aiRng));
-            if (view.Phase == GamePhase.Setup) return AiSetup.Choose(view, legal, aiRng);
+            if (view.Phase == GamePhase.Setup) return AiSetup.Choose(view, legal, level, aiRng);
             if (legal[0] is PrePickCommand || legal[0] is DrawCommand) return ChooseDraw(view, legal);
 
             var ranked = Rank(view, legal);

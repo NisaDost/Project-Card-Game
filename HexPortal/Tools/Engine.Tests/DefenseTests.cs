@@ -278,6 +278,25 @@ namespace HexPortal.Tests
             Assert.That(s.GetUnit(m).Health, Is.EqualTo(Hp(UnitClass.Mage) - Catalog.Tower.Attack));
         }
 
+        /// <summary>T-05 (v3.2, PM S1): the target is locked at command time. A Guardian next to the target that the unit
+        /// only sees from the approach cell (U-11 cover from the arrival on) does not cancel the attack.</summary>
+        [Test]
+        public void T05_U11_MoveAttack_NewlySeenGuardianDoesNotCancelTheLockedTarget()
+        {
+            var b = new TestBoard();
+            b.Unit(UnitClass.Archer, A, H(-3, 0));                   // sees the Portal target, not (1,0)
+            int m = b.Unit(UnitClass.Mage, A, H(-3, 1));
+            int target = b.Unit(UnitClass.Healer, B, Board.Portal);
+            b.Unit(UnitClass.Guardian, B, H(1, 0));                  // next to the target, hidden from A now
+            var s = b.Build();
+            Assert.That(Visibility.VisibleCells(s, A).Contains(H(1, 0)), Is.False);
+            var cmd = new MoveAttackCommand(A, m, H(-1, 1), Board.Portal);
+            Assert.That(Engine.GetLegalCommands(s, A), Does.Contain(cmd));
+            Engine.Apply(s, cmd);
+            Assert.That(Visibility.VisibleCells(s, A).Contains(H(1, 0)), Is.True); // seen after the arrival: cover now
+            Assert.That(s.GetUnit(target).Health, Is.EqualTo(Hp(UnitClass.Healer) - Def(UnitClass.Mage).Attack));
+        }
+
         /// <summary>T-05 (v3.2): if the arrival kills the unit (tower shot), the attack does not happen; the 2 Energy is spent.</summary>
         [Test]
         public void T05_MoveAttack_CancelledWhenTheArrivalShotKills_EnergySpent()
