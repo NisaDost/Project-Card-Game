@@ -1,6 +1,6 @@
 # HexPortal — Oyun Tasarım Dokümanı (GDD)
 
-> Sürüm: 3.0 · Tarih: 2026-10-02 · Durum: Prototip (Faz 1) kapsamı onaylandı
+> Sürüm: 3.1 · Tarih: 2026-10-02 · Durum: Prototip (Faz 1) kapsamı onaylandı
 > "HexPortal" çalışma adıdır, sonra değişebilir.
 
 Bu doküman oyunun **tek doğruluk kaynağıdır**. Her kuralın kalıcı bir kimliği vardır (ör. `U-04`). Kod, testler ve commit mesajları bu kimliklere referans verir. Kimlikler **asla yeniden numaralandırılmaz**. Bir kural kalkarsa "KALDIRILDI" diye işaretlenir, yeni kural yeni numara alır. Değişiklikler en alttaki **Değişiklik Günlüğü**'ne yazılır.
@@ -94,13 +94,13 @@ Her sınıfın 3 biyom varyantı vardır. **Varyantların statları ve yetenekle
 
 | ID | Sınıf | Maliyet (Mana) | Saldırı | Can | Hareket | Görüş | Saldırı menzili | Yetenek |
 |---|---|---|---|---|---|---|---|---|
-| **U-01** | Muhafız | 3 | 2 | 6 | 1 | 2 | Komşu | **Siper:** Bkz. U-11 |
-| **U-02** | Süvari | 3 | 3 | 4 | 3 | 3 | Komşu | **Atik:** Hareket ederken birimlerin ve kulelerin üstünden geçer (U-09). **Hücum:** Aynı turda hareket ettikten sonra saldırırsa +1 Saldırı (T-05) |
-| **U-03** | Okçu | 2 | 2 | 3 | 2 | 3 | Düz hatta 1–3 | **Uzak atış:** Hat üzerindeki hiçbir şey (birim, kule, kaya) atışı engellemez |
-| **U-04** | Büyücü | 3 | 2 | 3 | 2 | 2 | Mesafe 1–2 | **Patlama:** Hedefe komşu düşman birimleri ve kuleler 1 hasar alır |
-| **U-05** | Şifacı | 2 | 1 | 3 | 1 | 2 | Komşu | **Şifa:** Kendi tur başında komşu dost birimler +1 Can alır. Birden çok Şifacı'nın etkisi toplanır, Şifacılar birbirini de iyileştirir. Şifacı kendini ve kuleyi iyileştirmez (U-24 tavanı geçerli) |
+| **U-01** | Muhafız | 3 | 2 | 12 | 1 | 2 | Komşu | **Siper:** Bkz. U-11 |
+| **U-02** | Süvari | 3 | 3 | 8 | 3 | 3 | Komşu | **Atik:** Hareket ederken birimlerin ve kulelerin üstünden geçer (U-09). **Hücum:** Aynı turda hareket ettikten sonra saldırırsa +1 Saldırı (T-05) |
+| **U-03** | Okçu | 2 | 2 | 6 | 2 | 3 | Düz hatta 1–3 | **Uzak atış:** Hat üzerindeki hiçbir şey (birim, kule, kaya) atışı engellemez |
+| **U-04** | Büyücü | 3 | 2 | 6 | 2 | 2 | Mesafe 1–2 | **Patlama:** Hedefe komşu düşman birimleri ve kuleler 1 hasar alır |
+| **U-05** | Şifacı | 2 | 1 | 7 | 1 | 2 | Komşu | **Şifa:** Kendi tur başında komşu dost birimler +2 Can alır. Birden çok Şifacı'nın etkisi toplanır, Şifacılar birbirini de iyileştirir. Şifacı kendini ve kuleyi iyileştirmez (U-24 tavanı geçerli) |
 
-**Kule (U-06):** Her oyuncunun 1 kulesi vardır. Can **10**, Saldırı **2**, saldırı menzili **mesafe 1–2**, Görüş **2**. Hareket etmez. Bir karoyu kaplar ve geçişi engeller. Kule yalnızca **savunma amaçlı** saldırır (U-27). Kartlar kuleyi hedef alamaz. Kule biyom bonusu almaz. Kule yıkılırsa sahibi kaybeder (W-02).
+**Kule (U-06):** Her oyuncunun 1 kulesi vardır. Can **20**, Saldırı **3**, saldırı menzili **mesafe 1–2**, Görüş **2**. Hareket etmez. Bir karoyu kaplar ve geçişi engeller. Kule yalnızca **savunma amaçlı** saldırır (U-27). Kartlar kuleyi hedef alamaz. Kule biyom bonusu almaz. Kule yıkılırsa sahibi kaybeder (W-02).
 
 ### 3.2 Hareket
 
@@ -116,6 +116,7 @@ Altıgen tahtada her karonun 6 komşusu vardır, yani birimler zaten her yöne g
 ### 3.3 Savaş
 
 - **U-20 Hasar:** Saldırı hasarı = Saldırı statı + biyom bonusu + buff'lar − debuff'lar, en az 0. Biyom bonusu, **saldıran birim** kendi biyomundaki bir karodayken geçerlidir. **"Hasar"**, Can'ı düşüren her etkidir: saldırı, Patlama, kule atışı, nöbet, tuzak ve Zehir. Kalkan (C-12) ve Kalın Duvar (P-04) bunların hepsine uygulanır.
+- **U-30 Dayanıklılık ilkesi (v3.1):** Buff'sız tek bir saldırı (biyom bonusu ve Hücum dahil) ya da tek bir kart veya tuzak, **Canı tam hiçbir birimi öldüremez**. Bir birimi öldürmek normalde en az 2 vuruş ya da vuruş + kart gerektirir. Sayılar bu ilkeye göre seçilir; Catalog testi en yüksek buff'sız vuruşun (Süvari 3 + 1 + 1 = 5) ve en yüksek tek kart/tuzak hasarının en düşük Candan (6) küçük olduğunu doğrular.
 - **U-21** Karşı saldırı yoktur. (Nöbet ve kule atışı karşı saldırı değildir; kendi tetik kuralları vardır, U-27 ve U-28.)
 - **U-22** Can 0'a inen birim ölür ve tahtadan kalkar. Üzerindeki tüm etkiler silinir.
 - **U-23 Ölüm çekişi:** Birimi ölen oyuncu hemen 1 kör kart çeker (el doluysa çekmez).
@@ -151,11 +152,11 @@ Altıgen tahtada her karonun 6 komşusu vardır, yani birimler zaten her yöne g
 | **C-10** | Öfke | Güç (Buff) | +2 Saldırı | 2 tur | 1 | Sıradan | 4 |
 | **C-11** | Dev Gücü | Güç (Buff) | +1 Saldırı | Kalıcı | 2 | Nadir | 2 |
 | **C-12** | Kalkan | Koruma (Buff) | Birime gelen bir sonraki hasarı tamamen engeller, sonra biter | Kalıcı | 1 | Sıradan | 4 |
-| **C-13** | Şifa İksiri | Koruma (Buff) | +3 Can | Anlık | 1 | Sıradan | 4 |
+| **C-13** | Şifa İksiri | Koruma (Buff) | +5 Can | Anlık | 1 | Sıradan | 4 |
 | **C-14** | Rüzgâr Adımı | Hareket (Buff) | Bu tur +2 Hareket | Anlık | 1 | Sıradan | 4 |
 | **C-15** | Işınlanma | Hareket (Buff) | Dost birimi, Kontrol Alanındaki (C-02) Portal hariç boş bir karoya taşır. Enerji harcamaz ve birimin aksiyonunu kullanmaz | Anlık | 3 | Epik | 1 |
 | **C-16** | Zayıflık | Lanet (Debuff) | −2 Saldırı | 2 tur | 1 | Sıradan | 4 |
-| **C-17** | Zehir | Lanet (Debuff) | Sahibinin tur başında −1 Can | 2 tur | 2 | Nadir | 2 |
+| **C-17** | Zehir | Lanet (Debuff) | Sahibinin tur başında −2 Can | 2 tur | 2 | Nadir | 2 |
 | **C-18** | İtme | Kontrol (Debuff) | Hedefi seçilen bir düz yönde 2 karo iter. Engele (birim, kule, kaya, tahta kenarı) çarparsa durur, hasar olmaz. Hiç ilerleyemese de kart oynanmış sayılır. İtilen birim Portal'da durabilir. Durduğu karodaki tuzak tetiklenir | Anlık | 1 | Sıradan | 4 |
 | **C-19** | Kök Salma | Kontrol (Debuff) | Hedef hareket edemez ama saldırabilir. Işınlanma (C-15) hareket aksiyonu olmadığı için kök salmış birimi yine taşır | 2 tur | 2 | Nadir | 2 |
 | **C-20** | Diken Tuzağı | Tuzak | Tetikleyen birim 3 hasar alır | Kalıcı | 1 | Nadir | 2 |
@@ -248,10 +249,10 @@ Amaç: Turunu bitiren oyuncu boş beklemesin. Rakibin turu hem izlenecek hem de 
 | **Q-10** | Rün Bekçisi | Aynı rün taşını tut (üzerinde kendi birimin olsun) | – |
 | **Q-11** | Çift Rün | Tur sonunda iki farklı rün taşında kendi birimin olsun | – |
 | **Q-12** | Avcı | Toplam 2 düşman birimi yok et (kule sayılmaz; kulenin ve nöbetin öldürdükleri de sayılır) | – |
-| **Q-13** | Kuşatma | Rakip kuleye toplam 5 hasar ver (engellenen hasar sayılmaz) | – |
-| **Q-14** | Sağlam Kale | 8. raunt sonunda kulenin Can değeri 7 veya üstü olsun | 8. raunt sonunda Can < 7 |
+| **Q-13** | Kuşatma | Rakip kuleye toplam 10 hasar ver (engellenen hasar sayılmaz) | – |
+| **Q-14** | Sağlam Kale | 10. raunt sonunda kulenin Can değeri 14 veya üstü olsun | 10. raunt sonunda Can < 14 |
 | **Q-15** | Biyom Ustası | Tur sonunda 3 birimin aynı anda kendi biyomunda dursun | – |
-| **Q-16** | Kayıpsız | 6. raunt sonuna kadar hiç birim kaybetme | Bundan önce herhangi bir birim ölümü |
+| **Q-16** | Kayıpsız | 8. raunt sonuna kadar hiç birim kaybetme | Bundan önce herhangi bir birim ölümü |
 | **Q-17** | Tuzakçı | Kendi tuzağın bir düşman birimde tetiklensin | – |
 | **Q-18** | Kaynak Lordu | Kaynak karosunu tut | – |
 | **Q-19** | Derin Akın | Tur sonunda rakibin başlangıç bölgesinde 2 birimin olsun | – |
@@ -264,10 +265,10 @@ Amaç: Turunu bitiren oyuncu boş beklemesin. Rakibin turu hem izlenecek hem de 
 
 | ID | Pasif | Etki |
 |---|---|---|
-| **P-01** | Son Nefes | İlk ölen birimin, ölümünden sonraki ilk kendi tur başında kendi başlangıç bölgende rastgele boş bir karoda 2 Can ile geri gelir. Etkileri yoktur. Maçta 1 kez çalışır |
+| **P-01** | Son Nefes | İlk ölen birimin, ölümünden sonraki ilk kendi tur başında kendi başlangıç bölgende rastgele boş bir karoda 4 Can ile geri gelir. Etkileri yoktur. Maçta 1 kez çalışır |
 | **P-02** | Tuzak Ustası | Tuzakların tetiklendiğinde hedef ek 1 hasar alır |
 | **P-03** | Hızlı Başlangıç | 3. rauntta +2 Mana alırsın (6 sınırını aşabilir) |
-| **P-04** | Kalın Duvar | Kulene gelen ilk 3 hasar (toplam) engellenir |
+| **P-04** | Kalın Duvar | Kulene gelen ilk 5 hasar (toplam) engellenir |
 | **P-05** | Pazarcı | Pazar'dan ilk kart aldığında ek olarak 1 kör kart çekersin (D-07 geçerli). Maçta 1 kez çalışır |
 | **P-06** | Portal Bekçisi | Rakip bir birim Portal'a her girdiğinde 3 hasar alır |
 
@@ -275,8 +276,8 @@ Amaç: Turunu bitiren oyuncu boş beklemesin. Rakibin turu hem izlenecek hem de 
 
 ## 10. Dinamik harita olayları (E)
 
-- **E-01** Olaylar **3, 6, 9 ve 12. rauntların başında** (A'nın turu başlamadan) gerçekleşir.
-- **E-02** Olay, **bir önceki raundun başında** duyurulur: 2, 5, 8 ve 11. rauntlar. Etkilenecek karolar tahtada vurgulanır.
+- **E-01** Olaylar maçın başı ve sonu dışındaki rauntlara **eşit aralıkla** yayılır: İlk olay **4. raunt**, son olay **raunt sınırından 3 raunt önce** (W-03), aralık **3 raunt** (Catalog: `EventFirstRound`, `EventInterval`, `EventLastRoundOffset`). 20 rauntlık sınırla olaylar **4, 7, 10, 13 ve 16. rauntların başında** (A'nın turu başlamadan) gerçekleşir.
+- **E-02** Olay, **bir önceki raundun başında** duyurulur (20 rauntta: 3, 6, 9, 12 ve 15). Etkilenecek karolar tahtada vurgulanır.
 - **E-03** Olay türü rastgele seçilir. Etkilediği karolar her zaman **eş karo çifti** olarak seçilir, böylece simetri korunur.
 - **E-04** Olay duyurulduğu anda karolar belirlenir. Olay anında bir karo artık uygun değilse (ör. üzerine birim gelmişse), o eş çift atlanır.
 - **E-05** Olay duyuruları ve karo türü değişiklikleri **sisten bağımsız** olarak iki oyuncuya gösterilir. Değişen karolar, oyuncunun keşif hafızasında yeni türleriyle güncellenir (üzerlerindeki birimler açığa çıkmaz).
@@ -314,7 +315,7 @@ Amaç: Turunu bitiren oyuncu boş beklemesin. Rakibin turu hem izlenecek hem de 
 
 - **W-01 Portal zaferi:** Bir oyuncu **2 görevi tamamladığında** Portal onun için açılır. Portal açıkken oyuncunun bir birimi **kendi tur sonunda** Portal'da durur ve **bir sonraki tur başında hâlâ orada** ise oyuncu kazanır. Portal, birimin durduğu tur sonunda (görev kontrolünden sonra) zaten açık olmalıdır ve iki anda da Portal'daki birim aynı birim olmalıdır (v2.10). Rakip birimleri Portal'da durarak girişi engelleyebilir. Portal her zaman görünürdür (V-06).
 - **W-02 Kule zaferi:** Rakibin kulesinin Can değeri 0'a inerse kazanırsın. Bu kontrol anlık yapılır.
-- **W-03 Raunt sınırı:** 15. raunt sonunda kazanan yoksa sırasıyla şu ölçütlere bakılır:
+- **W-03 Raunt sınırı:** 20. raunt sonunda kazanan yoksa sırasıyla şu ölçütlere bakılır:
   1. Kule Can'ı yüksek olan,
   2. Tamamlanan görevi fazla olan,
   3. Tahtadaki birimlerin toplam Can'ı yüksek olan kazanır.
@@ -426,3 +427,4 @@ Detaylar `CLAUDE.md` ve `.claude/rules/` altındadır.
 | 2.9 | 2026-09-30 | Netleştirme (M4b): Son Nefes ile dönen birim, döndüğü tur aksiyon yapamaz (P-01, T-07 gibi). İlk Pazar alımı Pazarcı'yı tüketir, el doluysa ek çekiş atlanır (P-05). Olay hiç görülmemiş karoyu açmaz; keşfedilmiş karoda arazi güncellenir, hayaletler kalır (E-05). E-11'in yeni biyomu olay anında seçilir. Portal zaferi için tur sonunda ve sonraki tur başında Portal'da duran birimin aynı birim olması gerekir (W-01). Olay hedefleri duyuruda yalnızca arazi uygunluğuna göre seçilir, doluluk olay anında kontrol edilir (E-04) |
 | 2.10 | 2026-09-30 | Netleştirme (M4b reviewer). Tur başında Zehir'le ölen ilk birim aynı tur başında değil, bir sonraki kendi tur başında döner (P-01). Kayıpsız'ın başarısızlığı ölüm anında değil, sahibinin sonraki tur sonunda ya da 6. raunt sonunda (hangisi önce gelirse) açıklanır (Q-16, Q-02). Portal Bekçisi yalnızca Portal'da duran birime uygulanır, geçen birime uygulanmaz (P-06). **W-01 değişti:** Portal, birimin durduğu tur sonunda oyuncu için zaten açık olmalıdır. Raunt sonu görevleri bu kontrolden sonra tamamlanırsa o bekleyiş sayılmaz. E-10/E-12 ile değişen karolardaki hayaletler silinir (E-05) |
 | 3.0 | 2026-10-02 | **Kullanıcının ilk cihaz testinden sonraki kararlar.** **Tahta:** Altıgen şekilli, yarıçap 6, 127 karo, başlangıç bölgeleri 15 karo, Portal'a uzaklık ≥5 (B-01…B-03, B-06, B-21…B-23; biyom alt sınırı 18, çekirdek 5–7). Amaç: Portal'a ulaşmak zorlaşsın. **Aksiyon:** Hareket eden birim aynı turda +1 Enerji ile saldırabilir (T-05); Süvari Hücum'u buna bağlandı (U-02). **Hazırlık:** Ücretsiz yerleşim kalktı; 8 Mana'lık hazırlık bütçesi, en az 1 karakter (S-05, S-06). **Arayüz:** El üç grup (tuzak / karakter / buff-debuff), sol bilgi paneli (UX-11), seçim modunda stat çubukları gizlenir ve kompakt (UX-12), sürükle-bırak hiç takılmaz (UX-03), yakınlaştırma (UX-04) |
+| 3.1 | 2026-10-02 | **Hasar/Can oranı ve maç uzunluğu (kullanıcı geri bildirimi):** Yeni U-30 dayanıklılık ilkesi. Canlar yaklaşık iki katına: Muhafız 12, Süvari 8, Okçu 6, Büyücü 6, Şifacı 7, Kule 20 (Saldırı 3). Şifa +2, Şifa İksiri +5, Zehir −2/tur. Bağlı sayılar: Q-13 10 hasar, Q-14 10. raunt / Can ≥ 14, Q-16 8. raunt, P-01 4 Can, P-04 5 hasar. Raunt sınırı 15 → 20 (W-03). Olaylar baş ve son rauntlar dışında eşit aralıkla (4, 7, 10, 13, 16) (E-01, E-02). Sayılar ilk tahmindir, Sim ile ölçülecek |
