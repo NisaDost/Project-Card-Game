@@ -10,13 +10,14 @@ namespace HexPortal.Game
         public const float TileHeight = 0.3f;
         const float TileRadius = 0.95f;
 
-        readonly Renderer[] tiles = new Renderer[59];
-        readonly GameObject[] clouds = new GameObject[59];
-        readonly GameObject[][] markers = new GameObject[59][];
-        readonly Renderer[] highlights = new Renderer[59];
-        readonly Color[] highlightColor = new Color[59];
-        readonly bool[] eventCell = new bool[59];
-        readonly float[] flashUntil = new float[59];
+        readonly Renderer[] tiles = new Renderer[Board.Cells.Count];
+        readonly GameObject[] clouds = new GameObject[Board.Cells.Count];
+        readonly GameObject[][] markers = new GameObject[Board.Cells.Count][];
+        readonly Renderer[] highlights = new Renderer[Board.Cells.Count];
+        readonly Color[] highlightColor = new Color[Board.Cells.Count];
+        readonly bool[] eventCell = new bool[Board.Cells.Count];
+        readonly float[] flashUntil = new float[Board.Cells.Count];
+        readonly Color[] flashColor = new Color[Board.Cells.Count];
         bool anyEvent, flashing;
 
         public int HighlightCount { get; private set; }
@@ -39,7 +40,7 @@ namespace HexPortal.Game
                 var tile = Gfx.Hex("Tile " + cells[i], transform, pos, TileRadius, TileHeight, false);
                 tiles[i] = tile.GetComponent<Renderer>();
 
-                var cloud = Gfx.Primitive(PrimitiveType.Sphere, "Cloud", tile.transform.parent, pos + new Vector3(0f, TileHeight + 0.1f, 0f),
+                var cloud = Gfx.Primitive(Gfx.Shape.Sphere, "Cloud", tile.transform.parent, pos + new Vector3(0f, TileHeight + 0.1f, 0f),
                     new Vector3(1.8f, 0.5f, 1.8f));
                 Gfx.SetColor(cloud.GetComponent<Renderer>(), new Color(0.16f, 0.17f, 0.24f));
                 clouds[i] = cloud;
@@ -49,7 +50,7 @@ namespace HexPortal.Game
                 Gfx.SetColor(rune.GetComponent<Renderer>(), new Color(0.55f, 0.25f, 0.85f));
                 var well = Gfx.Hex("Wellspring", transform, top, 0.55f, 0.06f, false);
                 Gfx.SetColor(well.GetComponent<Renderer>(), new Color(0.1f, 0.85f, 0.95f));
-                var portal = Gfx.Primitive(PrimitiveType.Cylinder, "Portal", transform, top + new Vector3(0f, 0.04f, 0f), new Vector3(1.3f, 0.04f, 1.3f));
+                var portal = Gfx.Primitive(Gfx.Shape.Cylinder, "Portal", transform, top + new Vector3(0f, 0.04f, 0f), new Vector3(1.3f, 0.04f, 1.3f));
                 Gfx.SetColor(portal.GetComponent<Renderer>(), new Color(0.95f, 0.3f, 0.9f));
                 var rock = Gfx.Hex("Rock", transform, top, 0.75f, 0.9f, false);
                 Gfx.SetColor(rock.GetComponent<Renderer>(), new Color(0.35f, 0.33f, 0.32f));
@@ -101,11 +102,15 @@ namespace HexPortal.Game
             ApplyHighlights();
         }
 
-        public void Flash(Hex h)
+        public void Flash(Hex h) => Flash(h, Gfx.FlashHl);
+
+        /// <summary>A short coloured flash on a cell (trap, shot, death highlights; UX-10).</summary>
+        public void Flash(Hex h, Color color)
         {
             int i = Board.IndexOf(h);
             if (i < 0) return;
-            flashUntil[i] = Time.time + 0.6f;
+            flashUntil[i] = Time.time + 0.9f;
+            flashColor[i] = color;
             flashing = true;
         }
 
@@ -132,7 +137,9 @@ namespace HexPortal.Game
                 {
                     stillFlashing = true;
                     highlights[i].gameObject.SetActive(true);
-                    Gfx.SetColor(highlights[i], Gfx.FlashHl);
+                    var fc = flashColor[i];
+                    fc.a *= 0.55f + 0.45f * Mathf.Sin(Time.time * 18f);
+                    Gfx.SetColor(highlights[i], fc);
                 }
                 else if (flashUntil[i] > 0f)
                 {

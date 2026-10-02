@@ -25,6 +25,8 @@ namespace HexPortal.Game
         Rng aiRng;
         int aiPrePickTurn = -1;
 
+        /// <summary>Increments for every new match (views reset per-match UI such as the event log).</summary>
+        public int MatchNumber { get; private set; }
         public MatchMode Mode { get; private set; }
         public PlayerId AiSeat { get; private set; }
         public AiLevel AiLevel { get; private set; }
@@ -72,6 +74,7 @@ namespace HexPortal.Game
         void Start(ulong seed, bool timer, MatchMode mode)
         {
             state = Match.Create(seed);
+            MatchNumber++;
             Mode = mode;
             TimerEnabled = timer;
             bank[0] = bank[1] = Catalog.TimeBankSeconds;

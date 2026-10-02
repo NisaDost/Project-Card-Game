@@ -1,44 +1,61 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <!-- Landscape layout, reference 1920x1080 (GDD UX-04). Text is filled in from Strings.cs. -->
+    <!-- Landscape layout, reference 1920x1080 matched by height (GDD UX-04). Phones are ~360-430 dp tall, so
+         1 unit ~ 0.33-0.4 dp: touch targets are >= 173 units (~64 dp). Text is filled in from Strings.cs. -->
     <ui:VisualElement name="board-hit" class="fill" />
     <ui:VisualElement name="overlay" class="fill" picking-mode="Ignore" />
 
     <ui:VisualElement name="hud" class="fill" picking-mode="Ignore">
         <ui:VisualElement name="top" class="top-strip" picking-mode="Ignore">
-            <ui:Label name="own-info" class="info" />
-            <ui:Label name="turn-banner" class="banner" />
-            <ui:Label name="event-banner" class="banner event" />
-            <ui:Label name="opp-info" class="info right" />
+            <ui:VisualElement class="top-group" picking-mode="Ignore">
+                <ui:Label name="own-tower" class="stat own" />
+                <ui:Label name="round" class="stat" />
+            </ui:VisualElement>
+            <ui:VisualElement class="top-group center" picking-mode="Ignore">
+                <ui:Label name="turn-banner" class="banner" />
+                <ui:Label name="event-banner" class="banner event" />
+            </ui:VisualElement>
+            <ui:VisualElement name="opp-info" class="top-group right">
+                <ui:Label name="opp-tower" class="stat opp" />
+                <ui:Label name="opp-hand" class="stat" />
+                <ui:Label name="opp-quests" class="stat" />
+            </ui:VisualElement>
         </ui:VisualElement>
 
         <ui:VisualElement name="left" class="side-col left-col" picking-mode="Ignore">
             <ui:VisualElement class="meter mana-meter" picking-mode="Ignore">
-                <ui:Label class="meter-icon mana-icon" text="◆" />
+                <ui:Label name="mana-icon" class="meter-icon mana-icon" />
                 <ui:Label name="mana-text" class="meter-text" />
                 <ui:VisualElement name="mana-pips" class="pips" />
             </ui:VisualElement>
             <ui:VisualElement class="meter energy-meter" picking-mode="Ignore">
-                <ui:Label class="meter-icon energy-icon" text="⚡" />
+                <ui:Label name="energy-icon" class="meter-icon energy-icon" />
                 <ui:Label name="energy-text" class="meter-text" />
                 <ui:VisualElement name="energy-pips" class="pips" />
             </ui:VisualElement>
-            <ui:Label name="timer" class="timer" />
-            <ui:Label name="timer-bank" class="timer" />
-            <ui:Button name="quest-btn" class="btn" />
+            <ui:VisualElement class="timer-row" picking-mode="Ignore">
+                <ui:Label name="timer" class="timer" />
+                <ui:Label name="timer-bank" class="timer bank" />
+            </ui:VisualElement>
+            <ui:Button name="quest-btn" class="btn quest" />
+            <ui:Label name="event-log" class="event-log" picking-mode="Ignore" />
         </ui:VisualElement>
 
         <ui:VisualElement name="right" class="side-col right-col" picking-mode="Ignore">
-            <ui:Button name="market-0" class="btn market" />
-            <ui:Button name="market-1" class="btn market" />
-            <ui:Button name="market-2" class="btn market" />
-            <ui:Button name="blind-btn" class="btn market" />
+            <ui:VisualElement class="market-grid" picking-mode="Ignore">
+                <ui:Button name="market-0" class="btn market" />
+                <ui:Button name="market-1" class="btn market" />
+                <ui:Button name="market-2" class="btn market" />
+                <ui:Button name="blind-btn" class="btn market blind" />
+            </ui:VisualElement>
             <ui:VisualElement class="spacer" picking-mode="Ignore" />
             <ui:Button name="overwatch-btn" class="btn overwatch" />
             <ui:Button name="end-btn" class="btn end" />
         </ui:VisualElement>
 
-        <ui:Label name="prompt" class="prompt" />
+        <ui:Label name="prompt" class="prompt" picking-mode="Ignore" />
+        <ui:Label name="notice" class="notice" picking-mode="Ignore" />
         <ui:VisualElement name="hand" class="hand" picking-mode="Ignore" />
+        <ui:Label name="toast" class="toast" picking-mode="Ignore" />
         <ui:VisualElement name="drag-card" class="card dragging" picking-mode="Ignore" />
     </ui:VisualElement>
 
@@ -49,6 +66,13 @@
     <ui:VisualElement name="card-detail" class="popup">
         <ui:Label name="detail-text" class="popup-text" />
         <ui:Button name="detail-close" class="btn" />
+    </ui:VisualElement>
+    <ui:VisualElement name="confirm-panel" class="popup">
+        <ui:Label name="confirm-text" class="popup-text" />
+        <ui:VisualElement class="popup-row">
+            <ui:Button name="confirm-cancel" class="btn half" />
+            <ui:Button name="confirm-ok" class="btn half ok" />
+        </ui:VisualElement>
     </ui:VisualElement>
 
     <ui:VisualElement name="screen-quests" class="screen">
@@ -72,11 +96,15 @@
     </ui:VisualElement>
     <ui:VisualElement name="screen-menu" class="screen opaque">
         <ui:Label name="menu-title" class="screen-title huge" />
-        <ui:Button name="menu-hotseat" class="btn big" />
-        <ui:Button name="menu-timer" class="btn big" />
-        <ui:Button name="menu-ai-easy" class="btn big" />
-        <ui:Button name="menu-ai-normal" class="btn big" />
-        <ui:Button name="menu-seat" class="btn big" />
-        <ui:Button name="menu-ai-timer" class="btn big" />
+        <ui:VisualElement class="menu-grid">
+            <ui:Button name="menu-ai-easy" class="btn big" />
+            <ui:Button name="menu-ai-normal" class="btn big" />
+            <ui:Button name="menu-seat" class="btn big" />
+            <ui:Button name="menu-ai-timer" class="btn big" />
+            <ui:Button name="menu-hotseat" class="btn big" />
+            <ui:Button name="menu-timer" class="btn big" />
+        </ui:VisualElement>
     </ui:VisualElement>
+
+    <ui:Label name="err-counter" class="err-counter" picking-mode="Ignore" />
 </ui:UXML>

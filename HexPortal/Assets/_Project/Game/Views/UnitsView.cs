@@ -6,26 +6,36 @@ using UnityEngine.UIElements;
 
 namespace HexPortal.Game
 {
-    /// <summary>Units, towers and ghosts (UX-02, UX-09) from a PlayerView, plus event-driven tweens and floating
-    /// numbers from filtered events. Visuals and labels are pooled; LateUpdate does not allocate.</summary>
+    /// <summary>Units, towers and ghosts (UX-02, UX-09) from a PlayerView, plus event-driven tweens, floating numbers,
+    /// death bursts and cell flashes from filtered events (UX-10). Piece visuals are pooled and reused across unit ids
+    /// (a fixed set of GameObjects per piece, never destroyed); floaters and bursts are pooled; LateUpdate does not
+    /// allocate.</summary>
     public sealed class UnitsView : MonoBehaviour
     {
         const float MoveSeconds = 0.35f;
-        const float FloatSeconds = 1.1f;
+        const float FloatSeconds = 1.4f;
+        const float BurstSeconds = 0.6f;
+        const int TowerKeyA = -1, TowerKeyB = -2, NoKey = int.MinValue;
+
+        /// <summary>GameObjects per pooled piece: root, body, rim, overwatch marker.</summary>
+        public const int ObjectsPerPiece = 4;
 
         sealed class Visual
         {
-            public int Key;
+            public int Key = NoKey;
             public bool Used;
-            public GameObject Root;
-            public GameObject Body;
-            public UnitClass BodyClass = (UnitClass)(-1);
+            public GameObject Root, Body, Watch;
+            public MeshFilter BodyMesh;
+            public int BodyKind = -1; // UnitClass, or 100 for a tower
             public bool IsTower;
             public Renderer BodyRenderer, Rim;
-            public GameObject Watch;
-            public Label Label;
             public Vector3 From, To;
             public float T = 1f;
+            // Overlay tag (UX "stat bars"): big Health bar + number, small Attack chip, buff/debuff/overwatch chips.
+            public VisualElement Tag, HpFill;
+            public Label Hp, Atk, Buff, Debuff, Watching;
+            public int ShownHp = -1, ShownMax = -1, ShownAtk = -1, ShownBuffTurns = -1, ShownDebuffTurns = -1;
+            public string ShownBuff, ShownDebuff;
         }
 
         sealed class Floater
@@ -35,12 +45,34 @@ namespace HexPortal.Game
             public float Age = FloatSeconds;
         }
 
+        sealed class Burst
+        {
+            public GameObject Go;
+            public Renderer R;
+            public float Age = BurstSeconds;
+        }
+
+        /// <summary>Last-seen identity of units the viewer has seen (for death notices and the event log).</summary>
+        public struct Seen
+        {
+            public UnitClass Class;
+            public PlayerId Owner;
+            public Hex Pos;
+        }
+
         readonly List<Visual> visuals = new List<Visual>();
         readonly List<Floater> floaters = new List<Floater>();
+        readonly List<Burst> bursts = new List<Burst>();
+        readonly Dictionary<int, Seen> seen = new Dictionary<int, Seen>();
         VisualElement overlay;
         Camera cam;
         BoardView board;
         PlayerView view;
+
+        public int PoolSize => visuals.Count;
+        public int ShownCount { get; private set; }
+        public int FloaterPoolSize => floaters.Count;
+        public int BurstPoolSize => bursts.Count;
 
         public static UnitsView Create(Transform parent, VisualElement overlay, Camera cam, BoardView board)
         {
@@ -53,23 +85,45 @@ namespace HexPortal.Game
             return v;
         }
 
-        static int TowerKey(PlayerId p) => p == PlayerId.A ? -1 : -2;
+        static int TowerKey(PlayerId p) => p == PlayerId.A ? TowerKeyA : TowerKeyB;
+
+        public bool TryGetSeen(int unitId, out Seen s) => seen.TryGetValue(unitId, out s);
 
         public void Render(PlayerView v)
         {
             view = v;
             foreach (var vis in visuals) vis.Used = false;
+            // Pass 1: keep the visual that already shows a key. Pass 2: new keys take a free pooled visual.
             foreach (var c in v.Cells)
             {
-                if (c.Unit != null) ShowUnit(c.Unit, v);
-                if (c.HasTower) ShowTower(c, v);
+                if (c.Unit != null) Claim(c.Unit.Id);
+                if (c.HasTower) Claim(TowerKey(c.TowerOwner));
             }
+            int shown = 0;
+            foreach (var c in v.Cells)
+            {
+                if (c.Unit != null)
+                {
+                    ShowUnit(c.Unit, v);
+                    shown++;
+                    if (!c.Unit.IsGhost) seen[c.Unit.Id] = new Seen { Class = c.Unit.Class, Owner = c.Unit.Owner, Pos = c.Unit.Pos };
+                }
+                if (c.HasTower) { ShowTower(c); shown++; }
+            }
+            ShownCount = shown;
             foreach (var vis in visuals)
                 if (!vis.Used && vis.Root.activeSelf)
                 {
                     vis.Root.SetActive(false);
-                    vis.Label.style.display = DisplayStyle.None;
+                    vis.Tag.style.display = DisplayStyle.None;
+                    vis.Key = NoKey;
                 }
+        }
+
+        void Claim(int key)
+        {
+            foreach (var vis in visuals)
+                if (vis.Key == key) { vis.Used = true; return; }
         }
 
         public void Hide()
@@ -77,16 +131,19 @@ namespace HexPortal.Game
             foreach (var vis in visuals)
             {
                 vis.Root.SetActive(false);
-                vis.Label.style.display = DisplayStyle.None;
+                vis.Tag.style.display = DisplayStyle.None;
+                vis.Key = NoKey;
+                vis.Used = false;
             }
             foreach (var f in floaters) { f.Age = FloatSeconds; f.Label.style.display = DisplayStyle.None; }
+            foreach (var b in bursts) { b.Age = BurstSeconds; b.Go.SetActive(false); }
         }
 
         void ShowUnit(UnitView u, PlayerView v)
         {
             var vis = Get(u.Id);
             vis.IsTower = false;
-            if (vis.BodyClass != u.Class) BuildBody(vis, u.Class);
+            if (vis.BodyKind != (int)u.Class) SetBody(vis, (int)u.Class);
             Place(vis, u.Pos);
             bool own = u.Owner == v.Viewer;
             bool dim = own && u.ActedThisTurn && v.ActivePlayer == v.Viewer && v.Phase == GamePhase.Playing;
@@ -95,29 +152,57 @@ namespace HexPortal.Game
             if (dim) body *= 0.45f; // UX-02: acted units look faded
             SetLook(vis, body, rim, u.IsGhost);
             vis.Watch.SetActive(u.OnOverwatch && !u.IsGhost);
-            string fx = (u.BuffId != null ? " ▲" + Strings.Name(u.BuffId) : "") + (u.DebuffId != null ? " ▼" + Strings.Name(u.DebuffId) : "")
-                + (u.OnOverwatch ? " ⌖" : "");
-            vis.Label.text = Strings.ClassLetter(u.Class) + " " + u.Health + fx;
-            vis.Label.EnableInClassList("ghost", u.IsGhost);
-            vis.Label.style.borderBottomColor = rim;
+            var def = Unit.DefOf(u.Class);
+            SetTag(vis, u.Health, def.Health, def.Attack, u.IsGhost ? null : u.BuffId, u.BuffTurnsLeft,
+                u.IsGhost ? null : u.DebuffId, u.DebuffTurnsLeft, u.OnOverwatch && !u.IsGhost, rim, u.IsGhost, dim);
         }
 
-        void ShowTower(CellView c, PlayerView v)
+        void ShowTower(CellView c)
         {
             var vis = Get(TowerKey(c.TowerOwner));
-            if (!vis.IsTower || vis.Body == null)
-            {
-                if (vis.Body != null) Destroy(vis.Body);
-                vis.Body = Gfx.Primitive(PrimitiveType.Cylinder, "Tower", vis.Root.transform, new Vector3(0f, 0.9f, 0f), new Vector3(0.9f, 0.9f, 0.9f));
-                vis.BodyRenderer = vis.Body.GetComponent<Renderer>();
-                vis.BodyClass = (UnitClass)(-1);
-                vis.IsTower = true;
-            }
+            if (!vis.IsTower) { SetBody(vis, 100); vis.IsTower = true; }
             Place(vis, c.Cell);
             SetLook(vis, Color.Lerp(Gfx.OwnerColor(c.TowerOwner), Color.white, 0.35f), Gfx.OwnerColor(c.TowerOwner), c.TowerIsGhost);
             vis.Watch.SetActive(false);
-            vis.Label.text = Strings.Tower + " " + c.TowerHealth;
-            vis.Label.EnableInClassList("ghost", c.TowerIsGhost);
+            SetTag(vis, c.TowerHealth, Mathf.Max(c.TowerHealth, Catalog.Tower.Health), -1, null, 0, null, 0, false,
+                Gfx.OwnerColor(c.TowerOwner), c.TowerIsGhost, false);
+        }
+
+        /// <summary>Updates the overlay tag; strings are only rebuilt when a shown value changes.</summary>
+        static void SetTag(Visual vis, int hp, int max, int atk, string buff, int buffTurns, string debuff, int debuffTurns,
+            bool watch, Color owner, bool ghost, bool dim)
+        {
+            if (hp != vis.ShownHp || max != vis.ShownMax)
+            {
+                vis.ShownHp = hp; vis.ShownMax = max;
+                vis.Hp.text = hp.ToString();
+                float f = max <= 0 ? 0f : Mathf.Clamp01((float)hp / max);
+                vis.HpFill.style.width = Length.Percent(f * 100f);
+                vis.HpFill.style.backgroundColor = f > 0.6f ? new Color(0.25f, 0.85f, 0.3f) : f > 0.3f ? new Color(1f, 0.75f, 0.1f) : new Color(1f, 0.2f, 0.15f);
+            }
+            if (atk != vis.ShownAtk)
+            {
+                vis.ShownAtk = atk;
+                vis.Atk.style.display = atk < 0 ? DisplayStyle.None : DisplayStyle.Flex;
+                if (atk >= 0) vis.Atk.text = Strings.AttackIcon + atk;
+            }
+            if (buff != vis.ShownBuff || buffTurns != vis.ShownBuffTurns)
+            {
+                vis.ShownBuff = buff; vis.ShownBuffTurns = buffTurns;
+                vis.Buff.style.display = buff == null ? DisplayStyle.None : DisplayStyle.Flex;
+                if (buff != null) vis.Buff.text = Strings.EffectIcon(buff) + (buffTurns > 0 ? buffTurns.ToString() : "");
+            }
+            if (debuff != vis.ShownDebuff || debuffTurns != vis.ShownDebuffTurns)
+            {
+                vis.ShownDebuff = debuff; vis.ShownDebuffTurns = debuffTurns;
+                vis.Debuff.style.display = debuff == null ? DisplayStyle.None : DisplayStyle.Flex;
+                if (debuff != null) vis.Debuff.text = Strings.EffectIcon(debuff) + (debuffTurns > 0 ? debuffTurns.ToString() : "");
+            }
+            vis.Watching.style.display = watch ? DisplayStyle.Flex : DisplayStyle.None;
+            vis.Tag.style.borderBottomColor = owner;
+            vis.Tag.EnableInClassList("ghost", ghost);
+            vis.Tag.EnableInClassList("dim", dim);
+            vis.Tag.EnableInClassList("tower", vis.IsTower);
         }
 
         void Place(Visual vis, Hex h)
@@ -126,7 +211,7 @@ namespace HexPortal.Game
             vis.To = HexLayout.ToWorld(h, BoardView.TileHeight);
             if (!vis.Root.activeSelf) { vis.Root.SetActive(true); vis.T = 1f; }
             if (vis.T >= 1f) vis.Root.transform.localPosition = vis.To;
-            vis.Label.style.display = DisplayStyle.Flex;
+            vis.Tag.style.display = DisplayStyle.Flex;
         }
 
         static void SetLook(Visual vis, Color body, Color rim, bool ghost)
@@ -139,42 +224,86 @@ namespace HexPortal.Game
             Gfx.SetColor(vis.Rim, rim);
         }
 
+        /// <summary>The visual for a key: the one already showing it, else a free pooled one, else a new one.</summary>
         Visual Get(int key)
         {
             foreach (var v in visuals)
                 if (v.Key == key) return v;
+            foreach (var v in visuals)
+                if (!v.Used) // every key in the view was claimed in pass 1, so this key is gone
+                {
+                    v.Key = key;
+                    v.T = 1f;
+                    v.ShownHp = v.ShownMax = v.ShownAtk = -1;
+                    return v;
+                }
             var vis = new Visual { Key = key };
-            vis.Root = new GameObject("Piece " + key);
+            vis.Root = new GameObject("Piece");
             vis.Root.transform.SetParent(transform, false);
-            var rim = Gfx.Primitive(PrimitiveType.Cylinder, "Rim", vis.Root.transform, new Vector3(0f, 0.05f, 0f), new Vector3(1.25f, 0.05f, 1.25f));
+            vis.Body = Gfx.Primitive(Gfx.Shape.Sphere, "Body", vis.Root.transform, Vector3.zero, Vector3.one);
+            vis.BodyMesh = vis.Body.GetComponent<MeshFilter>();
+            vis.BodyRenderer = vis.Body.GetComponent<Renderer>();
+            var rim = Gfx.Primitive(Gfx.Shape.Cylinder, "Rim", vis.Root.transform, new Vector3(0f, 0.05f, 0f), new Vector3(1.25f, 0.05f, 1.25f));
             vis.Rim = rim.GetComponent<Renderer>();
-            vis.Watch = Gfx.Primitive(PrimitiveType.Sphere, "Overwatch", vis.Root.transform, new Vector3(0f, 1.7f, 0f), new Vector3(0.3f, 0.3f, 0.3f));
+            vis.Watch = Gfx.Primitive(Gfx.Shape.Sphere, "Overwatch", vis.Root.transform, new Vector3(0f, 1.7f, 0f), new Vector3(0.3f, 0.3f, 0.3f));
             Gfx.SetColor(vis.Watch.GetComponent<Renderer>(), new Color(1f, 0.9f, 0.1f));
-            vis.Label = new Label { pickingMode = PickingMode.Ignore };
-            vis.Label.AddToClassList("unit-label");
-            vis.Label.style.borderBottomWidth = 4;
-            overlay.Add(vis.Label);
+            BuildTag(vis);
             visuals.Add(vis);
             return vis;
         }
 
-        static void BuildBody(Visual vis, UnitClass cls)
+        void BuildTag(Visual vis)
         {
-            if (vis.Body != null) Destroy(vis.Body);
-            PrimitiveType type; Vector3 scale; float y;
-            switch (cls)
+            vis.Tag = new VisualElement { pickingMode = PickingMode.Ignore };
+            vis.Tag.AddToClassList("unit-tag");
+            var bar = new VisualElement { pickingMode = PickingMode.Ignore };
+            bar.AddToClassList("hp-bar");
+            vis.HpFill = new VisualElement { pickingMode = PickingMode.Ignore };
+            vis.HpFill.AddToClassList("hp-fill");
+            vis.Hp = new Label { pickingMode = PickingMode.Ignore };
+            vis.Hp.AddToClassList("hp-text");
+            bar.Add(vis.HpFill);
+            bar.Add(vis.Hp);
+            var chips = new VisualElement { pickingMode = PickingMode.Ignore };
+            chips.AddToClassList("chips");
+            vis.Atk = Chip(chips, "chip-atk");
+            vis.Buff = Chip(chips, "chip-buff");
+            vis.Debuff = Chip(chips, "chip-debuff");
+            vis.Watching = Chip(chips, "chip-watch");
+            vis.Watching.text = Strings.OverwatchIcon;
+            vis.Tag.Add(bar);
+            vis.Tag.Add(chips);
+            overlay.Add(vis.Tag);
+        }
+
+        static Label Chip(VisualElement row, string cls)
+        {
+            var l = new Label { pickingMode = PickingMode.Ignore };
+            l.AddToClassList("chip");
+            l.AddToClassList(cls);
+            row.Add(l);
+            return l;
+        }
+
+        /// <summary>Swaps the body mesh in place (no GameObject churn). kind = UnitClass, or 100 for a tower.</summary>
+        static void SetBody(Visual vis, int kind)
+        {
+            Gfx.Shape shape; Vector3 scale; float y; var rot = Quaternion.identity;
+            switch (kind)
             {
-                case UnitClass.Guardian: type = PrimitiveType.Cube; scale = new Vector3(0.8f, 0.8f, 0.8f); y = 0.45f; break;
-                case UnitClass.Rider: type = PrimitiveType.Capsule; scale = new Vector3(0.55f, 0.6f, 0.9f); y = 0.6f; break;
-                case UnitClass.Archer: type = PrimitiveType.Cylinder; scale = new Vector3(0.4f, 0.7f, 0.4f); y = 0.7f; break;
-                case UnitClass.Mage: type = PrimitiveType.Capsule; scale = new Vector3(0.5f, 0.75f, 0.5f); y = 0.75f; break;
-                default: type = PrimitiveType.Sphere; scale = new Vector3(0.7f, 0.7f, 0.7f); y = 0.4f; break;
+                case (int)UnitClass.Guardian: shape = Gfx.Shape.Cube; scale = new Vector3(0.8f, 0.8f, 0.8f); y = 0.45f; break;
+                case (int)UnitClass.Rider: shape = Gfx.Shape.Capsule; scale = new Vector3(0.55f, 0.6f, 0.9f); y = 0.6f; rot = Quaternion.Euler(90f, 0f, 0f); break;
+                case (int)UnitClass.Archer: shape = Gfx.Shape.Cylinder; scale = new Vector3(0.4f, 0.7f, 0.4f); y = 0.7f; break;
+                case (int)UnitClass.Mage: shape = Gfx.Shape.Capsule; scale = new Vector3(0.5f, 0.75f, 0.5f); y = 0.75f; break;
+                case 100: shape = Gfx.Shape.Cylinder; scale = new Vector3(0.9f, 0.9f, 0.9f); y = 0.9f; break;
+                default: shape = Gfx.Shape.Sphere; scale = new Vector3(0.7f, 0.7f, 0.7f); y = 0.4f; break;
             }
-            vis.Body = Gfx.Primitive(type, cls.ToString(), vis.Root.transform, new Vector3(0f, y, 0f), scale);
-            if (cls == UnitClass.Rider) vis.Body.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            vis.BodyRenderer = vis.Body.GetComponent<Renderer>();
-            vis.BodyClass = cls;
-            vis.IsTower = false;
+            vis.BodyMesh.sharedMesh = Gfx.MeshOf(shape);
+            vis.Body.transform.localPosition = new Vector3(0f, y, 0f);
+            vis.Body.transform.localRotation = rot;
+            vis.Body.transform.localScale = scale;
+            vis.BodyKind = kind;
+            vis.IsTower = kind == 100;
         }
 
         // ---------- Event playback (filtered events only) ----------
@@ -188,15 +317,36 @@ namespace HexPortal.Game
                     case UnitMoved m: Tween(m.UnitId, m.From); break;
                     case UnitPushed p: if (p.From != p.To) Tween(p.UnitId, p.From); break;
                     case UnitTeleported t: Tween(t.UnitId, t.From); break;
-                    case DamageDealt d: Float(d.Target, "-" + d.Amount, new Color(1f, 0.3f, 0.25f)); break;
+                    case DamageDealt d:
+                        Float(d.Target, "-" + d.Amount, new Color(1f, 0.25f, 0.2f), true);
+                        board.Flash(d.Target, d.Kind == DamageKind.Trap ? Gfx.TrapHl
+                            : d.Kind == DamageKind.TowerShot || d.Kind == DamageKind.Overwatch ? Gfx.ShotHl : Gfx.AttackHl);
+                        break;
                     case UnitHealed h: FloatAtUnit(h.UnitId, "+" + h.Amount, new Color(0.3f, 1f, 0.4f)); break;
-                    case ShieldBlocked s: FloatAtUnit(s.UnitId, "Kalkan", Color.white); break;
-                    case UnitDied u: FloatAtUnit(u.UnitId, "✖", new Color(1f, 0.1f, 0.1f)); break;
-                    case TrapTriggered tr: board.Flash(tr.Cell); Float(tr.Cell, "Tuzak!", new Color(0.8f, 0.4f, 1f)); break;
-                    case TowerShot ts: FloatAtUnit(ts.TargetUnitId, "Kule atışı", new Color(1f, 0.85f, 0.2f)); break;
-                    case OverwatchFired of: FloatAtUnit(of.TargetUnitId, "Nöbet!", new Color(1f, 0.85f, 0.2f)); break;
+                    case ShieldBlocked s: FloatAtUnit(s.UnitId, Strings.Blocked, Color.white); break;
+                    case TowerDamageBlocked tb: if (TowerCell(tb.Owner, out var tc)) Float(tc, Strings.Blocked, Color.white, false); break;
+                    case UnitDied u:
+                        if (seen.TryGetValue(u.UnitId, out var s2)) { BurstAt(s2.Pos); board.Flash(s2.Pos, Gfx.DeathHl); Float(s2.Pos, Strings.DeathMark, new Color(1f, 0.15f, 0.15f), true); }
+                        break;
+                    case TrapTriggered tr: board.Flash(tr.Cell, Gfx.TrapHl); Float(tr.Cell, Strings.TrapHit, new Color(0.85f, 0.45f, 1f), false); break;
+                    case TowerShot ts:
+                        if (TowerCell(ts.Owner, out var shooter)) { board.Flash(shooter, Gfx.ShotHl); Float(shooter, Strings.TowerShotMark, new Color(1f, 0.85f, 0.2f), false); }
+                        break;
+                    case OverwatchFired of:
+                        if (seen.TryGetValue(of.UnitId, out var w)) { board.Flash(w.Pos, Gfx.ShotHl); Float(w.Pos, Strings.OverwatchMark, new Color(1f, 0.85f, 0.2f), false); }
+                        break;
                 }
             }
+        }
+
+        bool TowerCell(PlayerId owner, out Hex cell)
+        {
+            cell = default;
+            if (view == null) return false;
+            var pos = owner == view.Viewer ? view.OwnTowerPos : view.EnemyTowerPos;
+            if (!pos.HasValue) return false;
+            cell = pos.Value;
+            return true;
         }
 
         void Tween(int unitId, Hex from)
@@ -212,12 +362,10 @@ namespace HexPortal.Game
 
         void FloatAtUnit(int unitId, string text, Color color)
         {
-            if (view == null) return;
-            foreach (var c in view.Cells)
-                if (c.Unit != null && c.Unit.Id == unitId) { Float(c.Cell, text, color); return; }
+            if (seen.TryGetValue(unitId, out var s)) Float(s.Pos, text, color, false);
         }
 
-        void Float(Hex cell, string text, Color color)
+        void Float(Hex cell, string text, Color color, bool big)
         {
             Floater f = null;
             foreach (var x in floaters)
@@ -229,11 +377,35 @@ namespace HexPortal.Game
                 overlay.Add(f.Label);
                 floaters.Add(f);
             }
-            f.World = HexLayout.ToWorld(cell, BoardView.TileHeight + 1.2f);
+            // Stack floaters on the same cell so simultaneous numbers stay readable.
+            float lift = 0f;
+            var world = HexLayout.ToWorld(cell, BoardView.TileHeight + 1.2f);
+            foreach (var x in floaters)
+                if (x != f && x.Age < 0.3f && (x.World - world).sqrMagnitude < 0.01f) lift += 0.45f;
+            f.World = world + new Vector3(0f, lift, 0f);
             f.Age = 0f;
             f.Label.text = text;
             f.Label.style.color = color;
+            f.Label.EnableInClassList("big", big);
             f.Label.style.display = DisplayStyle.Flex;
+        }
+
+        void BurstAt(Hex cell)
+        {
+            Burst b = null;
+            foreach (var x in bursts)
+                if (x.Age >= BurstSeconds) { b = x; break; }
+            if (b == null)
+            {
+                b = new Burst();
+                b.Go = Gfx.Primitive(Gfx.Shape.Sphere, "DeathBurst", transform, Vector3.zero, Vector3.one);
+                b.R = b.Go.GetComponent<Renderer>();
+                b.R.sharedMaterial = Gfx.Transparent;
+                bursts.Add(b);
+            }
+            b.Age = 0f;
+            b.Go.transform.localPosition = HexLayout.ToWorld(cell, BoardView.TileHeight + 0.5f);
+            b.Go.SetActive(true);
         }
 
         void LateUpdate()
@@ -249,7 +421,7 @@ namespace HexPortal.Game
                     v.T = Mathf.Min(1f, v.T + dt / MoveSeconds);
                     v.Root.transform.localPosition = Vector3.Lerp(v.From, v.To, Mathf.SmoothStep(0f, 1f, v.T));
                 }
-                PlaceLabel(v.Label, v.Root.transform.position + new Vector3(0f, v.IsTower ? 2.1f : 1.5f, 0f));
+                PlaceLabel(v.Tag, v.Root.transform.position + new Vector3(0f, v.IsTower ? 2.1f : 1.55f, 0f));
             }
             for (int i = 0; i < floaters.Count; i++)
             {
@@ -257,11 +429,23 @@ namespace HexPortal.Game
                 if (f.Age >= FloatSeconds) continue;
                 f.Age += dt;
                 if (f.Age >= FloatSeconds) { f.Label.style.display = DisplayStyle.None; continue; }
-                PlaceLabel(f.Label, f.World + new Vector3(0f, f.Age * 1.2f, 0f));
+                PlaceLabel(f.Label, f.World + new Vector3(0f, f.Age * 0.9f, 0f));
+                f.Label.style.opacity = f.Age < FloatSeconds * 0.6f ? 1f : (FloatSeconds - f.Age) / (FloatSeconds * 0.4f);
+            }
+            for (int i = 0; i < bursts.Count; i++)
+            {
+                var b = bursts[i];
+                if (b.Age >= BurstSeconds) continue;
+                b.Age += dt;
+                if (b.Age >= BurstSeconds) { b.Go.SetActive(false); continue; }
+                float k = b.Age / BurstSeconds;
+                float s = Mathf.Lerp(0.4f, 2.2f, k);
+                b.Go.transform.localScale = new Vector3(s, s * 0.7f, s);
+                Gfx.SetColor(b.R, new Color(1f, 0.15f, 0.1f, 0.75f * (1f - k)));
             }
         }
 
-        void PlaceLabel(Label label, Vector3 world)
+        void PlaceLabel(VisualElement label, Vector3 world)
         {
             var s = cam.WorldToScreenPoint(world);
             var p = RuntimePanelUtils.ScreenToPanel(overlay.panel, new Vector2(s.x, Screen.height - s.y));

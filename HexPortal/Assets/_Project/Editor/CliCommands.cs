@@ -52,6 +52,8 @@ namespace HexPortal.Editor
             if (b == null) return "{\"pressed\":false,\"error\":\"no button " + button + "\"}";
             if (!b.enabledInHierarchy || b.resolvedStyle.display == UnityEngine.UIElements.DisplayStyle.None)
                 return "{\"pressed\":false,\"error\":\"button disabled or hidden\"}";
+            if (!app.Ui.IsOn(b)) // an off button only shows its reason (M6c), report that instead of pressing
+                return "{\"pressed\":false,\"error\":\"button off\",\"reason\":\"" + app.Ui.ReasonFor(b).Replace("\"", "'") + "\"}";
             using (var e = UnityEngine.UIElements.NavigationSubmitEvent.GetPooled())
             {
                 e.target = b;

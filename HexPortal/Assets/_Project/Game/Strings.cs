@@ -56,6 +56,134 @@ namespace HexPortal.Game
         public const string OppFailed = "Rakibin başarısız görevi: ";
         public const string Setup = "Hazırlık";
 
+        // ---------- M6c: compact HUD, icons, reasons, notices, event log ----------
+        public const string AttackIcon = "⚔";
+        public const string OverwatchIcon = "◉";
+        public const string TowerIcon = "♜";
+        public const string HandIcon = "▯";
+        public const string QuestDone = "✓";
+        public const string QuestFail = "✗";
+        public const string ManaIcon = "◆";
+        public const string EnergyIcon = "⚡";
+        public const string EventIcon = "⚠";
+        public const string RoundShort = "R";
+        public const string Blocked = "Engellendi";
+        public const string DeathMark = "✖";
+        public const string TrapHit = "Tuzak!";
+        public const string TowerShotMark = "Kule atışı!";
+        public const string OverwatchMark = "Nöbet!";
+        public const string Cancel = "Vazgeç";
+        public const string ErrorCounter = "Hata ";
+
+        // Why a control does nothing right now (shown on tap; text only, the legal list decides).
+        public const string ReasonOpponentTurn = "Rakibin turu";
+        public const string ReasonDrawFirst = "Önce kart çek";
+        public const string ReasonNoEnergy = "Enerji yok";
+        public const string ReasonNoMana = "Mana yetmiyor";
+        public const string ReasonActed = "Bu birim bu tur aksiyonunu kullandı";
+        public const string ReasonNoAction = "Bu birim şu an bir şey yapamaz";
+        public const string ReasonNoTarget = "Geçerli hedef yok";
+        public const string ReasonHandFull = "El dolu";
+        public const string ReasonSlotEmpty = "Bu Pazar slotu boş";
+        public const string ReasonAlreadyDrew = "Bu tur kart çektin";
+        public const string ReasonSetupNoDraw = "Hazırlıkta kart çekilmez";
+        public const string ReasonCannotDraw = "Şu an kart çekilemez";
+        public const string ReasonFinishSetup = "Önce kuleyi ve karakterlerini yerleştir";
+        public const string ReasonPickThree = "3 görev seç";
+        public const string ReasonNotNow = "Şu an olmaz";
+
+        /// <summary>C-05/C-06 hint before a buff/debuff replaces the unit's current one.</summary>
+        public static string Replaces(string oldId) => Name(oldId) + " kartının yerini alacak";
+
+        /// <summary>Short symbol for a buff/debuff on a unit tag (no text on the board).</summary>
+        public static string EffectIcon(string id)
+        {
+            switch (id)
+            {
+                case "C-10": return "⚔+";
+                case "C-11": return "⚔+";
+                case "C-12": return "◈";
+                case "C-16": return "⚔−";
+                case "C-17": return "☠";
+                case "C-19": return "⚓";
+                default: return "★";
+            }
+        }
+
+        /// <summary>Small card icon (UX-07: icon, name, cost).</summary>
+        public static string CardIcon(CardCategory c)
+        {
+            switch (c)
+            {
+                case CardCategory.Power: return "⚔";
+                case CardCategory.Protection: return "◈";
+                case CardCategory.Movement: return "➜";
+                case CardCategory.Curse: return "☠";
+                case CardCategory.Control: return "⚓";
+                default: return "✱";
+            }
+        }
+
+        public static string ClassIcon(UnitClass c)
+        {
+            switch (c)
+            {
+                case UnitClass.Guardian: return "■";
+                case UnitClass.Rider: return "➜";
+                case UnitClass.Archer: return "➶";
+                case UnitClass.Mage: return "✦";
+                default: return "✚";
+            }
+        }
+
+        /// <summary>"Okçun" (own) / "Rakip Okçu" (enemy) for notices and the event log.</summary>
+        public static string UnitRef(UnitClass c, bool own)
+        {
+            if (!own) return "Rakip " + ClassName(c);
+            switch (c)
+            {
+                case UnitClass.Guardian: return "Muhafızın";
+                case UnitClass.Rider: return "Süvarin";
+                case UnitClass.Archer: return "Okçun";
+                case UnitClass.Mage: return "Büyücün";
+                default: return "Şifacın";
+            }
+        }
+
+        public const string SomeUnit = "Bir birim";
+        public const string OwnTowerRef = "Kulen";
+        public const string EnemyTowerRef = "Rakip kule";
+        public const string Died = " öldü";
+        public const string Deployed = " sahaya çıktı";
+        public const string ShieldUsed = ": Kalkan hasarı engelledi";
+        public const string WallUsed = ": Kalın Duvar hasarı engelledi";
+        public const string TrapOn = "Tuzak tetiklendi";
+        public const string TowerFired = "Kule ateş etti";
+        public const string OverwatchFiredText = "Nöbet ateşi";
+        public const string OppPlayed = "Rakip oynadı: ";
+        public const string YouPlayed = "Oynadın: ";
+        public const string QuestDoneText = "Görev tamamlandı: ";
+        public const string OppQuestDoneText = "Rakip görev tamamladı: ";
+        public const string QuestFailText = "Görev başarısız: ";
+        public const string OppQuestFailText = "Rakibin görevi başarısız: ";
+        public const string PassiveOpened = "Pasif açıldı: ";
+        public const string EventHappened = "Olay: ";
+        public const string Revived = " geri döndü";
+
+        public static string DamageKindName(DamageKind k)
+        {
+            switch (k)
+            {
+                case DamageKind.Splash: return "patlama";
+                case DamageKind.TowerShot: return "kule";
+                case DamageKind.Overwatch: return "nöbet";
+                case DamageKind.Trap: return "tuzak";
+                case DamageKind.Poison: return "zehir";
+                case DamageKind.PortalWarden: return "portal";
+                default: return "saldırı";
+            }
+        }
+
         public static string Player(PlayerId p) => p == PlayerId.A ? PlayerA : PlayerB;
 
         public static string ClassName(UnitClass c)

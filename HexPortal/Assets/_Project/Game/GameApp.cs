@@ -34,7 +34,7 @@ namespace HexPortal.Game
             settings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
             settings.referenceResolution = new Vector2Int(1920, 1080);
             settings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
-            settings.match = 0.5f;
+            settings.match = 1f; // match HEIGHT: landscape phones differ in width; sizes in USS are tuned to the 1080 height (UX-01 dp)
 
             var uiGo = new GameObject("UI");
             uiGo.transform.SetParent(transform, false);
@@ -51,6 +51,33 @@ namespace HexPortal.Game
             var board = BoardView.Create(transform);
             var units = UnitsView.Create(transform, root.Q("overlay"), cam, board);
             Ui = new GameUi(Match, root, board, units, cam);
+            Units = units;
+            SetupErrorCounter(root);
+        }
+
+        public UnitsView Units { get; private set; }
+
+        // ---------- Development-only error counter (device proof that nothing logs errors) ----------
+
+        Label errorLabel;
+        /// <summary>Errors, exceptions and asserts logged since this app started (Development builds and the Editor).</summary>
+        public int LoggedErrors { get; private set; }
+
+        void SetupErrorCounter(VisualElement root)
+        {
+            errorLabel = root.Q<Label>("err-counter");
+            if (errorLabel == null || !Debug.isDebugBuild) return; // Release builds: no overlay, no log hook
+            errorLabel.text = Strings.ErrorCounter + "0";
+            errorLabel.style.display = DisplayStyle.Flex;
+            Application.logMessageReceived += OnLog;
+        }
+
+        void OnLog(string message, string stack, LogType type)
+        {
+            if (type != LogType.Error && type != LogType.Exception && type != LogType.Assert) return;
+            LoggedErrors++;
+            errorLabel.text = Strings.ErrorCounter + LoggedErrors;
+            errorLabel.AddToClassList("has-errors");
         }
 
         /// <summary>AI-05: pause between AI commands so each one's animation can be followed.</summary>
@@ -61,7 +88,7 @@ namespace HexPortal.Game
         void Update()
         {
             Match.Tick(Time.deltaTime);
-            Ui.TickClock();
+            Ui.Tick();
         }
 
         /// <summary>Runs the AI's turn one command at a time, so the UI stays responsive (AI-05).</summary>
@@ -81,6 +108,7 @@ namespace HexPortal.Game
 
         void OnDestroy()
         {
+            Application.logMessageReceived -= OnLog;
             if (Instance == this) Instance = null;
         }
     }

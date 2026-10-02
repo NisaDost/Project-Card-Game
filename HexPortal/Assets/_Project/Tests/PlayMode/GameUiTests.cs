@@ -60,7 +60,8 @@ namespace HexPortal.Game.Tests
                         if (m.Viewer == PlayerId.A && m.View.OpponentFailedQuests.Count > 0)
                         {
                             var id = m.View.OpponentFailedQuests[0];
-                            StringAssert.Contains(Strings.OppFailed + m.View.OpponentFailedQuests.Count, app.Ui.OpponentInfoText);
+                            StringAssert.Contains(Strings.QuestFail + m.View.OpponentFailedQuests.Count, app.Ui.OpponentInfoText);
+                            StringAssert.Contains(Strings.OppFailed + m.View.OpponentFailedQuests.Count, app.Ui.QuestPanelText);
                             StringAssert.Contains(Strings.Name(id), app.Ui.QuestPanelText);
                             seen = true;
                             break;
