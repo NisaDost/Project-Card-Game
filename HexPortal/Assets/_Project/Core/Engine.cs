@@ -167,7 +167,8 @@ namespace HexPortal.Core
             Turn.SpendAction(state, u, Catalog.MoveAttackEnergy);
             Arrive(state, u, cmd.Approach, events);
             if (state.IsOver || state.GetUnit(u.Id) == null || u.Pos != cmd.Approach) return;
-            if (targetUnit != null ? state.GetUnit(targetUnit.Id) == null || targetUnit.Pos != cmd.Target
+            // Guard (PM Q1): no current rule can damage or move the target during the arrival; add a test if one appears.
+            if (targetUnit != null ?state.GetUnit(targetUnit.Id) == null || targetUnit.Pos != cmd.Target
                                    : !Combat.HoldsEnemy(state, u.Owner, cmd.Target)) return;
             Combat.ResolveAttack(state, u, cmd.Target, DamageKind.Attack, true, events);
             Defense.ResolveAttackTriggers(state, u, events);

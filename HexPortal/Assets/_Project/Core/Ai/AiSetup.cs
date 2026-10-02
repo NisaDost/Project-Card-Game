@@ -175,7 +175,7 @@ namespace HexPortal.Core
                 foreach (var c in view.Hand)
                     if (!c.IsCharacter && c.DefId == "C-20" && HasTrapCommand(legal, c.Id)) { cand.Add(c); break; }
             bool needOne = view.OwnUnits.Count == 0;
-            var options = new List<(int mask, int score)>();
+            var options = new List<(int mask, int score, int cost)>();
             for (int mask = 0; mask < 1 << cand.Count; mask++)
             {
                 int cost = 0, score = 0;
@@ -189,7 +189,7 @@ namespace HexPortal.Core
                         hasChar |= c.IsCharacter;
                     }
                 if (cost > view.SetupMana || (needOne && !hasChar)) continue;
-                options.Add((mask, score));
+                options.Add((mask, score, cost));
             }
             var chosen = new List<CardInstance>();
             if (options.Count == 0) return chosen;
@@ -197,6 +197,10 @@ namespace HexPortal.Core
             if (level == AiLevel.Easy) pick = options[rng.NextInt(options.Count)].mask;
             else
             {
+                // PM Q2: the whole setup must spend at least SetupMinSpend; if no fitting option reaches it, all stay.
+                int spent = Catalog.SetupMana - view.SetupMana;
+                var rich = options.FindAll(o => spent + o.cost >= AiWeights.SetupMinSpend);
+                if (rich.Count > 0) options = rich;
                 options.Sort((x, y) => x.score != y.score ? y.score.CompareTo(x.score) : x.mask.CompareTo(y.mask));
                 pick = options[rng.NextInt(Math.Min(AiWeights.SetupTopCombos, options.Count))].mask;
             }

@@ -447,8 +447,10 @@ namespace HexPortal.Tests
                     var own = s.Units.Where(u => u.Owner == p).ToList();
                     // S-05 (v3.0), PM S3: a combination within the 8 setup Mana, at least one character.
                     Assert.That(own.Count, Is.GreaterThanOrEqualTo(Catalog.MinPlacedCharacters));
-                    Assert.That(own.Sum(u => u.Def.Cost) + s.Traps.Where(t => t.Owner == p).Sum(t => t.Card.Support.Cost),
-                        Is.LessThanOrEqualTo(Catalog.SetupMana));
+                    int spent = own.Sum(u => u.Def.Cost) + s.Traps.Where(t => t.Owner == p).Sum(t => t.Card.Support.Cost);
+                    Assert.That(spent, Is.LessThanOrEqualTo(Catalog.SetupMana));
+                    // PM Q2: Normal spends at least SetupMinSpend (always possible with the dealt hand: 3 + 2 + 2 = 7).
+                    if (level == AiLevel.Normal) Assert.That(spent, Is.GreaterThanOrEqualTo(AiWeights.SetupMinSpend), "seed " + seed + " " + p);
                     if (own.Any(u => u.Class == UnitClass.Guardian))
                         Assert.That(own.Any(u => u.Class == UnitClass.Guardian && Hex.Distance(u.Pos, tower) == 1), "Guardian next to the tower");
                     foreach (var trap in s.Traps.Where(t => t.Owner == p))
