@@ -27,6 +27,7 @@ namespace HexPortal.Tests
         public bool Money = true;       // opponent Mana / Energy
         public int MinMana;             // scrambled Mana is in [MinMana, MinMana + 8)
         public int MinEnergy;           // scrambled Energy is in [MinEnergy, EnergyPerTurn]
+        public int MinSetupMana;        // scrambled setup Mana (S-05) is in [MinSetupMana, SetupMana]
         public bool PrePick = true;
         public bool MoveUnits = true;   // hidden enemy units
         public bool UnitState = true;   // Health, buff, debuff of hidden enemy units
@@ -53,7 +54,8 @@ namespace HexPortal.Tests
         public static int DealtHandSize =>
             Catalog.Units.Count * Catalog.DealCharactersPerClass + Catalog.DealCommonSupport + Catalog.DealRareSupport;
 
-        /// <summary>First legal choice at every setup step; places <paramref name="units"/> characters, no traps.</summary>
+        /// <summary>First legal choice at every setup step; places <paramref name="units"/> characters, no traps. S-05 (v3.0):
+        /// only affordable placements are legal; it fails if fewer than <paramref name="units"/> fit the setup budget.</summary>
         public static List<GameEvent> SetupPlayer(GameState s, PlayerId p, int units = 3, bool finish = true)
         {
             var events = new List<GameEvent>();
@@ -189,7 +191,8 @@ namespace HexPortal.Tests
         static string Unit(UnitView u) =>
             u.Id + " " + u.Owner + " " + u.Class + " " + u.Biome + " " + u.Pos + " hp" + u.Health + (u.IsGhost ? " ghost" : "")
             + " b=" + u.BuffId + "/" + u.BuffTurnsLeft + " d=" + u.DebuffId + "/" + u.DebuffTurnsLeft + " ow=" + u.OnOverwatch
-            + " f=" + u.ActedThisTurn + u.MovedThisTurn + u.MovedLastOwnTurn + u.MoveBonus + " rv=" + u.RevealedUntilTurn;
+            + " f=" + u.ActedThisTurn + u.MoveBonus + " rv=" + u.RevealedUntilTurn
+            + " atk=" + u.EffectiveAttack + "/" + u.ChargeBonus;
 
         /// <summary>Type name and every public instance field / property (declared on the event), in name order.</summary>
         public static string Serialize(IEnumerable<GameEvent> events) => string.Join("\n", events.Select(Serialize));
@@ -306,6 +309,7 @@ namespace HexPortal.Tests
             {
                 s.SetMana(o, rng.NextInt(spec.MinMana, spec.MinMana + 8));
                 s.SetEnergy(o, rng.NextInt(spec.MinEnergy, Catalog.EnergyPerTurn + 1));
+                s.SetSetupMana(o, rng.NextInt(Math.Min(spec.MinSetupMana, Catalog.SetupMana), Catalog.SetupMana + 1));
             }
             if (spec.PrePick && !setup)
             {
@@ -322,8 +326,6 @@ namespace HexPortal.Tests
             {
                 if (u.Owner != o || spec.KeepUnit(u)) continue;
                 u.ActedThisTurn = rng.NextInt(2) == 0;
-                u.MovedThisTurn = rng.NextInt(2) == 0;
-                u.MovedLastOwnTurn = rng.NextInt(2) == 0;
                 u.MoveBonus = rng.NextInt(3);
                 if (visible.Contains(u.Pos)) continue;
                 if (spec.MoveUnits)

@@ -14,6 +14,7 @@ namespace HexPortal.Tests
         static readonly Hex TowerB = new Hex(2, -2);
         static Hex H(int q, int r) => new Hex(q, r);
         static UnitDef Def(UnitClass c) => Catalog.Units.Single(u => u.Class == c);
+        static int Hp(UnitClass c) => Def(c).Health; // v3.1 full Health
 
         // ---------- U-27 tower shot ----------
 
@@ -24,7 +25,7 @@ namespace HexPortal.Tests
             int g = b.Unit(UnitClass.Guardian, A, H(-1, 0)); // distance 3
             var s = b.Build();
             var ev = Engine.Apply(s, new MoveCommand(A, g, H(0, -1))); // distance 2
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6 - Catalog.Tower.Attack));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Catalog.Tower.Attack));
             var shot = ev.OfType<TowerShot>().Single();
             Assert.That(shot.Owner, Is.EqualTo(B));
             Assert.That(shot.TargetUnitId, Is.EqualTo(g));
@@ -43,8 +44,8 @@ namespace HexPortal.Tests
             int g = b.Unit(UnitClass.Guardian, B, H(-1, -1));
             var s = b.Build();
             var ev = Engine.Apply(s, new AttackCommand(A, a, H(-1, -1)));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6 - Def(UnitClass.Archer).Attack));
-            Assert.That(s.GetUnit(a).Health, Is.EqualTo(3 - Catalog.Tower.Attack));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Def(UnitClass.Archer).Attack));
+            Assert.That(s.GetUnit(a).Health, Is.EqualTo(Hp(UnitClass.Archer) - Catalog.Tower.Attack));
             var kinds = ev.OfType<DamageDealt>().Select(d => d.Kind).ToList();
             Assert.That(kinds, Is.EqualTo(new[] { DamageKind.Attack, DamageKind.TowerShot }));
         }
@@ -59,14 +60,14 @@ namespace HexPortal.Tests
             Engine.Apply(s, new MoveCommand(A, g1, H(0, -1)));
             var ev = Engine.Apply(s, new MoveCommand(A, g2, H(0, -2)));
             Assert.That(ev.OfType<TowerShot>(), Is.Empty);
-            Assert.That(s.GetUnit(g2).Health, Is.EqualTo(6));
+            Assert.That(s.GetUnit(g2).Health, Is.EqualTo(Hp(UnitClass.Guardian)));
 
             Engine.Apply(s, new EndTurnCommand(A));
             Engine.Apply(s, new EndTurnCommand(B));
             Assert.That(s.IsTowerShotAvailable(B), Is.True); // reset at the start of A's turn
             ev = Engine.Apply(s, new MoveCommand(A, g2, H(1, -2)));
             Assert.That(ev.OfType<TowerShot>().Count(), Is.EqualTo(1));
-            Assert.That(s.GetUnit(g2).Health, Is.EqualTo(6 - Catalog.Tower.Attack));
+            Assert.That(s.GetUnit(g2).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Catalog.Tower.Attack));
         }
 
         [Test]
@@ -80,7 +81,7 @@ namespace HexPortal.Tests
             Assert.That(Visibility.VisibleCells(s, B).Contains(H(1, -1)), Is.True);
             var ev = Engine.Apply(s, new MoveCommand(A, a, H(0, -1)));
             Assert.That(ev.OfType<TowerShot>(), Is.Empty);
-            Assert.That(s.GetUnit(a).Health, Is.EqualTo(3));
+            Assert.That(s.GetUnit(a).Health, Is.EqualTo(Hp(UnitClass.Archer)));
             Assert.That(s.IsTowerShotAvailable(B), Is.True);
 
             // The kept shot fires at the next valid trigger (Guardians are never covered).
@@ -100,7 +101,7 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void U27_DamageIsTwo_NoBiome()
+        public void U27_DamageIsTheTowerAttackThree_NoBiome()
         {
             // The target stands on its own biome and the tower cell is Forest: the shot is still Tower.Attack.
             var b = new TestBoard().Tower(B, TowerB);
@@ -108,8 +109,8 @@ namespace HexPortal.Tests
             var s = b.Build();
             var ev = Engine.Apply(s, new MoveCommand(A, r, H(1, -1)));
             Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(Catalog.Tower.Attack));
-            Assert.That(Catalog.Tower.Attack, Is.EqualTo(2));
-            Assert.That(s.GetUnit(r).Health, Is.EqualTo(4 - 2));
+            Assert.That(Catalog.Tower.Attack, Is.EqualTo(3)); // v3.1
+            Assert.That(s.GetUnit(r).Health, Is.EqualTo(Hp(UnitClass.Rider) - 3));
         }
 
         [Test]
@@ -173,13 +174,13 @@ namespace HexPortal.Tests
             var fired = ev.OfType<OverwatchFired>().Single();
             Assert.That(fired.UnitId, Is.EqualTo(ow));
             Assert.That(fired.TargetUnitId, Is.EqualTo(g2));
-            Assert.That(s.GetUnit(g2).Health, Is.EqualTo(6 - Def(UnitClass.Archer).Attack));
+            Assert.That(s.GetUnit(g2).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Def(UnitClass.Archer).Attack));
             Assert.That(ev.OfType<DamageDealt>().Single().Kind, Is.EqualTo(DamageKind.Overwatch));
             Assert.That(s.GetUnit(ow).OnOverwatch, Is.False);
 
             ev = Engine.Apply(s, new MoveCommand(A, g3, H(0, 0))); // in line, but overwatch is spent
             Assert.That(ev.OfType<OverwatchFired>(), Is.Empty);
-            Assert.That(s.GetUnit(g3).Health, Is.EqualTo(6));
+            Assert.That(s.GetUnit(g3).Health, Is.EqualTo(Hp(UnitClass.Guardian)));
         }
 
         [Test]
@@ -211,9 +212,9 @@ namespace HexPortal.Tests
             int near = b.Unit(UnitClass.Archer, A, H(1, 0));
             var s = b.Build();
             var ev = Engine.Apply(s, new MoveCommand(A, g, H(0, 0)));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6 - Def(UnitClass.Mage).Attack));
-            Assert.That(s.GetUnit(near).Health, Is.EqualTo(3 - Catalog.MageSplashDamage));
-            Assert.That(s.GetUnit(ally).Health, Is.EqualTo(3));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Def(UnitClass.Mage).Attack));
+            Assert.That(s.GetUnit(near).Health, Is.EqualTo(Hp(UnitClass.Archer) - Catalog.MageSplashDamage));
+            Assert.That(s.GetUnit(ally).Health, Is.EqualTo(Hp(UnitClass.Archer)));
             Assert.That(ev.OfType<DamageDealt>().Select(d => d.Kind),
                 Is.EqualTo(new[] { DamageKind.Overwatch, DamageKind.Splash }));
         }
@@ -246,7 +247,7 @@ namespace HexPortal.Tests
             Assert.That(Visibility.VisibleCells(s, B).Contains(H(-1, -1)), Is.False);
             var ev = Engine.Apply(s, new MoveCommand(A, m, H(0, -1))); // in range, next to the hidden Guardian
             Assert.That(ev.OfType<TowerShot>().Single().TargetUnitId, Is.EqualTo(m));
-            Assert.That(s.GetUnit(m).Health, Is.EqualTo(3 - Catalog.Tower.Attack));
+            Assert.That(s.GetUnit(m).Health, Is.EqualTo(Hp(UnitClass.Mage) - Catalog.Tower.Attack));
 
             // Control: when a unit of B sees the Guardian, the same move is covered.
             var b2 = new TestBoard().Tower(B, TowerB);
@@ -256,6 +257,57 @@ namespace HexPortal.Tests
             var s2 = b2.Build();
             Assert.That(Engine.Apply(s2, new MoveCommand(A, m2, H(0, -1))).OfType<TowerShot>(), Is.Empty);
             Assert.That(s2.IsTowerShotAvailable(B), Is.True);
+        }
+
+        /// <summary>T-05 (v3.2): a move-attack resolves the arrival triggers first and its attack is a normal attack trigger.
+        /// The arrival is covered (B sees the Guardian through its Healer); the attack kills that Healer, the cover is gone
+        /// and the tower fires on the attack trigger.</summary>
+        [Test]
+        public void T05_U27_MoveAttack_ArrivalThenAttackTrigger()
+        {
+            var b = new TestBoard().Tower(B, TowerB);
+            b.Unit(UnitClass.Guardian, A, H(-1, -1));
+            int healer = b.Unit(UnitClass.Healer, B, H(0, -3), health: 1); // sees (-1,-1) at distance 2
+            int m = b.Unit(UnitClass.Mage, A, H(-2, 1));
+            var s = b.Build();
+            var ev = Engine.Apply(s, new MoveAttackCommand(A, m, H(0, -1), H(0, -3)));
+            Assert.That(s.GetUnit(healer), Is.Null);
+            var kinds = ev.Where(e => e is UnitMoved || e is DamageDealt || e is TowerShot).Select(e => e.GetType().Name).ToList();
+            Assert.That(kinds, Is.EqualTo(new[] { "UnitMoved", "DamageDealt", "TowerShot", "DamageDealt" }));
+            Assert.That(ev.OfType<TowerShot>().Single().TargetUnitId, Is.EqualTo(m));
+            Assert.That(s.GetUnit(m).Health, Is.EqualTo(Hp(UnitClass.Mage) - Catalog.Tower.Attack));
+        }
+
+        /// <summary>T-05 (v3.2): if the arrival kills the unit (tower shot), the attack does not happen; the 2 Energy is spent.</summary>
+        [Test]
+        public void T05_MoveAttack_CancelledWhenTheArrivalShotKills_EnergySpent()
+        {
+            var b = new TestBoard().Tower(B, TowerB);
+            int m = b.Unit(UnitClass.Mage, A, H(-1, 0), health: Catalog.Tower.Attack);
+            int target = b.Unit(UnitClass.Guardian, B, H(0, -2));
+            var s = b.Build();
+            var ev = Engine.Apply(s, new MoveAttackCommand(A, m, H(0, -1), H(0, -2)));
+            Assert.That(s.GetUnit(m), Is.Null);
+            Assert.That(ev.OfType<DamageDealt>().Single().Kind, Is.EqualTo(DamageKind.TowerShot));
+            Assert.That(s.GetUnit(target).Health, Is.EqualTo(Hp(UnitClass.Guardian)));
+            Assert.That(s.GetEnergy(A), Is.EqualTo(Catalog.EnergyPerTurn - Catalog.MoveAttackEnergy));
+        }
+
+        /// <summary>Same with an overwatch shot on arrival.</summary>
+        [Test]
+        public void T05_U28_MoveAttack_CancelledWhenTheOverwatchShotKills()
+        {
+            var b = new TestBoard();
+            int ow = b.Unit(UnitClass.Archer, B, H(0, -2));
+            b.U(ow).OnOverwatch = true;
+            int g = b.Unit(UnitClass.Guardian, A, H(1, 1), health: Def(UnitClass.Archer).Attack);
+            int target = b.Unit(UnitClass.Healer, B, H(1, 0));
+            var s = b.Build();
+            var ev = Engine.Apply(s, new MoveAttackCommand(A, g, H(0, 1), H(1, 0))); // (0,1): the Archer's line at k = 3
+            Assert.That(ev.OfType<OverwatchFired>().Count(), Is.EqualTo(1));
+            Assert.That(s.GetUnit(g), Is.Null);
+            Assert.That(s.GetUnit(target).Health, Is.EqualTo(Hp(UnitClass.Healer)));
+            Assert.That(s.GetEnergy(A), Is.EqualTo(Catalog.EnergyPerTurn - Catalog.MoveAttackEnergy));
         }
 
         [Test]
@@ -301,7 +353,7 @@ namespace HexPortal.Tests
             var shooters = ev.Where(e => e is TowerShot || e is OverwatchFired)
                 .Select(e => e is OverwatchFired f ? f.UnitId : -1).ToList();
             Assert.That(shooters, Is.EqualTo(new[] { -1, bg, bh }));
-            int expected = 6 - Catalog.Tower.Attack - Def(UnitClass.Guardian).Attack - Def(UnitClass.Healer).Attack;
+            int expected = Hp(UnitClass.Guardian) - Catalog.Tower.Attack - Def(UnitClass.Guardian).Attack - Def(UnitClass.Healer).Attack;
             Assert.That(s.GetUnit(g).Health, Is.EqualTo(expected));
         }
 
@@ -340,7 +392,8 @@ namespace HexPortal.Tests
         public void U29_AttackTriggeredShotsResolveAfterAttack()
         {
             var b = new TestBoard().Tower(B, TowerB);
-            int m = b.Unit(UnitClass.Mage, A, H(0, -1));                         // in tower range
+            // In tower range; wounded so that the tower shot and the overwatch together kill it (U-30).
+            int m = b.Unit(UnitClass.Mage, A, H(0, -1), health: Catalog.Tower.Attack + Def(UnitClass.Healer).Attack);
             int target = b.Unit(UnitClass.Archer, B, H(0, -3), health: 2);       // killed by the attack
             int splashed = b.Unit(UnitClass.Healer, B, H(1, -3), health: 1);     // killed by the splash
             int shooter = b.Unit(UnitClass.Healer, B, H(-1, -1));                // alive, adjacent to the Mage

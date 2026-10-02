@@ -45,6 +45,11 @@ namespace HexPortal.Sim
         public string ResultKey;       // W-01, W-02, W-03 c1..c4, W-04
         public int Rounds, Commands, PortalWinRound;
         public int TowerShots, OverwatchShots;
+        /// <summary>Units that died (every cause).</summary>
+        public int UnitsKilled;
+        /// <summary>Per class: for each unit that died, the number of damaging events (DamageDealt with Amount &gt; 0) it took
+        /// since it entered the board, including the killing one.</summary>
+        public SortedDictionary<string, List<int>> HitsToKill = new SortedDictionary<string, List<int>>();
         public SortedDictionary<string, int> Events = new SortedDictionary<string, int>();
         public List<double> DecisionMs = new List<double>();
         public List<double> ActionDecisionMs = new List<double>();
@@ -78,6 +83,8 @@ namespace HexPortal.Sim
             var pushed = new bool[2];
             var sw = new Stopwatch();
             int prePickedTurn = -1;
+            var hits = new Dictionary<int, int>();         // unit id → damaging events so far (lookup only, never iterated)
+            var unitClass = new Dictionary<int, string>(); // unit id → class (lookup only)
 
             void Decide(PlayerId p)
             {
@@ -111,6 +118,7 @@ namespace HexPortal.Sim
                 }
 
                 int roundBefore = s.Round; // quests complete at turn ends, before T-10 advances the round
+                foreach (var u in s.Units) unitClass[u.Id] = u.Class.ToString();
                 var events = Engine.Apply(s, c);
                 rec.Commands++;
                 int turnStarter = -1;      // T-04: the player whose turn start is running in this command
@@ -140,8 +148,20 @@ namespace HexPortal.Sim
                         case PassiveRevealed x: rec.Seats[(int)x.Player].PassiveRevealed = true; Add(rec.Events, "Passive " + x.PassiveId); break;
                         case MapEventResolved m: Add(rec.Events, "MapEvent " + m.DefId); break;
                         case TrapTriggered t: Add(rec.Events, "Trap " + t.DefId); break;
+                        case UnitDeployed ud when !unitClass.ContainsKey(ud.UnitId):
+                            var dep = s.GetUnit(ud.UnitId);
+                            if (dep != null) unitClass[ud.UnitId] = dep.Class.ToString();
+                            break;
+                        case UnitRevived ur: unitClass[ur.UnitId] = ur.Class.ToString(); break;
+                        case DamageDealt dd when dd.TargetUnitId != DamageDealt.Tower && dd.Amount > 0:
+                            hits[dd.TargetUnitId] = (hits.TryGetValue(dd.TargetUnitId, out int hk) ? hk : 0) + 1;
+                            break;
                         case UnitDied d:
                             for (int w = 0; w < 2; w++) if (pending[w] == d.UnitId) killed[w] = true;
+                            rec.UnitsKilled++;
+                            string cls = unitClass.TryGetValue(d.UnitId, out var cn) ? cn : "unknown";
+                            if (!rec.HitsToKill.TryGetValue(cls, out var hl)) rec.HitsToKill[cls] = hl = new List<int>();
+                            hl.Add(hits.TryGetValue(d.UnitId, out int hd) ? hd : 0);
                             break;
                         case UnitPushed u:
                             for (int w = 0; w < 2; w++) if (pending[w] == u.UnitId && u.To != Board.Portal) pushed[w] = true;

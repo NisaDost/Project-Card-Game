@@ -36,7 +36,7 @@ namespace HexPortal.Tests
             Assert.That(seen.OfType<UnitMoved>(), Is.Empty);
             var appeared = seen.OfType<UnitAppeared>().Single();
             Assert.That((appeared.UnitId, appeared.Owner, appeared.Class, appeared.Biome, appeared.Health, appeared.Cell),
-                Is.EqualTo((r, B, UnitClass.Rider, Biome.Desert, 4, H(0, -1))));
+                Is.EqualTo((r, B, UnitClass.Rider, Biome.Desert, Unit.DefOf(UnitClass.Rider).Health, H(0, -1))));
             Assert.That(MatchHelper.Serialize(seen), Does.Not.Contain(H(1, -3).ToString()));
         }
 

@@ -71,25 +71,30 @@ namespace HexPortal.Core
         public static List<Hex> LegalTargets(GameState state, Unit unit) =>
             LegalTargets(state, unit, Visibility.VisibleCells(state, unit.Owner));
 
-        internal static List<Hex> LegalTargets(GameState state, Unit unit, ISet<Hex> visible)
+        internal static List<Hex> LegalTargets(GameState state, Unit unit, ISet<Hex> visible) =>
+            LegalTargetsFrom(state, unit, unit.Pos, visible);
+
+        /// <summary>T-05 (v3.2) move-attack: the cells the unit could attack if it stood on <paramref name="from"/> (range from
+        /// there; target checks with the given Visible set, V-07, V-11, U-11), in Board.Cells order.</summary>
+        public static List<Hex> LegalTargetsFrom(GameState state, Unit unit, Hex from, ISet<Hex> visible)
         {
             var result = new List<Hex>();
-            foreach (var c in Board.Cells)
-                if (InRange(unit.Def, unit.Pos, c) && IsValidTarget(state, unit.Owner, c, visible)) result.Add(c);
+            // Only the ball of radius MaxRange around from, walked in Board.Cells order (hot path: every approach cell).
+            foreach (var c in Board.CellsWithin(from, unit.Def.MaxRange))
+                if (InRange(unit.Def, from, c) && IsValidTarget(state, unit.Owner, c, visible)) result.Add(c);
             return result;
         }
 
         /// <summary>U-20: attack + bonuses − penalties, at least 0.</summary>
         public static int Damage(int attack, int bonuses, int penalties) => Math.Max(0, attack + bonuses - penalties);
 
-        /// <summary>U-20 biome bonus (attacker on a tile of its own biome), U-02 charge (not on overwatch shots),
+        /// <summary>U-20 biome bonus (attacker on a tile of its own biome), U-02 Charge (Riders, move-attack only, v3.2),
         /// the buff (C-10, C-11) and the debuff (C-16).</summary>
-        public static int AttackDamage(GameState state, Unit attacker, bool overwatchShot)
+        public static int AttackDamage(GameState state, Unit attacker, bool moveAttack)
         {
             int bonus = 0, penalty = 0;
             if (state.Map.Get(attacker.Pos).Biome == attacker.Biome) bonus += Catalog.BiomeAttackBonus;
-            if (!overwatchShot && attacker.Class == UnitClass.Rider && attacker.MovedLastOwnTurn)
-                bonus += Catalog.RiderChargeBonus;
+            if (moveAttack && attacker.Class == UnitClass.Rider) bonus += Catalog.RiderChargeBonus; // U-02 (v3.2)
             if (attacker.Buff != null && attacker.Buff.Kind == EffectKind.AttackBonus) bonus += attacker.Buff.Def.Amount;
             if (attacker.Debuff != null && attacker.Debuff.Kind == EffectKind.AttackPenalty) penalty += attacker.Debuff.Def.Amount;
             return Damage(attacker.Def.Attack, bonus, penalty);
@@ -97,10 +102,11 @@ namespace HexPortal.Core
 
         /// <summary>A normal attack or an overwatch shot on a validated target, then the Mage splash (U-04).
         /// U-21: no counter-attack. V-08: the attacker is revealed to the opponent first; splash victims are not.</summary>
-        internal static void ResolveAttack(GameState state, Unit attacker, Hex target, DamageKind kind, EventLog events)
+        internal static void ResolveAttack(GameState state, Unit attacker, Hex target, DamageKind kind, bool moveAttack,
+            EventLog events)
         {
             Visibility.Reveal(state, attacker, events);
-            int amount = AttackDamage(state, attacker, kind == DamageKind.Overwatch);
+            int amount = AttackDamage(state, attacker, moveAttack);
             DealDamage(state, attacker.Owner, attacker.Id, target, amount, kind, events);
             if (attacker.Class != UnitClass.Mage) return;
             // U-04: every enemy unit and the enemy tower next to the target cell. Ignores cover; not an attack.

@@ -137,7 +137,7 @@ namespace HexPortal.Tests
             var b = new TestBoard().Round(3).Quests(A, "Q-12");
             int archer = b.Unit(UnitClass.Archer, A, H(0, 1));
             b.Unit(UnitClass.Guardian, B, H(0, -1), health: 1);
-            int runner = b.Unit(UnitClass.Archer, B, H(2, -2));
+            int runner = b.Unit(UnitClass.Archer, B, H(2, -2), health: 3); // wounded: the Spike Trap (3) kills it
             b.Trap(A, "C-20", H(1, -2));
             var s = b.Build();
             var ev = Engine.Apply(s, new AttackCommand(A, archer, H(0, -1)));
@@ -177,35 +177,38 @@ namespace HexPortal.Tests
         // ---------- Q-13 ----------
 
         [Test]
-        public void Q13_FiveDamageToTheEnemyTowerInTotal_SplashCounts()
+        public void Q13_TenDamageToTheEnemyTowerInTotal_SplashCounts()
         {
+            // Both attackers stand at distance 3 from B's tower (3,-6): out of its range, so no tower shots.
             var b = new TestBoard().Round(3).Quests(A, "Q-13");
-            int archer = b.Unit(UnitClass.Archer, A, H(3, -4)); // straight line, 2 from B's tower (3,-6)
-            int mage = b.Unit(UnitClass.Mage, A, H(2, -4));
-            b.Unit(UnitClass.Archer, B, H(3, -5)); // next to B's tower (3,-6)
+            int archer = b.Unit(UnitClass.Archer, A, H(0, -3)); // straight line (+1,-1), k = 3
+            int mage = b.Unit(UnitClass.Mage, A, H(3, -3));     // 2 from (3,-5)
+            b.Unit(UnitClass.Archer, B, H(3, -5)); // next to B's tower (not a Guardian: no cover, U-11)
             var s = b.Build();
-            Engine.Apply(s, new AttackCommand(A, archer, TestBoard.DefaultTowerB)); // 2
-            Engine.Apply(s, new AttackCommand(A, mage, H(3, -5)));                 // splash 1 on the tower
-            Assert.That(s.GetProgress(A).TowerDamage, Is.EqualTo(3));
-            Assert.That(Completed(End(s), A), Is.Empty);
-            End(s);
-            Engine.Apply(s, new AttackCommand(A, archer, TestBoard.DefaultTowerB));
-            Assert.That(s.GetProgress(A).TowerDamage, Is.EqualTo(5));
-            Assert.That(s.GetTower(B).Health, Is.EqualTo(Catalog.Tower.Health - 5));
-            Assert.That(Completed(End(s), A), Is.EqualTo(new[] { "Q-13" }));
+            for (int turn = 1; turn <= 4; turn++)
+            {
+                Engine.Apply(s, new AttackCommand(A, archer, TestBoard.DefaultTowerB));       // 2
+                if (turn <= 2) Engine.Apply(s, new AttackCommand(A, mage, H(3, -5)));        // splash 1 on the tower
+                int expected = new[] { 3, 6, 8, 10 }[turn - 1];
+                Assert.That(s.GetProgress(A).TowerDamage, Is.EqualTo(expected));
+                var done = Completed(End(s), A).ToList();
+                Assert.That(done, Is.EqualTo(turn == 4 ? new[] { "Q-13" } : new string[0]), "turn " + turn);
+                if (turn < 4) End(s);
+            }
+            Assert.That(s.GetTower(B).Health, Is.EqualTo(Catalog.Tower.Health - 10));
         }
 
         // ---------- Q-14, Q-04 ----------
 
         [Test]
-        public void Q14_JudgedAtTheEndOfRoundEight_CompleteOrFail_Public()
+        public void Q14_JudgedAtTheEndOfRoundTen_CompleteOrFail_Public()
         {
-            var b = new TestBoard().Round(8).Quests(A, "Q-14").Quests(B, "Q-14")
-                .Tower(A, TestBoard.DefaultTowerA, 7).Tower(B, TestBoard.DefaultTowerB, 6);
+            var b = new TestBoard().Round(10).Quests(A, "Q-14").Quests(B, "Q-14")
+                .Tower(A, TestBoard.DefaultTowerA, 14).Tower(B, TestBoard.DefaultTowerB, 13);
             var s = b.Build();
-            var ev = End(s); // A's turn end in round 8: not yet
+            var ev = End(s); // A's turn end in round 10: not yet
             Assert.That(ev.OfType<QuestCompleted>().Concat<GameEvent>(ev.OfType<QuestFailed>()), Is.Empty);
-            ev = End(s);     // B's turn end = end of round 8
+            ev = End(s);     // B's turn end = end of round 10
             foreach (var p in new[] { A, B })
             {
                 var seen = EventFilter.For(ev, p);
@@ -218,9 +221,9 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void Q14_TowerAtSevenInRoundSevenIsNotJudged()
+        public void Q14_TowerAt14InRoundNineIsNotJudged()
         {
-            var s = new TestBoard().Round(7).Active(B).Quests(A, "Q-14").Tower(A, TestBoard.DefaultTowerA, 7).Build();
+            var s = new TestBoard().Round(9).Active(B).Quests(A, "Q-14").Tower(A, TestBoard.DefaultTowerA, 14).Build();
             var ev = End(s);
             Assert.That(ev.OfType<QuestCompleted>(), Is.Empty);
             Assert.That(Status(s, A, "Q-14"), Is.EqualTo(QuestStatus.Active));
@@ -246,9 +249,9 @@ namespace HexPortal.Tests
         // ---------- Q-16 ----------
 
         [Test]
-        public void Q16_NoLossUntilTheEndOfRoundSixCompletesForBoth()
+        public void Q16_NoLossUntilTheEndOfRoundEightCompletesForBoth()
         {
-            var b = new TestBoard().Round(6).Active(B).Quests(A, "Q-16").Quests(B, "Q-16");
+            var b = new TestBoard().Round(8).Active(B).Quests(A, "Q-16").Quests(B, "Q-16");
             b.Unit(UnitClass.Guardian, A, H(0, 2));
             b.Unit(UnitClass.Guardian, B, H(0, -2));
             var s = b.Build();
@@ -277,20 +280,20 @@ namespace HexPortal.Tests
                 Assert.That(EventFilter.For(ev, p).OfType<QuestFailed>().Select(q => (q.Player, q.QuestId)), Is.EqualTo(new[] { (A, "Q-16") }));
             Assert.That(Status(s, A, "Q-16"), Is.EqualTo(QuestStatus.Failed));
             var all = new List<GameEvent>();
-            while (s.Round <= 6) all.AddRange(End(s));
+            while (s.Round <= 8) all.AddRange(End(s));
             Assert.That(all.OfType<QuestCompleted>().Concat<GameEvent>(all.OfType<QuestFailed>()), Is.Empty);
             Assert.That(Status(s, A, "Q-16"), Is.EqualTo(QuestStatus.Failed));
         }
 
         [Test]
-        public void Q16_ADeathInBsTurnOfRoundSixFailsAtThatRoundEnd_WhichComesFirst()
+        public void Q16_ADeathInBsTurnOfRoundEightFailsAtThatRoundEnd_WhichComesFirst()
         {
-            var b = new TestBoard().Round(6).Active(B).Quests(A, "Q-16");
+            var b = new TestBoard().Round(8).Active(B).Quests(A, "Q-16");
             b.Unit(UnitClass.Guardian, A, H(0, 1), health: 1);
             int archer = b.Unit(UnitClass.Archer, B, H(0, -1));
             var s = b.Build();
             Assert.That(Engine.Apply(s, new AttackCommand(B, archer, H(0, 1))).OfType<QuestFailed>(), Is.Empty);
-            var ev = End(s); // end of round 6 comes before A's next turn end
+            var ev = End(s); // end of round 8 comes before A's next turn end
             Assert.That(ev.OfType<QuestFailed>().Select(q => (q.Player, q.QuestId)), Is.EqualTo(new[] { (A, "Q-16") }));
             Assert.That(ev.OfType<QuestCompleted>(), Is.Empty);
         }

@@ -13,9 +13,13 @@ namespace HexPortal.Core
             !state.IsOver && unit.Owner == state.ActivePlayer && !unit.ActedThisTurn
             && state.GetEnergy(unit.Owner) >= Catalog.EnergyPerAction;
 
-        internal static void SpendAction(GameState state, Unit unit)
+        /// <summary>T-05 (v3.2): a move-attack needs MoveAttackEnergy (2).</summary>
+        public static bool CanMoveAttack(GameState state, Unit unit) =>
+            CanAct(state, unit) && state.GetEnergy(unit.Owner) >= Catalog.MoveAttackEnergy;
+
+        internal static void SpendAction(GameState state, Unit unit, int energy)
         {
-            state.SetEnergy(unit.Owner, state.GetEnergy(unit.Owner) - Catalog.EnergyPerAction);
+            state.SetEnergy(unit.Owner, state.GetEnergy(unit.Owner) - energy);
             unit.ActedThisTurn = true;
         }
 
@@ -26,12 +30,6 @@ namespace HexPortal.Core
         {
             var p = state.ActivePlayer;
             var opp = p.Opponent();
-            foreach (var u in state.Units)
-                if (u.Owner == p)
-                {
-                    u.MovedLastOwnTurn = u.MovedThisTurn; // U-02
-                    u.MovedThisTurn = false;
-                }
             Cards.EndOfTurn(state, p, events); // C-04, C-14
             Quests.EndOfTurn(state, p, events); // Q-02
             Win.RecordPortal(state, p);         // W-01

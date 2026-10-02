@@ -11,6 +11,28 @@ namespace HexPortal.Tests
     {
         static Hex H(int q, int r) => new Hex(q, r);
 
+        /// <summary>U-20, U-02 (approved): the effective Attack per unit comes from Core. Base + buff − debuff + biome bonus on
+        /// the current cell (min 0); ChargeBonus is what a Rider's move-attack adds (v3.2).</summary>
+        [Test]
+        public void U20_U02_PlayerViewShowsTheEffectiveAttack()
+        {
+            var b = new TestBoard(); // Forest board
+            int archer = b.Unit(UnitClass.Archer, A, H(-1, 1), Biome.Forest);   // 2 + 1 biome
+            int rider = b.Unit(UnitClass.Rider, A, H(-2, 0));                   // Desert on Forest: 3
+            int weak = b.Unit(UnitClass.Healer, A, H(-1, 2));                   // 1 − 2 → 0
+            b.Effect(weak, "C-16");
+            int enemy = b.Unit(UnitClass.Rider, B, H(0, -1), Biome.Forest);     // 3 + 1 biome + 2 Rage
+            b.Effect(enemy, "C-10");
+            var s = b.Build();
+            var v = PlayerView.For(s, A);
+            UnitView Own(int id) => v.OwnUnits.Single(u => u.Id == id);
+            Assert.That(Own(archer).EffectiveAttack, Is.EqualTo(3));
+            Assert.That((Own(rider).EffectiveAttack, Own(rider).ChargeBonus), Is.EqualTo((3, 1)));
+            Assert.That((Own(weak).EffectiveAttack, Own(weak).ChargeBonus), Is.EqualTo((0, 0)));
+            var e = v.EnemyUnits.Single();
+            Assert.That((e.Id, e.EffectiveAttack, e.ChargeBonus), Is.EqualTo((enemy, 6, 1)));
+        }
+
         [Test]
         public void V10_OwnInformationIsComplete()
         {
@@ -39,7 +61,12 @@ namespace HexPortal.Tests
         [Test]
         public void V10_OwnTurnResourcesDrawAndPrePick()
         {
-            var s = StartedMatch(32, units: 4);
+            // v3.0: at most 3 characters fit the setup budget; one support card less so that A must draw (hand < 6).
+            var s = Match.Create(32);
+            SetupPlayer(s, A, 3, finish: false);
+            s.HandList(A).Remove(s.GetHand(A).First(c => !c.IsCharacter));
+            Engine.Apply(s, new FinishSetupCommand(A));
+            SetupPlayer(s, B, 3);
             var a = PlayerView.For(s, A);
             Assert.That((a.Mana, a.Energy, a.DrawPending, a.ActivePlayer, a.Round), Is.EqualTo((1, Catalog.EnergyPerTurn, true, A, 1)));
             Engine.Apply(s, new PrePickCommand(B, DrawCommand.Blind));
@@ -79,7 +106,7 @@ namespace HexPortal.Tests
             var enemy = v.EnemyUnits.Single();
             Assert.That((enemy.Id, enemy.BuffId, enemy.OnOverwatch, enemy.IsGhost), Is.EqualTo((seen, "C-11", true, false)));
             // Action flags and reveal timers are own-only.
-            Assert.That((enemy.ActedThisTurn, enemy.MovedLastOwnTurn, enemy.MoveBonus, enemy.RevealedUntilTurn), Is.EqualTo((false, false, 0, -1)));
+            Assert.That((enemy.ActedThisTurn, enemy.MoveBonus, enemy.RevealedUntilTurn), Is.EqualTo((false, 0, -1)));
             Assert.That(v.OwnTraps.Select(t => (t.CardId, t.Pos)), Is.EqualTo(new[] { (own, H(-2, 2)) }));
             Assert.That(v.Cells.Single(c => c.Cell == H(2, -3)).Visibility, Is.EqualTo(CellVisibility.Hidden));
             Assert.That(v.Cells.Single(c => c.Cell == H(2, -3)).TerrainKnown, Is.False);

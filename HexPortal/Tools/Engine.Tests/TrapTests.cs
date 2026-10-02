@@ -11,6 +11,8 @@ namespace HexPortal.Tests
     {
         static readonly PlayerId A = PlayerId.A, B = PlayerId.B;
         static Hex H(int q, int r) => new Hex(q, r);
+        static int Hp(UnitClass c) => Catalog.Units.Single(u => u.Class == c).Health; // v3.1 full Health
+        const int Spike = 3; // C-20
 
         [Test]
         public void C30_TrapGoesOnEmptyZoneCell_NotPortalTowerRockOrUnit()
@@ -75,7 +77,7 @@ namespace HexPortal.Tests
             // (2,0) -> (0,2) is 2 steps and the only way is through (1,1).
             var ev = Engine.Apply(s, new MoveCommand(B, archer, H(0, 2)));
             Assert.That(ev.OfType<TrapTriggered>(), Is.Empty);
-            Assert.That(s.GetUnit(archer).Health, Is.EqualTo(3));
+            Assert.That(s.GetUnit(archer).Health, Is.EqualTo(Hp(UnitClass.Archer)));
             Assert.That(s.Traps.Count, Is.EqualTo(1));
 
             ev = Engine.Apply(s, new MoveCommand(B, guardian, H(1, 1)));
@@ -83,7 +85,7 @@ namespace HexPortal.Tests
             Assert.That((t.Owner, t.CardId, t.DefId, t.Cell, t.UnitId), Is.EqualTo((A, trap, "C-20", H(1, 1), guardian)));
             var dmg = ev.OfType<DamageDealt>().Single();
             Assert.That((dmg.Kind, dmg.SourcePlayer, dmg.Amount), Is.EqualTo((DamageKind.Trap, A, 3)));
-            Assert.That(s.GetUnit(guardian).Health, Is.EqualTo(3));
+            Assert.That(s.GetUnit(guardian).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Spike));
             Assert.That(s.Traps, Is.Empty); // single use
         }
 
@@ -111,7 +113,7 @@ namespace HexPortal.Tests
             var s = b.Build();
             var ev = Engine.Apply(s, new PlayCardCommand(A, push, H(1, 0), 0));
             Assert.That(ev.OfType<TrapTriggered>().Single().Cell, Is.EqualTo(H(3, 0)));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(3));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Spike));
             Assert.That(s.Traps.Single().Pos, Is.EqualTo(H(2, 0)));
         }
 
@@ -127,8 +129,8 @@ namespace HexPortal.Tests
             Assert.That(Engine.GetLegalCommands(s, A), Does.Contain(new PlayCardCommand(A, tp, H(-3, 0), H(1, 1))));
             var ev = Engine.Apply(s, new PlayCardCommand(A, tp, H(-3, 0), H(1, 1)));
             Assert.That(ev.OfType<TrapTriggered>().Single().Owner, Is.EqualTo(B));
-            Assert.That(s.GetUnit(a).Health, Is.EqualTo(3));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6));
+            Assert.That(s.GetUnit(a).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Spike));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian)));
         }
 
         [Test]
@@ -142,7 +144,7 @@ namespace HexPortal.Tests
             var ev = Engine.Apply(s, new MoveCommand(A, g, H(1, 1)));
             Assert.That(ev.OfType<TrapTriggered>().Count(), Is.EqualTo(1));
             Assert.That(ev.OfType<ShieldBlocked>().Single().Kind, Is.EqualTo(DamageKind.Trap));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian)));
             Assert.That(s.GetUnit(g).Buff, Is.Null);
             Assert.That(s.Traps, Is.Empty);
         }
@@ -151,7 +153,7 @@ namespace HexPortal.Tests
         public void C20_SpikeKill_VictimOwnerDraws_KillerIsTrapOwner()
         {
             var b = new TestBoard();
-            int a = b.Unit(UnitClass.Archer, A, H(0, 1)); // 3 Health
+            int a = b.Unit(UnitClass.Archer, A, H(0, 1), health: Spike); // wounded: U-30 rules out a full-Health kill
             b.Trap(B, "C-20", H(1, 1));
             int pooled = b.PoolCard("C-10");
             var s = b.Build();
@@ -180,7 +182,7 @@ namespace HexPortal.Tests
                     var u = s.GetUnit(g);
                     Assert.That(Board.IsHomeZone(u.Pos, B), Is.True);
                     Assert.That(u.Pos, Is.Not.EqualTo(H(-1, -5)).And.Not.EqualTo(s.GetTower(B).Pos));
-                    Assert.That(u.Health, Is.EqualTo(6));
+                    Assert.That(u.Health, Is.EqualTo(Hp(UnitClass.Guardian)));
                     var t = ev.OfType<UnitTeleported>().Single();
                     Assert.That((t.From, t.To), Is.EqualTo((H(1, 1), u.Pos)));
                     Assert.That(s.Traps, Is.Empty);
@@ -212,7 +214,7 @@ namespace HexPortal.Tests
             var ev = Engine.Apply(s, new MoveCommand(A, g, H(1, 1)));
             Assert.That(s.GetUnit(g).Pos, Is.EqualTo(keep));
             Assert.That(ev.OfType<TrapTriggered>().Select(t => t.DefId), Is.EqualTo(new[] { "C-21", "C-20" }));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(3));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Spike));
             Assert.That(s.Traps, Is.Empty);
         }
 
@@ -230,7 +232,7 @@ namespace HexPortal.Tests
             Assert.That(s.GetUnit(g).Pos, Is.EqualTo(keep));
             Assert.That(ev.OfType<OverwatchFired>(), Is.Empty);
             Assert.That(s.GetUnit(ow).OnOverwatch, Is.True);
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian)));
         }
 
         [Test]
@@ -295,7 +297,7 @@ namespace HexPortal.Tests
             var ev = Engine.Apply(s, new MoveCommand(A, mover, H(1, 1)));
             Assert.That(ev.OfType<TrapTriggered>().Single().Owner, Is.EqualTo(B));
             Assert.That(s.Traps.Single().Owner, Is.EqualTo(A));
-            Assert.That(s.GetUnit(mover).Health, Is.EqualTo(3));
+            Assert.That(s.GetUnit(mover).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Spike));
         }
 
         [Test]
@@ -322,7 +324,56 @@ namespace HexPortal.Tests
             var ev = Engine.Apply(s, new MoveCommand(A, g, H(0, -1)));
             Assert.That(ev.OfType<DamageDealt>().Select(d => d.Kind), Is.EqualTo(new[] { DamageKind.Trap, DamageKind.TowerShot }));
             Assert.That(ev.IndexOf(ev.OfType<TrapTriggered>().Single()), Is.LessThan(ev.IndexOf(ev.OfType<TowerShot>().Single())));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6 - 3 - Catalog.Tower.Attack));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Spike - Catalog.Tower.Attack));
+        }
+
+        [Test]
+        public void U29_WoundedUnitDiesOnTheTrap_NoTowerShot()
+        {
+            var b = new TestBoard().Tower(B, H(2, -2));
+            int g = b.Unit(UnitClass.Guardian, A, H(-1, 0), health: Spike);
+            b.Trap(B, "C-20", H(0, -1));
+            var s = b.Build();
+            var ev = Engine.Apply(s, new MoveCommand(A, g, H(0, -1)));
+            Assert.That(s.GetUnit(g), Is.Null);
+            Assert.That(ev.OfType<TowerShot>(), Is.Empty);
+            Assert.That(s.IsTowerShotAvailable(B), Is.True);
+        }
+
+        /// <summary>T-05 (v3.2), C-32: a hidden enemy trap on the approach cell triggers; if it kills, the attack is cancelled
+        /// (Energy spent).</summary>
+        [Test]
+        public void T05_C32_MoveAttack_TrapOnTheApproachKills_AttackCancelled()
+        {
+            var b = new TestBoard();
+            int g = b.Unit(UnitClass.Guardian, A, H(0, 1), health: Spike);
+            int target = b.Unit(UnitClass.Archer, B, H(2, 0));
+            b.Trap(B, "C-20", H(1, 1));
+            var s = b.Build();
+            Assert.That(Engine.GetLegalCommands(s, A), Does.Contain(new MoveAttackCommand(A, g, H(1, 1), H(2, 0))));
+            var ev = Engine.Apply(s, new MoveAttackCommand(A, g, H(1, 1), H(2, 0)));
+            Assert.That(ev.OfType<TrapTriggered>().Count(), Is.EqualTo(1));
+            Assert.That(s.GetUnit(g), Is.Null);
+            Assert.That(s.GetUnit(target).Health, Is.EqualTo(Hp(UnitClass.Archer)));
+            Assert.That(s.GetEnergy(A), Is.EqualTo(Catalog.EnergyPerTurn - Catalog.MoveAttackEnergy));
+        }
+
+        /// <summary>T-05 (v3.2), C-21: a Mirror Trap on the approach moves the unit away; the attack is cancelled.</summary>
+        [Test]
+        public void T05_C21_MoveAttack_MirrorOnTheApproach_AttackCancelled()
+        {
+            var keep = H(0, 5);
+            var b = FillHomeA(new TestBoard(), keep);
+            int g = b.Unit(UnitClass.Guardian, A, H(0, 1));
+            int target = b.Unit(UnitClass.Archer, B, H(2, 0));
+            b.Trap(B, "C-21", H(1, 1));
+            var s = b.Build();
+            var ev = Engine.Apply(s, new MoveAttackCommand(A, g, H(1, 1), H(2, 0)));
+            Assert.That(s.GetUnit(g).Pos, Is.EqualTo(keep));
+            Assert.That(ev.OfType<DamageDealt>(), Is.Empty);
+            Assert.That(s.GetUnit(target).Health, Is.EqualTo(Hp(UnitClass.Archer)));
+            Assert.That(s.GetEnergy(A), Is.EqualTo(Catalog.EnergyPerTurn - Catalog.MoveAttackEnergy));
+            Assert.That(s.GetUnit(g).ActedThisTurn, Is.True);
         }
     }
 }

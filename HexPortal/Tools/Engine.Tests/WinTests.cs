@@ -65,11 +65,11 @@ namespace HexPortal.Tests
         public void W01_APortalOpenedLaterByARoundEndQuestDoesNotValidateTheWait()
         {
             // v2.10: the Portal must be open at the end of the turn the unit stands on it.
-            var b = new TestBoard().Round(6).Quests(A, "Q-12", "Q-16").QuestStatus(A, "Q-12", QuestStatus.Completed);
+            var b = new TestBoard().Round(8).Quests(A, "Q-12", "Q-16").QuestStatus(A, "Q-12", QuestStatus.Completed);
             b.Unit(UnitClass.Guardian, A, Board.Portal);
             var s = b.Build();
             End(s); // A's turn end: 1 quest, closed
-            var ev = End(s); // end of round 6: Q-16 completes -> open, then A's turn start
+            var ev = End(s); // end of round 8 (v3.1): Q-16 completes -> open, then A's turn start
             Assert.That(ev.OfType<QuestCompleted>().Single().QuestId, Is.EqualTo("Q-16"));
             Assert.That(s.CompletedQuestCount(A), Is.EqualTo(2));
             Assert.That(s.IsOver, Is.False);

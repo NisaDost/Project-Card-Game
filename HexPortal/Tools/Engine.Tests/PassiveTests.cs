@@ -100,7 +100,7 @@ namespace HexPortal.Tests
             var u = s.GetUnit(rev.UnitId);
             Assert.That(rev.UnitId, Is.Not.EqualTo(victim));
             Assert.That((rev.Owner, rev.Class, rev.Biome, rev.Cell), Is.EqualTo((A, UnitClass.Rider, Biome.Snow, free)));
-            Assert.That((u.Pos, u.Health, u.Buff == null, u.Debuff == null), Is.EqualTo((free, 2, true, true)));
+            Assert.That((u.Pos, u.Health, u.Buff == null, u.Debuff == null), Is.EqualTo((free, Catalog.Passives.Single(p => p.Id == "P-01").Amount, true, true))); // 4 (v3.1)
             Assert.That(ev.FindIndex(e => e is TurnStarted), Is.LessThan(ev.FindIndex(e => e is UnitRevived)));
             Assert.That(Turn.CanAct(s, u), Is.False); // v2.9: like T-07
             Assert.That(s.GetProgress(A).LastBreathPending, Is.False);
@@ -172,7 +172,8 @@ namespace HexPortal.Tests
         public void P01_ReturnTriggersAnEnemyTrap()
         {
             var free = H(0, 5); // A's home zone (r ≥ 5)
-            var b = RockHomeExcept(new TestBoard().Round(3).Active(B).Passive(A, "P-01"), A, free, TestBoard.DefaultTowerA);
+            // v3.1: the unit returns with 4 Health; B's Trap Master (P-02) makes the Spike Trap 3 + 1 = 4, still lethal.
+            var b = RockHomeExcept(new TestBoard().Round(3).Active(B).Passive(A, "P-01").Passive(B, "P-02"), A, free, TestBoard.DefaultTowerA);
             b.Unit(UnitClass.Archer, A, H(0, 1), health: 1);
             int archer = b.Unit(UnitClass.Archer, B, H(0, -1));
             int trap = b.Trap(B, "C-20", free);
@@ -182,7 +183,7 @@ namespace HexPortal.Tests
             var rev = ev.OfType<UnitRevived>().Single();
             var t = ev.OfType<TrapTriggered>().Single();
             Assert.That((t.CardId, t.UnitId), Is.EqualTo((trap, rev.UnitId)));
-            var died = ev.OfType<UnitDied>().Single(); // 3 damage on 2 Health
+            var died = ev.OfType<UnitDied>().Single(); // 4 damage on 4 Health
             Assert.That((died.UnitId, died.Killer), Is.EqualTo((rev.UnitId, B)));
         }
 
@@ -271,8 +272,9 @@ namespace HexPortal.Tests
         // ---------- P-04 with Q-13 ----------
 
         [Test]
-        public void P04_ThickWallBlocksTheFirstThreeTowerDamage_NotCountedForQ13()
+        public void P04_ThickWallBlocksTheFirstFiveTowerDamage_NotCountedForQ13()
         {
+            Assert.That(Catalog.Passives.Single(p => p.Id == "P-04").Amount, Is.EqualTo(5)); // v3.1
             var b = new TestBoard().Round(3).Passive(B, "P-04").Quests(A, "Q-13");
             int archer = b.Unit(UnitClass.Archer, A, H(3, -4)); // straight line, 2 from B's tower (3,-6)
             int mage = b.Unit(UnitClass.Mage, A, H(2, -4));     // 2 from the tower
@@ -284,17 +286,17 @@ namespace HexPortal.Tests
             Assert.That(ev.OfType<DamageDealt>().Any(d => d.TargetUnitId == DamageDealt.Tower), Is.False);
             Assert.That(s.GetTower(B).Health, Is.EqualTo(Catalog.Tower.Health));
             Assert.That(EventFilter.For(ev, A).OfType<TowerDamageBlocked>().Count(), Is.EqualTo(1));
+            ev = Engine.Apply(s, new AttackCommand(A, mage, TestBoard.DefaultTowerB)); // 2: all blocked (4 of 5)
+            Assert.That(ev.OfType<TowerDamageBlocked>().Single().Amount, Is.EqualTo(2));
 
-            ev = Engine.Apply(s, new AttackCommand(A, mage, TestBoard.DefaultTowerB)); // 2: 1 blocked, 1 dealt
+            End(s);
+            End(s);
+            ev = Engine.Apply(s, new AttackCommand(A, archer, TestBoard.DefaultTowerB)); // 2: 1 blocked, 1 dealt
             Assert.That(ev.OfType<TowerDamageBlocked>().Single().Amount, Is.EqualTo(1));
             Assert.That(ev.OfType<DamageDealt>().Single(d => d.TargetUnitId == DamageDealt.Tower).Amount, Is.EqualTo(1));
             Assert.That(ev.OfType<PassiveRevealed>(), Is.Empty);
-            Assert.That(s.GetTower(B).Health, Is.EqualTo(Catalog.Tower.Health - 1));
             Assert.That(s.GetProgress(A).TowerDamage, Is.EqualTo(1));
-            Assert.That(s.GetProgress(B).WallBlocked, Is.EqualTo(3));
-
-            End(s);
-            End(s);
+            Assert.That(s.GetProgress(B).WallBlocked, Is.EqualTo(5));
             ev = Engine.Apply(s, new AttackCommand(A, mage, TestBoard.DefaultTowerB)); // the wall is used up
             Assert.That(ev.OfType<TowerDamageBlocked>(), Is.Empty);
             Assert.That(s.GetProgress(A).TowerDamage, Is.EqualTo(3));
@@ -358,7 +360,7 @@ namespace HexPortal.Tests
         public void P06_ADeathMeansNoShots_AndTheKillCountsForThePassiveOwner()
         {
             var b = new TestBoard().Round(3).Passive(B, "P-06").Tower(B, H(1, -1));
-            int archer = b.Unit(UnitClass.Archer, A, H(0, 2));
+            int archer = b.Unit(UnitClass.Archer, A, H(0, 2), health: 3); // wounded: the P-06 hit (3) kills it
             int watcher = b.Unit(UnitClass.Archer, B, H(0, -2));
             b.U(watcher).OnOverwatch = true;
             var s = b.Build();

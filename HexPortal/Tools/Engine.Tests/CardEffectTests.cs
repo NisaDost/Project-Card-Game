@@ -12,6 +12,8 @@ namespace HexPortal.Tests
         static readonly PlayerId A = PlayerId.A, B = PlayerId.B;
         static Hex H(int q, int r) => new Hex(q, r);
         static int Atk(UnitClass c) => Catalog.Units.Single(u => u.Class == c).Attack;
+        static int Hp(UnitClass c) => Catalog.Units.Single(u => u.Class == c).Health; // v3.1 full Health
+        static int Amount(string id) => Catalog.SupportCards.Single(c => c.Id == id).Amount;
 
         static void EndRound(GameState s)
         {
@@ -148,7 +150,7 @@ namespace HexPortal.Tests
             var s = b.Build();
             var ev = Engine.Apply(s, new AttackCommand(B, h, H(0, 1)));
             Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(0));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian)));
             // Interim (flagged): a 0 hit lowers no Health, so it is not "damage" (U-20) and the Shield stays.
             Assert.That(s.GetUnit(g).Buff.Def.Id, Is.EqualTo("C-12"));
         }
@@ -170,10 +172,10 @@ namespace HexPortal.Tests
             var blocked = ev.OfType<ShieldBlocked>().Single();
             Assert.That((blocked.UnitId, blocked.Amount, blocked.Kind), Is.EqualTo((g, Atk(UnitClass.Archer), DamageKind.Attack)));
             Assert.That(ev.OfType<DamageDealt>(), Is.Empty);
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian)));
             Assert.That(s.GetUnit(g).Buff, Is.Null);
             Engine.Apply(s, new AttackCommand(B, healer, H(0, 1)));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6 - Atk(UnitClass.Healer)));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Atk(UnitClass.Healer)));
         }
 
         [Test]
@@ -186,7 +188,7 @@ namespace HexPortal.Tests
             var ev = Engine.Apply(s, new MoveCommand(A, g, H(0, -1)));
             Assert.That(ev.OfType<TowerShot>().Count(), Is.EqualTo(1));
             Assert.That(ev.OfType<ShieldBlocked>().Single().Kind, Is.EqualTo(DamageKind.TowerShot));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian)));
             Assert.That(s.IsTowerShotAvailable(B), Is.False);
 
             var b2 = new TestBoard();
@@ -197,7 +199,7 @@ namespace HexPortal.Tests
             var s2 = b2.Build();
             ev = Engine.Apply(s2, new AttackCommand(A, m, H(1, -1)));
             Assert.That(ev.OfType<ShieldBlocked>().Single().Kind, Is.EqualTo(DamageKind.Splash));
-            Assert.That(s2.GetUnit(next).Health, Is.EqualTo(3));
+            Assert.That(s2.GetUnit(next).Health, Is.EqualTo(Hp(UnitClass.Archer)));
         }
 
         [Test]
@@ -212,27 +214,28 @@ namespace HexPortal.Tests
             Engine.Apply(s, new PlayCardCommand(A, poison, H(1, 0)));
             var ev = Engine.Apply(s, new EndTurnCommand(A));
             Assert.That(ev.OfType<ShieldBlocked>().Single().Kind, Is.EqualTo(DamageKind.Poison));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian)));
             Assert.That(s.GetUnit(g).Buff, Is.Null);
             EndRound(s);
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(5)); // the second tick lands
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Amount("C-17"))); // the second tick lands
         }
 
         // ---------- C-13, C-14 ----------
 
         [Test]
-        public void C13_HealingPotionAddsThree_CappedAtMax()
+        public void C13_HealingPotionAddsFive_CappedAtMax()
         {
             var b = new TestBoard().Mana(A, 2);
-            int g = b.Unit(UnitClass.Guardian, A, H(0, 1), health: 1);
+            int g = b.Unit(UnitClass.Guardian, A, H(0, 1), health: Hp(UnitClass.Guardian) - 7);
             int p1 = b.Hand(A, "C-13");
             int p2 = b.Hand(A, "C-13");
             var s = b.Build();
             var ev = Engine.Apply(s, new PlayCardCommand(A, p1, H(0, 1)));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(4));
-            Assert.That(ev.OfType<UnitHealed>().Single().Amount, Is.EqualTo(3));
+            Assert.That(Amount("C-13"), Is.EqualTo(5));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian) - 2));
+            Assert.That(ev.OfType<UnitHealed>().Single().Amount, Is.EqualTo(5));
             ev = Engine.Apply(s, new PlayCardCommand(A, p2, H(0, 1)));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6)); // U-24
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian))); // U-24
             Assert.That(ev.OfType<UnitHealed>().Single().Amount, Is.EqualTo(2));
             Assert.That(s.GetUnit(g).Buff, Is.Null); // instant: no slot
         }
@@ -282,7 +285,6 @@ namespace HexPortal.Tests
             Assert.That(s.GetEnergy(A), Is.EqualTo(Catalog.EnergyPerTurn));
             Assert.That(s.GetMana(A), Is.EqualTo(0));
             Assert.That(s.GetUnit(a).ActedThisTurn, Is.False);
-            Assert.That(s.GetUnit(a).MovedThisTurn, Is.False);
             Assert.That(Engine.GetLegalCommands(s, A).OfType<MoveCommand>().Any(c => c.UnitId == a), Is.True);
         }
 
@@ -361,15 +363,16 @@ namespace HexPortal.Tests
             int poison = b.Hand(A, "C-17");
             var s = b.Build();
             Engine.Apply(s, new PlayCardCommand(A, poison, H(1, 0)));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(3)); // nothing on A's own turn
+            int hp = Hp(UnitClass.Archer), tick = Amount("C-17"); // 6, 2 (v3.1)
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(hp)); // nothing on A's own turn
             var ev = Engine.Apply(s, new EndTurnCommand(A));
             var dmg = ev.OfType<DamageDealt>().Single();
-            Assert.That((dmg.Kind, dmg.SourcePlayer, dmg.SourceUnitId, dmg.Amount), Is.EqualTo((DamageKind.Poison, A, DamageDealt.NoUnit, 1)));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(2));
+            Assert.That((dmg.Kind, dmg.SourcePlayer, dmg.SourceUnitId, dmg.Amount), Is.EqualTo((DamageKind.Poison, A, DamageDealt.NoUnit, tick)));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(hp - tick));
             EndRound(s);
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(1));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(hp - 2 * tick));
             EndRound(s);
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(1));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(hp - 2 * tick));
             Assert.That(s.GetUnit(g).Debuff, Is.Null);
         }
 
@@ -428,7 +431,7 @@ namespace HexPortal.Tests
             Assert.That(pushes.All(c => c.Target == H(1, 0) && c.Dest == null), Is.True);
             var ev = Engine.Apply(s, new PlayCardCommand(A, push, H(1, 0), 0)); // direction (+1, 0)
             Assert.That(s.GetUnit(g).Pos, Is.EqualTo(H(3, 0)));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian)));
             var p = ev.OfType<UnitPushed>().Single();
             Assert.That((p.UnitId, p.From, p.To), Is.EqualTo((g, H(1, 0), H(3, 0))));
             Assert.That(ev.OfType<DamageDealt>(), Is.Empty);

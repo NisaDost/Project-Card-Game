@@ -77,9 +77,10 @@ namespace HexPortal.Core
                     continue;
                 }
                 cand.Score = Eval(sim, ctx) - before;
-                if (c is AttackCommand a)
+                Hex? hit = c is AttackCommand a ? a.Target : c is MoveAttackCommand ma ? ma.Target : (Hex?)null;
+                if (hit.HasValue)
                 {
-                    var target = belief.UnitAt(a.Target);
+                    var target = belief.UnitAt(hit.Value);
                     cand.Lethal = target != null && target.Owner == ctx.Opp && sim.GetUnit(target.Id) == null;
                 }
                 cand.PortalStep = c is MoveCommand m && m.Dest == Board.Portal && ctx.PortalOpen;
@@ -104,9 +105,15 @@ namespace HexPortal.Core
         /// <summary>Tie order: command kind, then the acting unit's / target cell, then the destination, all in seat order.</summary>
         static long TieKey(ICommand c, GameState belief, PlayerId me)
         {
-            int kind, primary = 0, secondary = 0;
+            int kind, primary = 0, secondary = 0, tertiary = 0;
             switch (c)
             {
+                case MoveAttackCommand ma:
+                    kind = 5;
+                    primary = UnitCell(belief, ma.UnitId, me);
+                    secondary = SeatIndex(me, ma.Target);
+                    tertiary = SeatIndex(me, ma.Approach);
+                    break;
                 case MoveCommand m:
                     kind = 0;
                     primary = UnitCell(belief, m.UnitId, me);
@@ -131,10 +138,10 @@ namespace HexPortal.Core
                     secondary = p.Dest.HasValue ? SeatIndex(me, p.Dest.Value) : p.Direction >= 0 ? SeatDirection(me, p.Direction) : 0;
                     break;
                 default:
-                    kind = 5;
+                    kind = 6;
                     break;
             }
-            return ((long)kind * 1000 + primary) * 1000 + secondary;
+            return (((long)kind * 1000 + primary) * 1000 + secondary) * 1000 + tertiary;
         }
 
         static int UnitCell(GameState belief, int unitId, PlayerId me)
@@ -336,7 +343,7 @@ namespace HexPortal.Core
                     if (u.OnOverwatch && d <= e.Def.Move + u.Def.MaxRange) watch++;
                     if (d <= e.Def.Move + e.Def.MaxRange)
                     {
-                        int r = Combat.AttackDamage(s, e, false) * AiWeights.RiskPerDamage;
+                        int r = ThreatDamage(e, Combat.AttackDamage(s, e, false)) * AiWeights.RiskPerDamage;
                         risk += ctx.Ghosts.Contains(e.Id) ? r * AiWeights.GhostRiskPercent / 100 : r;
                     }
                 }
@@ -361,6 +368,10 @@ namespace HexPortal.Core
             }
             return score;
         }
+
+        /// <summary>Risk estimate of one enemy hit: it may come as a move-attack, so a Rider's Charge (U-02) is assumed.</summary>
+        internal static int ThreatDamage(Unit enemy, int plainDamage) =>
+            plainDamage + (enemy.Class == UnitClass.Rider ? Catalog.RiderChargeBonus : 0);
 
         static int UnitValue(GameState s, Unit u)
         {

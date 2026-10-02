@@ -20,14 +20,18 @@ namespace HexPortal.Core
         public string DebuffId { get; private set; }
         public int DebuffTurnsLeft { get; private set; }
         public bool OnOverwatch { get; private set; }
+        /// <summary>The damage of one plain attack by this unit now (U-20): Attack + buff − debuff + biome bonus on its current
+        /// cell, at least 0. Ghosts: the class Attack only (effects are not shown, V-05).</summary>
+        public int EffectiveAttack { get; private set; }
+        /// <summary>U-02 (v3.2): what a move-attack adds (Rider Charge; class data, 0 for others). The biome bonus of a
+        /// move-attack depends on the approach cell.</summary>
+        public int ChargeBonus { get; private set; }
         // Own units only:
         public bool ActedThisTurn { get; private set; }
-        public bool MovedThisTurn { get; private set; }
-        public bool MovedLastOwnTurn { get; private set; }
         public int MoveBonus { get; private set; }
         public int RevealedUntilTurn { get; private set; } = -1;
 
-        internal static UnitView Live(Unit u, bool own)
+        internal static UnitView Live(GameState s, Unit u, bool own)
         {
             var v = new UnitView
             {
@@ -35,12 +39,12 @@ namespace HexPortal.Core
                 BuffId = u.Buff == null ? null : u.Buff.Def.Id, BuffTurnsLeft = u.Buff == null ? 0 : u.Buff.TurnsLeft,
                 DebuffId = u.Debuff == null ? null : u.Debuff.Def.Id, DebuffTurnsLeft = u.Debuff == null ? 0 : u.Debuff.TurnsLeft,
                 OnOverwatch = u.OnOverwatch,
+                EffectiveAttack = Combat.AttackDamage(s, u, false),
+                ChargeBonus = u.Class == UnitClass.Rider ? Catalog.RiderChargeBonus : 0,
             };
             if (own)
             {
                 v.ActedThisTurn = u.ActedThisTurn;
-                v.MovedThisTurn = u.MovedThisTurn;
-                v.MovedLastOwnTurn = u.MovedLastOwnTurn;
                 v.MoveBonus = u.MoveBonus;
                 v.RevealedUntilTurn = u.RevealedUntilTurn;
             }
@@ -50,7 +54,8 @@ namespace HexPortal.Core
         internal static UnitView Ghost(LastSeen s, Hex pos) => new UnitView
         {
             Id = s.UnitId, Owner = s.UnitOwner, Class = s.UnitClass, Biome = s.UnitBiome, Pos = pos, Health = s.UnitHealth,
-            IsGhost = true,
+            IsGhost = true, EffectiveAttack = Unit.DefOf(s.UnitClass).Attack,
+            ChargeBonus = s.UnitClass == UnitClass.Rider ? Catalog.RiderChargeBonus : 0,
         };
     }
 
@@ -126,6 +131,8 @@ namespace HexPortal.Core
         public IReadOnlyList<CardInstance> Hand { get; private set; }
         public int Mana { get; private set; }
         public int Energy { get; private set; }
+        /// <summary>S-05 (v3.0): the own setup budget left (the opponent's is hidden).</summary>
+        public int SetupMana { get; private set; }
         public bool DrawPending { get; private set; }
         public int PrePickSlot { get; private set; }
         public int PrePickCardId { get; private set; }
@@ -191,7 +198,7 @@ namespace HexPortal.Core
                     c.Tile = s.Map.Get(h);
                     if (live != null && (live.Owner == p || !setup))
                     {
-                        c.Unit = UnitView.Live(live, live.Owner == p);
+                        c.Unit = UnitView.Live(s,live, live.Owner == p);
                         if (live.Owner == o) enemies.Add(c.Unit);
                     }
                     var t = s.TowerAt(h);
@@ -206,7 +213,7 @@ namespace HexPortal.Core
                     var seen = fog.GetLastSeen(h);
                     c.TerrainKnown = true;
                     c.Tile = seen.Tile;
-                    if (live != null && live.Owner == p) c.Unit = UnitView.Live(live, true); // own: always live (setup)
+                    if (live != null && live.Owner == p) c.Unit = UnitView.Live(s,live, true); // own: always live (setup)
                     else if (seen.HasUnit) c.Unit = UnitView.Ghost(seen, h);
                     if (ownTower.IsPlaced && ownTower.Pos == h) SetTower(c, p, ownTower.Health, false);
                     else if (seen.HasTower) SetTower(c, seen.TowerOwner, seen.TowerHealth, true);
@@ -216,7 +223,7 @@ namespace HexPortal.Core
 
             var own = new List<UnitView>();
             foreach (var u in s.Units)
-                if (u.Owner == p) own.Add(UnitView.Live(u, true));
+                if (u.Owner == p) own.Add(UnitView.Live(s,u, true));
 
             var traps = new List<TrapView>();
             foreach (var t in s.Traps)
@@ -272,7 +279,7 @@ namespace HexPortal.Core
                 OwnTowerPos = ownTower.IsPlaced ? ownTower.Pos : (Hex?)null, OwnTowerHealth = ownTower.Health,
                 OwnTowerShotAvailable = s.IsTowerShotAvailable(p), OwnTowerRevealedUntilTurn = ownTower.RevealedUntilTurn,
                 EnemyTowerPos = enemyTowerPos, EnemyTowerHealth = enemyTower.Health, EnemyTowerShotAvailable = s.IsTowerShotAvailable(o),
-                Hand = new List<CardInstance>(s.GetHand(p)), Mana = s.GetMana(p), Energy = s.GetEnergy(p),
+                Hand = new List<CardInstance>(s.GetHand(p)), Mana = s.GetMana(p), Energy = s.GetEnergy(p), SetupMana = s.GetSetupMana(p),
                 DrawPending = s.IsDrawPending(p), PrePickSlot = s.GetPrePickSlot(p), PrePickCardId = s.GetPrePickCardId(p),
                 SetupStep = Setup.StepOf(s, p), OpponentSetupFinished = s.IsSetupFinished(o),
                 QuestOffer = questOffer, QuestChoices = questChoices, PassiveOffer = passiveOffer,

@@ -44,6 +44,14 @@ namespace HexPortal.Tests
             Assert.That(g1.Sum(g => g.Seats.Sum(x => x.Draws.Where(kv => kv.Key.StartsWith("pre-picked ")).Sum(kv => kv.Value))),
                 Is.GreaterThan(0), "pre-picked draws are counted");
             Assert.That(j1, Does.Not.Contain("timing"));
+            // v3b report additions: CI, round-limit share, W-01 share, kills, hits to kill per class.
+            foreach (var key in new[] { "A win rate 95% CI", "reached round limit share", "W-01 share", "units killed per game", "hits to kill" })
+                Assert.That(j1, Does.Contain(key), key);
+            foreach (var g in g1)
+            {
+                Assert.That(g.UnitsKilled, Is.EqualTo(g.HitsToKill.Values.Sum(l => l.Count)));
+                Assert.That(g.HitsToKill.Values.SelectMany(l => l).All(h => h >= 1), Is.True);
+            }
         }
 
         [Test]

@@ -66,7 +66,7 @@ namespace HexPortal.Tests
             var s = b.Build();
             Engine.Apply(s, new AttackCommand(A, archer, TestBoard.DefaultTowerB));
             var siege = Q(s, A, "Q-13");
-            Assert.That((siege.Current, siege.Target, siege.Round), Is.EqualTo((2, 5, 0)));
+            Assert.That((siege.Current, siege.Target, siege.Round), Is.EqualTo((2, 10, 0)));
         }
 
         [Test]
@@ -104,7 +104,7 @@ namespace HexPortal.Tests
             var b = new TestBoard().Round(3).Quests(A, "Q-14").Tower(A, TestBoard.DefaultTowerA, 8);
             var s = b.Build();
             var q = Q(s, A, "Q-14");
-            Assert.That((q.Current, q.Target, q.Round), Is.EqualTo((8, 7, 8)));
+            Assert.That((q.Current, q.Target, q.Round), Is.EqualTo((8, 14, 10))); // v3.1: Health ≥ 14 at the end of round 10
         }
 
         [Test]
@@ -115,7 +115,7 @@ namespace HexPortal.Tests
             int archer = b.Unit(UnitClass.Archer, B, H(1, -3));
             var s = b.Build();
             var q = Q(s, A, "Q-16");
-            Assert.That((q.Current, q.Round, q.Status), Is.EqualTo((0, 6, QuestStatus.Active)));
+            Assert.That((q.Current, q.Round, q.Status), Is.EqualTo((0, 8, QuestStatus.Active))); // v3.1: round 8
             Engine.Apply(s, new AttackCommand(B, archer, H(1, -1)));
             q = Q(s, A, "Q-16");
             Assert.That((q.Current, q.Status), Is.EqualTo((1, QuestStatus.Active))); // the failure is announced later (v2.10)

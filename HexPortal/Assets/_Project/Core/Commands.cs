@@ -35,6 +35,29 @@ namespace HexPortal.Core
         public override string ToString() => "Move(" + Player + " #" + UnitId + " -> " + Dest + ")";
     }
 
+    /// <summary>T-05 (v3.2) move-attack: one action for MoveAttackEnergy (2). The unit moves from its start cell to Approach
+    /// (a legal move destination, U-07/U-09/U-12) and attacks Target from there (a legal target from Approach). U-02 Charge.</summary>
+    public sealed class MoveAttackCommand : ICommand
+    {
+        public PlayerId Player { get; }
+        public readonly int UnitId;
+        public readonly Hex Approach;
+        public readonly Hex Target;
+
+        public MoveAttackCommand(PlayerId player, int unitId, Hex approach, Hex target)
+        {
+            Player = player;
+            UnitId = unitId;
+            Approach = approach;
+            Target = target;
+        }
+
+        public override bool Equals(object obj) =>
+            obj is MoveAttackCommand c && c.Player == Player && c.UnitId == UnitId && c.Approach == Approach && c.Target == Target;
+        public override int GetHashCode() => (((int)Player * 31 + UnitId) * 397 ^ Approach.GetHashCode()) * 31 ^ Target.GetHashCode();
+        public override string ToString() => "MoveAttack(" + Player + " #" + UnitId + " -> " + Approach + " x " + Target + ")";
+    }
+
     /// <summary>Attack the cell holding an enemy unit or the enemy tower (T-05 action).</summary>
     public sealed class AttackCommand : ICommand
     {

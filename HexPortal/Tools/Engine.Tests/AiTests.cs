@@ -14,6 +14,11 @@ namespace HexPortal.Tests
         static Hex D(int x, int y) => TestBoard.D59(x, y);
         static Hex H(int q, int r) => new Hex(q, r);
 
+        /// <summary>The cell a plain attack or a move-attack of this unit hits; null for anything else.</summary>
+        static Hex? HitTarget(ICommand c, int unitId) =>
+            c is AttackCommand a && a.UnitId == unitId ? a.Target
+            : c is MoveAttackCommand m && m.UnitId == unitId ? m.Target : (Hex?)null;
+
         static string Doubled(Hex h) => h.ToString();
 
         /// <summary>Every cell p has never seen becomes Explored with its real terrain (no exploration value left).</summary>
@@ -148,10 +153,12 @@ namespace HexPortal.Tests
         {
             var tb = new TestBoard();
             int rider = tb.Unit(UnitClass.Rider, A, D(6, 6));                 // Attack 3
-            tb.Unit(UnitClass.Archer, B, D(5, 5));                            // Health 3: lethal
-            tb.Unit(UnitClass.Guardian, B, D(8, 6));                          // Health 6, not next to the Archer (no cover)
+            tb.Unit(UnitClass.Archer, B, D(5, 5), health: 3);                 // wounded to 3: lethal
+            tb.Unit(UnitClass.Guardian, B, D(8, 6), health: 6);               // not lethal, not next to the Archer (no cover)
             var s = tb.Build();
-            Assert.That(Choose(s, A, AiLevel.Normal), Is.EqualTo(new AttackCommand(A, rider, D(5, 5))));
+            var c = Choose(s, A, AiLevel.Normal);
+            // v3.2: the kill may come as a plain attack or as a move-attack; either way it is the lethal one.
+            Assert.That(c is AttackCommand a && a.Target == D(5, 5) || c is MoveAttackCommand m && m.Target == D(5, 5), Is.True, c.ToString());
         }
 
         [Test]
@@ -174,7 +181,7 @@ namespace HexPortal.Tests
             tb.Unit(UnitClass.Rider, B, H(-1, 3), health: 2);   // away from it (distance 3)
             var s = tb.Build();
             Assert.That(Hex.Distance(H(-3, 5), TestBoard.DefaultTowerA), Is.EqualTo(1));
-            Assert.That(Choose(s, A, AiLevel.Normal), Is.EqualTo(new AttackCommand(A, mage, H(-3, 5))));
+            Assert.That(HitTarget(Choose(s, A, AiLevel.Normal), mage), Is.EqualTo(H(-3, 5))); // plain or move-attack (v3.2)
         }
 
         [Test]
@@ -221,8 +228,11 @@ namespace HexPortal.Tests
             tb.Unit(UnitClass.Guardian, A, D(6, 6));
             int rider = tb.Unit(UnitClass.Rider, B, D(7, 5));
             var s = tb.Build();
-            Assert.That(s.GetUnit(rider).MovedLastOwnTurn, Is.False);
-            Assert.That(BeliefState.From(PlayerView.For(s, A)).GetUnit(rider).MovedLastOwnTurn, Is.True, "U-02 Charge assumed ready");
+            var r = BeliefState.From(PlayerView.For(s, A)).GetUnit(rider);
+            // U-02 (v3.2): the risk estimate assumes the Rider comes as a move-attack, i.e. with its Charge.
+            int plain = Combat.AttackDamage(s, r, false);
+            Assert.That(GreedyAi.ThreatDamage(r, plain), Is.EqualTo(plain + Catalog.RiderChargeBonus));
+            Assert.That(GreedyAi.ThreatDamage(s.Units.First(u => u.Class == UnitClass.Guardian), 2), Is.EqualTo(2));
         }
 
         /// <summary>P-04 revealed and the enemy tower below full Health: the wall is used up (towers never heal), so the
@@ -230,15 +240,16 @@ namespace HexPortal.Tests
         [Test]
         public void AI02_KeepsAttackingAThickWallTowerOnceTheWallIsUsedUp()
         {
+            int Wall = Catalog.Passives.Single(p => p.Id == "P-04").Amount; // 5 (v3.1)
             var tb = new TestBoard();
             int archer = tb.Unit(UnitClass.Archer, A, H(3, -3)); // straight line, distance 3 from B's tower (3,-6): out of its range
             tb.Passive(B, "P-04");
             tb.Tower(B, TestBoard.DefaultTowerB, 9);
             var s = tb.Build();
             s.GetProgress(B).PassiveRevealed = true;
-            s.GetProgress(B).WallBlocked = 3;
+            s.GetProgress(B).WallBlocked = Wall;
             ExploreAll(s, A);
-            Assert.That(BeliefState.From(PlayerView.For(s, A)).GetProgress(B).WallBlocked, Is.EqualTo(3));
+            Assert.That(BeliefState.From(PlayerView.For(s, A)).GetProgress(B).WallBlocked, Is.EqualTo(Wall));
             var attack = new AttackCommand(A, archer, TestBoard.DefaultTowerB);
             Assert.That(Engine.GetLegalCommands(s, A), Does.Contain(attack));
             Assert.That(Choose(s, A, AiLevel.Normal), Is.EqualTo(attack));
@@ -268,7 +279,7 @@ namespace HexPortal.Tests
             tb.Unit(UnitClass.Guardian, B, Board.Portal);
             tb.Unit(UnitClass.Guardian, B, D(10, 6));
             var s = tb.Build();
-            Assert.That(Choose(s, A, AiLevel.Normal), Is.EqualTo(new AttackCommand(A, mage, Board.Portal)));
+            Assert.That(HitTarget(Choose(s, A, AiLevel.Normal), mage), Is.EqualTo(Board.Portal)); // plain or move-attack (v3.2)
         }
 
         /// <summary>Equal scores break the same way for both seats: the 180° mirror of a position (B to act) gets the mirror
@@ -301,6 +312,7 @@ namespace HexPortal.Tests
                 {
                     case MoveCommand m: return new MoveCommand(B, m.UnitId, m.Dest.Mirror());
                     case AttackCommand a: return new AttackCommand(B, a.UnitId, a.Target.Mirror());
+                    case MoveAttackCommand ma: return new MoveAttackCommand(B, ma.UnitId, ma.Approach.Mirror(), ma.Target.Mirror());
                     case OverwatchCommand o: return new OverwatchCommand(B, o.UnitId);
                     case DeployCommand d: return new DeployCommand(B, d.CardId, d.Cell.Mirror());
                     case PlayCardCommand pc when pc.Direction >= 0: // Mirror negates a direction: index + 3 (Hex.Directions)
@@ -425,7 +437,10 @@ namespace HexPortal.Tests
                     Assert.That(tower.R, Is.EqualTo(p == A ? 6 : -6), "back row");
                     Assert.That(Math.Abs(2 * tower.Q + tower.R), Is.LessThanOrEqualTo(2), "back-row centre (3 cells)");
                     var own = s.Units.Where(u => u.Owner == p).ToList();
-                    Assert.That(own.Count, Is.EqualTo(Catalog.Units.Count), "every dealt character is placed");
+                    // S-05 (v3.0): within the 8 setup Mana: Guardian, Archer and Healer (+ the Spike Trap if dealt).
+                    Assert.That(own.Select(u => u.Class), Is.EquivalentTo(new[] { UnitClass.Guardian, UnitClass.Archer, UnitClass.Healer }));
+                    Assert.That(own.Sum(u => u.Def.Cost) + s.Traps.Where(t => t.Owner == p).Sum(t => t.Card.Support.Cost),
+                        Is.LessThanOrEqualTo(Catalog.SetupMana));
                     Assert.That(own.Any(u => u.Class == UnitClass.Guardian && Hex.Distance(u.Pos, tower) == 1), "Guardian next to the tower");
                     if (dealt[p].Any(c => c.DefId == "C-20"))
                     {

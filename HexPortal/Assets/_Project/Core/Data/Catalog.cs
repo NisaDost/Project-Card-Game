@@ -25,20 +25,20 @@ namespace HexPortal.Core.Data
         public static readonly IReadOnlyList<UnitDef> Units = new[]
         {
             //          id      class               cost atk hp mv sight range                 min max
-            new UnitDef("U-01", UnitClass.Guardian, 3,   2,  6, 1, 2,    RangeKind.Adjacent,     1,  1),
-            new UnitDef("U-02", UnitClass.Rider,    3,   3,  4, 3, 3,    RangeKind.Adjacent,     1,  1),
-            new UnitDef("U-03", UnitClass.Archer,   2,   2,  3, 2, 3,    RangeKind.StraightLine, 1,  3),
-            new UnitDef("U-04", UnitClass.Mage,     3,   2,  3, 2, 2,    RangeKind.Distance,     1,  2),
-            new UnitDef("U-05", UnitClass.Healer,   2,   1,  3, 1, 2,    RangeKind.Adjacent,     1,  1),
+            new UnitDef("U-01", UnitClass.Guardian, 3,   2, 12, 1, 2,    RangeKind.Adjacent,     1,  1), // v3.1 Health
+            new UnitDef("U-02", UnitClass.Rider,    3,   3,  8, 3, 3,    RangeKind.Adjacent,     1,  1),
+            new UnitDef("U-03", UnitClass.Archer,   2,   2,  6, 2, 3,    RangeKind.StraightLine, 1,  3),
+            new UnitDef("U-04", UnitClass.Mage,     3,   2,  6, 2, 2,    RangeKind.Distance,     1,  2),
+            new UnitDef("U-05", UnitClass.Healer,   2,   1,  7, 1, 2,    RangeKind.Adjacent,     1,  1),
         };
 
-        public const int RiderChargeBonus = 1;       // U-02 Hücum
+        public const int RiderChargeBonus = 1;       // U-02 Hücum (v3.0: attack after a move in the same turn)
         public const int MageSplashDamage = 1;       // U-04 Patlama
-        public const int HealerHealAmount = 1;       // U-05 Şifa
+        public const int HealerHealAmount = 2;       // U-05 Şifa (v3.1)
         public const int DeathDrawCount = 1;         // U-23
 
         //                                        hp  atk min max sight move
-        public static readonly TowerDef Tower = new TowerDef(10, 2, 1, 2, 2, 0); // U-06
+        public static readonly TowerDef Tower = new TowerDef(20, 3, 1, 2, 2, 0); // U-06 (v3.1)
         public const int TowersPerPlayer = 1;        // U-06
         // U-27: a tower shot always deals Tower.Attack damage, no biome/buff/debuff.
         public const int TowerShotsPerOpponentTurn = 1; // U-27
@@ -54,11 +54,11 @@ namespace HexPortal.Core.Data
             new SupportCardDef("C-10", "Rage",           CardCategory.Power,      SupportPool.Buff,       EffectKind.AttackBonus,       2, DurationKind.Timed,  1, Rarity.Common, 4),
             new SupportCardDef("C-11", "GiantStrength",  CardCategory.Power,      SupportPool.Buff,       EffectKind.AttackBonus,       1, DurationKind.Permanent, 2, Rarity.Rare,   2),
             new SupportCardDef("C-12", "Shield",         CardCategory.Protection, SupportPool.Buff,       EffectKind.BlockNextDamage,   0, DurationKind.Permanent, 1, Rarity.Common, 4),
-            new SupportCardDef("C-13", "HealingPotion",  CardCategory.Protection, SupportPool.Buff,       EffectKind.Heal,              3, DurationKind.Instant,   1, Rarity.Common, 4),
+            new SupportCardDef("C-13", "HealingPotion",  CardCategory.Protection, SupportPool.Buff,       EffectKind.Heal,              5,DurationKind.Instant,   1, Rarity.Common, 4),
             new SupportCardDef("C-14", "WindStep",       CardCategory.Movement,   SupportPool.Buff,       EffectKind.MoveBonus,         2, DurationKind.Instant,   1, Rarity.Common, 4),
             new SupportCardDef("C-15", "Teleport",       CardCategory.Movement,   SupportPool.Buff,       EffectKind.Teleport,          0, DurationKind.Instant,   3, Rarity.Epic,   1),
             new SupportCardDef("C-16", "Weakness",       CardCategory.Curse,      SupportPool.DebuffTrap, EffectKind.AttackPenalty,     2, DurationKind.Timed,  1, Rarity.Common, 4),
-            new SupportCardDef("C-17", "Poison",         CardCategory.Curse,      SupportPool.DebuffTrap, EffectKind.Poison,            1, DurationKind.Timed,  2, Rarity.Rare,   2),
+            new SupportCardDef("C-17", "Poison",         CardCategory.Curse,      SupportPool.DebuffTrap, EffectKind.Poison,            2,DurationKind.Timed,  2, Rarity.Rare,   2),
             new SupportCardDef("C-18", "Push",           CardCategory.Control,    SupportPool.DebuffTrap, EffectKind.Push,              2, DurationKind.Instant,   1, Rarity.Common, 4),
             new SupportCardDef("C-19", "Root",           CardCategory.Control,    SupportPool.DebuffTrap, EffectKind.Root,              0, DurationKind.Timed,  2, Rarity.Rare,   2),
             new SupportCardDef("C-20", "SpikeTrap",      CardCategory.Trap,       SupportPool.DebuffTrap, EffectKind.TrapDamage,        3, DurationKind.Permanent, 1, Rarity.Rare,   2),
@@ -100,6 +100,7 @@ namespace HexPortal.Core.Data
         public const int EnergyPerTurn = 3;          // T-05
         public const int EnergyPerAction = 1;        // T-05
         public const int ActionsPerUnitPerTurn = 1;  // T-05
+        public const int MoveAttackEnergy = 2;       // T-05 (v3.2): move-attack, one action
 
         // ---------- Turn: timers (T-09) ----------
         public const int TurnSeconds = 30;
@@ -116,10 +117,10 @@ namespace HexPortal.Core.Data
             new QuestDef("Q-10", "RuneKeeper",     1,     0,    true,  false), // hold the same rune stone
             new QuestDef("Q-11", "DoubleRune",     2,     0,    false, false), // units on 2 different rune stones
             new QuestDef("Q-12", "Hunter",         2,     0,    false, false), // kill 2 enemy units
-            new QuestDef("Q-13", "Siege",          5,     0,    false, false), // 5 damage to enemy tower
-            new QuestDef("Q-14", "StrongKeep",     7,     8,    false, true),  // tower health >= 7 at end of round 8
+            new QuestDef("Q-13", "Siege",          10,    0,    false, false), // 10 damage to enemy tower (v3.1)
+            new QuestDef("Q-14", "StrongKeep",     14,    10,   false, true),  // tower health >= 14 at end of round 10 (v3.1)
             new QuestDef("Q-15", "BiomeMaster",    3,     0,    false, false), // 3 units on own biome
-            new QuestDef("Q-16", "Flawless",       0,     6,    false, true),  // no unit lost until end of round 6
+            new QuestDef("Q-16", "Flawless",       0,     8,    false, true),  // no unit lost until end of round 8 (v3.1)
             new QuestDef("Q-17", "Trapper",        1,     0,    false, false), // own trap triggers on an enemy
             new QuestDef("Q-18", "WellspringLord", 1,     0,    true,  false), // hold the wellspring
             new QuestDef("Q-19", "DeepRaid",       2,     0,    false, false), // 2 units in enemy home zone
@@ -129,16 +130,20 @@ namespace HexPortal.Core.Data
         public static readonly IReadOnlyList<PassiveDef> Passives = new[]
         {
             //             id      name            amount round once
-            new PassiveDef("P-01", "LastBreath",   2,     0,    true),  // revive first dead unit with 2 Health
+            new PassiveDef("P-01", "LastBreath",   4,     0,    true),  // revive first dead unit with 4 Health (v3.1)
             new PassiveDef("P-02", "TrapMaster",   1,     0,    false), // +1 trap damage
             new PassiveDef("P-03", "QuickStart",   2,     3,    false), // +2 Mana in round 3
-            new PassiveDef("P-04", "ThickWall",    3,     0,    false), // first 3 tower damage blocked
+            new PassiveDef("P-04", "ThickWall",    5,     0,    false), // first 5 tower damage blocked (v3.1)
             new PassiveDef("P-05", "Merchant",     1,     0,    true),  // +1 blind draw on first market buy
             new PassiveDef("P-06", "PortalWarden", 3,     0,    false), // 3 damage to enemy entering the Portal
         };
 
         // ---------- Map events (E) ----------
-        public static readonly IReadOnlyList<int> EventRounds = new[] { 3, 6, 9, 12 }; // E-01
+        public const int EventFirstRound = 4;        // E-01 (v3.1)
+        public const int EventInterval = 3;          // E-01 (v3.1)
+        public const int EventLastRoundOffset = 3;   // E-01 (v3.1): the last event is at most RoundLimit - 3
+        /// <summary>E-01: EventFirstRound, every EventInterval rounds, up to RoundLimit - EventLastRoundOffset (4,7,10,13,16).</summary>
+        public static readonly IReadOnlyList<int> EventRounds = BuildEventRounds();
         public const int EventAnnounceLead = 1;      // E-02
         public const int BiomeShiftMaxCells = 7;     // E-11
         public const int BiomeShiftMinPortalDistance = 3; // E-11
@@ -152,11 +157,18 @@ namespace HexPortal.Core.Data
 
         // ---------- Win (W) ----------
         public const int PortalQuestsRequired = 2;   // W-01
-        public const int RoundLimit = 15;            // W-03
+        public const int RoundLimit = 20;            // W-03 (v3.1)
 
         // ---------- AI ----------
         public const int AiEasyTopMoves = 3;         // AI-03
         public const int AiMaxSecondsPerMove = 1;    // AI-05
+
+        static int[] BuildEventRounds()
+        {
+            var rounds = new List<int>();
+            for (int r = EventFirstRound; r <= RoundLimit - EventLastRoundOffset; r += EventInterval) rounds.Add(r);
+            return rounds.ToArray();
+        }
 
         static CharacterCardDef[] BuildCharacterCards()
         {

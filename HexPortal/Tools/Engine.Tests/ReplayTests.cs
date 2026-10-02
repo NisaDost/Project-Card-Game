@@ -286,8 +286,9 @@ namespace HexPortal.Tests
             int cardId = cards.Count > 0 && rng.NextInt(4) != 0 ? cards[rng.NextInt(cards.Count)] : rng.NextInt(0, s.NextCardId + 1);
             int slot = rng.NextInt(-2, 3);
             var dest = Board.Cells[rng.NextInt(Board.Cells.Count)];
-            switch (rng.NextInt(10))
+            switch (rng.NextInt(11))
             {
+                case 9: return new MoveAttackCommand(player, unitId, cell, dest);
                 case 0: return new MoveCommand(player, unitId, cell);
                 case 1: return new AttackCommand(player, unitId, cell);
                 case 2: return new OverwatchCommand(player, unitId);
@@ -331,8 +332,6 @@ namespace HexPortal.Tests
                 s => s.GetUnit(1).Pos = new Hex(1, 0),
                 s => s.GetUnit(1).Health = 2,
                 s => s.GetUnit(1).ActedThisTurn = true,
-                s => s.GetUnit(1).MovedThisTurn = true,
-                s => s.GetUnit(1).MovedLastOwnTurn = true,
                 s => s.GetUnit(1).OnOverwatch = true,
                 s => s.Map.Set(new Hex(1, 1), new Tile(Biome.Snow, Marker.None)),
                 s => s.Map.Set(new Hex(1, 1), new Tile(Biome.Forest, Marker.Rock)),

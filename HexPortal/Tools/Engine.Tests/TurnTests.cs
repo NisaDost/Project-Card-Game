@@ -36,18 +36,110 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void T05_CannotMoveAndAttackSameTurn()
+        public void T05_MoveAttack_OneCommand_TwoEnergy_AllApproachTargetPairsListed()
+        {
+            var b = new TestBoard();
+            int g = b.Unit(UnitClass.Guardian, A, H(-1, 0)); // Move 1, adjacent range
+            b.Unit(UnitClass.Guardian, B, H(1, 0));
+            var s = b.Build();
+            var legal = Engine.GetLegalCommands(s, A);
+            var ma = legal.OfType<MoveAttackCommand>().Where(c => c.UnitId == g).ToList();
+            // Every (approach, target) pair: approach a legal move, target legal from there.
+            var expected = Movement.Destinations(s, s.GetUnit(g))
+                .SelectMany(h => Combat.LegalTargetsFrom(s, s.GetUnit(g), h, Visibility.VisibleCells(s, A))
+                    .Select(t => new MoveAttackCommand(A, g, h, t))).ToList();
+            Assert.That(ma, Is.EqualTo(expected));
+            Assert.That(ma, Does.Contain(new MoveAttackCommand(A, g, H(0, 0), H(1, 0))));
+            Assert.That(ma.All(c => c.Approach != H(-1, 0)), Is.True); // staying in place is a plain attack
+
+            var ev = Engine.Apply(s, new MoveAttackCommand(A, g, H(0, 0), H(1, 0)));
+            Assert.That(ev.OfType<UnitMoved>().Single().To, Is.EqualTo(H(0, 0)));
+            Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(2));
+            Assert.That(s.GetEnergy(A), Is.EqualTo(Catalog.EnergyPerTurn - Catalog.MoveAttackEnergy));
+            Assert.That(s.GetUnit(g).ActedThisTurn, Is.True);
+        }
+
+        [Test]
+        public void T05_MoveAttackIllegal_WithOneEnergy_OutOfReach_OrStayingInPlace()
+        {
+            var b = new TestBoard().Energy(A, 1);
+            int g = b.Unit(UnitClass.Guardian, A, H(-1, 0));
+            b.Unit(UnitClass.Guardian, B, H(1, 0));
+            var s = b.Build();
+            Assert.That(Engine.GetLegalCommands(s, A).OfType<MoveAttackCommand>(), Is.Empty);
+            var before = StateHash.Compute(s);
+            Assert.Throws<IllegalCommandException>(() => Engine.Apply(s, new MoveAttackCommand(A, g, H(0, 0), H(1, 0))));
+            Assert.That(StateHash.Compute(s), Is.EqualTo(before));
+
+            var b2 = new TestBoard();
+            int g2 = b2.Unit(UnitClass.Guardian, A, H(-2, 0));
+            b2.Unit(UnitClass.Guardian, B, H(1, 0));
+            var s2 = b2.Build();
+            Assert.Throws<IllegalCommandException>(() => Engine.Apply(s2, new MoveAttackCommand(A, g2, H(0, 0), H(1, 0)))); // 2 steps
+            Assert.Throws<IllegalCommandException>(() => Engine.Apply(s2, new MoveAttackCommand(A, g2, H(-1, 0), H(1, 0)))); // out of range
+            var b3 = new TestBoard();
+            int g3 = b3.Unit(UnitClass.Guardian, A, H(0, 0));
+            b3.Unit(UnitClass.Guardian, B, H(1, 0));
+            var s3 = b3.Build();
+            Assert.Throws<IllegalCommandException>(() => Engine.Apply(s3, new MoveAttackCommand(A, g3, H(0, 0), H(1, 0))));
+        }
+
+        [Test]
+        public void T05_NoAttackAfterAMove_NoMoveAfterAnAttack()
         {
             var b = new TestBoard();
             int g = b.Unit(UnitClass.Guardian, A, H(-1, 0));
             b.Unit(UnitClass.Guardian, B, H(1, 0));
             var s = b.Build();
             Engine.Apply(s, new MoveCommand(A, g, H(0, 0)));
-            Assert.That(Engine.GetLegalCommands(s, A).OfType<AttackCommand>(), Is.Empty);
-            var before = StateHash.Compute(s);
+            Assert.That(Engine.GetLegalCommands(s, A).Any(c => c is AttackCommand || c is MoveAttackCommand || c is OverwatchCommand), Is.False);
             Assert.Throws<IllegalCommandException>(() => Engine.Apply(s, new AttackCommand(A, g, H(1, 0))));
-            Assert.Throws<IllegalCommandException>(() => Engine.Apply(s, new OverwatchCommand(A, g)));
-            Assert.That(StateHash.Compute(s), Is.EqualTo(before));
+
+            var b2 = new TestBoard();
+            int g2 = b2.Unit(UnitClass.Guardian, A, H(0, 0));
+            b2.Unit(UnitClass.Guardian, B, H(1, 0));
+            var s2 = b2.Build();
+            Engine.Apply(s2, new AttackCommand(A, g2, H(1, 0)));
+            Assert.Throws<IllegalCommandException>(() => Engine.Apply(s2, new MoveCommand(A, g2, H(-1, 0))));
+            Assert.Throws<IllegalCommandException>(() => Engine.Apply(s2, new MoveAttackCommand(A, g2, H(0, 1), H(1, 0))));
+        }
+
+        [Test]
+        public void T05_C14_C19_WindStepExtendsTheMoveAttack_RootedUnitsCannotMoveAttack()
+        {
+            var b = new TestBoard().Mana(A, 1);
+            int g = b.Unit(UnitClass.Guardian, A, H(-3, 0));
+            b.Unit(UnitClass.Archer, A, H(0, 1)); // sees the target (V-07: legality from what A sees now)
+            b.Unit(UnitClass.Guardian, B, H(1, 0));
+            int wind = b.Hand(A, "C-14");
+            var s = b.Build();
+            Engine.Apply(s, new PlayCardCommand(A, wind, H(-3, 0)));
+            Engine.Apply(s, new MoveAttackCommand(A, g, H(0, 0), H(1, 0))); // 3 steps: Move 1 + Wind Step 2
+            Assert.That(s.GetUnit(g).ActedThisTurn, Is.True);
+
+            var b2 = new TestBoard();
+            int r = b2.Unit(UnitClass.Guardian, A, H(0, 0));
+            b2.Unit(UnitClass.Guardian, B, H(1, 0));
+            b2.Effect(r, "C-19");
+            var s2 = b2.Build();
+            var legal = Engine.GetLegalCommands(s2, A);
+            Assert.That(legal.Any(c => c is MoveCommand || c is MoveAttackCommand), Is.False);
+            Assert.That(legal, Does.Contain(new AttackCommand(A, r, H(1, 0))));
+        }
+
+        [Test]
+        public void T05_T07_DeployedUnitsCannotActThatTurn()
+        {
+            var b = new TestBoard().Mana(A, 3);
+            b.Unit(UnitClass.Guardian, A, H(0, 1));
+            b.Unit(UnitClass.Guardian, B, H(1, -1));
+            int card = b.Hand(A, "U-01-Forest");
+            var s = b.Build();
+            var ev = Engine.Apply(s, new DeployCommand(A, card, H(1, 0)));
+            var u = s.GetUnit(ev.OfType<UnitDeployed>().Single().UnitId);
+            Assert.That(u.ActedThisTurn, Is.True);
+            Assert.That(Engine.GetLegalCommands(s, A).Any(c => c is AttackCommand a && a.UnitId == u.Id
+                || c is MoveAttackCommand m && m.UnitId == u.Id), Is.False);
         }
 
         [Test]
@@ -96,16 +188,10 @@ namespace HexPortal.Tests
             Engine.Apply(s, new MoveCommand(A, r, H(-2, 0)));
             Engine.Apply(s, new EndTurnCommand(A)); // own overwatch survives own end of turn
             Assert.That(s.GetUnit(a).OnOverwatch, Is.True);
-            Assert.That(s.GetUnit(r).MovedLastOwnTurn, Is.True);
-            Assert.That(s.GetUnit(r).MovedThisTurn, Is.False);
 
             var ev = Engine.Apply(s, new EndTurnCommand(B)); // ends A's overwatch
             Assert.That(s.GetUnit(a).OnOverwatch, Is.False);
             Assert.That(ev.OfType<OverwatchEnded>().Single().UnitId, Is.EqualTo(a));
-            Assert.That(s.GetUnit(r).MovedLastOwnTurn, Is.True); // only A's own end of turn updates it
-
-            Engine.Apply(s, new EndTurnCommand(A));
-            Assert.That(s.GetUnit(r).MovedLastOwnTurn, Is.False);
         }
 
         [Test]

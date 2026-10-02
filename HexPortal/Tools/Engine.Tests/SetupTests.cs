@@ -219,6 +219,65 @@ namespace HexPortal.Tests
             Assert.That(s.GetMana(A), Is.EqualTo(0));
         }
 
+        static CardInstance CharacterOf(GameState s, PlayerId p, UnitClass c) =>
+            s.GetHand(p).First(x => x.IsCharacter && x.Character.Class == c);
+
+        static int CostOf(UnitClass c) => Catalog.Units.Single(u => u.Class == c).Cost;
+
+        static void ToPlacement(GameState s, PlayerId p)
+        {
+            Engine.Apply(s, Engine.GetLegalCommands(s, p).OfType<ChooseQuestsCommand>().First());
+            Engine.Apply(s, Engine.GetLegalCommands(s, p).OfType<ChoosePassiveCommand>().First());
+            Engine.Apply(s, Engine.GetLegalCommands(s, p).OfType<PlaceTowerCommand>().First());
+        }
+
+        /// <summary>S-05 (v3.0): every character and trap placed in setup pays its Cost from SetupMana (8); a placement
+        /// that does not fit is illegal; the rest is not carried into the match (T-01).</summary>
+        [Test]
+        public void S05_SetupPlacementsPayFromTheEightManaBudget_NotCarried()
+        {
+            var s = Match.Create(21);
+            Assert.That(PlayerView.For(s, A).SetupMana, Is.EqualTo(Catalog.SetupMana));
+            Assert.That(Catalog.SetupMana, Is.EqualTo(8));
+            ToPlacement(s, A);
+            var free = Home(A).Where(h => Movement.IsEmpty(s, h)).ToList();
+            var g = CharacterOf(s, A, UnitClass.Guardian);
+            var r = CharacterOf(s, A, UnitClass.Rider);
+            var m = CharacterOf(s, A, UnitClass.Mage);
+            var archer = CharacterOf(s, A, UnitClass.Archer);
+            Engine.Apply(s, new PlaceUnitCommand(A, g.Id, free[0]));
+            Engine.Apply(s, new PlaceUnitCommand(A, r.Id, free[1]));
+            Assert.That(s.GetSetupMana(A), Is.EqualTo(8 - CostOf(UnitClass.Guardian) - CostOf(UnitClass.Rider))); // 2
+            Assert.That(PlayerView.For(s, A).SetupMana, Is.EqualTo(2));
+            Assert.That(PlayerView.For(s, B).SetupMana, Is.EqualTo(Catalog.SetupMana)); // only the own budget is shown
+            // The Mage (3) no longer fits; the Archer (2) does.
+            var legal = Engine.GetLegalCommands(s, A).OfType<PlaceUnitCommand>().ToList();
+            Assert.That(legal.Any(c => c.CardId == m.Id), Is.False);
+            Assert.That(legal.Any(c => c.CardId == archer.Id), Is.True);
+            AssertRejected(s, new PlaceUnitCommand(A, m.Id, free[2]));
+            Engine.Apply(s, new PlaceUnitCommand(A, archer.Id, free[2]));
+            Assert.That(s.GetSetupMana(A), Is.EqualTo(0));
+            Assert.That(Engine.GetLegalCommands(s, A).OfType<PlaceUnitCommand>(), Is.Empty);
+            Assert.That(Engine.GetLegalCommands(s, A).OfType<PlaceTrapCommand>(), Is.Empty); // traps cost Mana too
+            Engine.Apply(s, new FinishSetupCommand(A));
+            SetupPlayer(s, B, 1);
+            Assert.That(s.GetMana(A), Is.EqualTo(1)); // T-01: the round-1 Mana, nothing carried
+        }
+
+        [Test]
+        public void S05_ATrapPaysItsCostFromTheBudget()
+        {
+            var s = Match.Create(22);
+            ToPlacement(s, A);
+            Engine.Apply(s, Engine.GetLegalCommands(s, A).OfType<PlaceUnitCommand>().First());
+            int spent = Catalog.SetupMana - s.GetSetupMana(A);
+            int trap = AddToHand(s, A, "C-21"); // Mirror Trap, Cost 2
+            var cmd = Engine.GetLegalCommands(s, A).OfType<PlaceTrapCommand>().First(c => c.CardId == trap);
+            Engine.Apply(s, cmd);
+            Assert.That(s.GetSetupMana(A), Is.EqualTo(Catalog.SetupMana - spent - 2));
+            Assert.That(s.GetMana(A), Is.EqualTo(0));
+        }
+
         [Test]
         public void S05_FinishNeedsTowerAndMinimumCharacters()
         {
@@ -244,7 +303,7 @@ namespace HexPortal.Tests
         {
             var s = Match.Create(13);
             SetupPlayer(s, B, 3, finish: false); // B first: ActivePlayer is ignored during setup
-            SetupPlayer(s, A, 4);
+            SetupPlayer(s, A, 2);
             Engine.Apply(s, new FinishSetupCommand(B));
             Assert.That(s.Phase, Is.EqualTo(GamePhase.Playing));
         }
@@ -253,7 +312,10 @@ namespace HexPortal.Tests
         public void S07_BothFinished_Round1StartsWithAsTurnAndDraw()
         {
             var s = Match.Create(14);
-            SetupPlayer(s, A, 4); // hand 9 - 4 = 5 < 6: A must draw
+            // v3.0: 3 characters fit the setup budget (hand 9 - 3 = 6); one support card less makes the hand 5 < 6: A draws.
+            SetupPlayer(s, A, 3, finish: false);
+            s.HandList(A).Remove(s.GetHand(A).First(c => !c.IsCharacter));
+            Engine.Apply(s, new FinishSetupCommand(A));
             var ev = SetupPlayer(s, B, 3);
             Assert.That(s.Phase, Is.EqualTo(GamePhase.Playing));
             Assert.That((s.Round, s.ActivePlayer), Is.EqualTo((1, A)));
@@ -263,7 +325,7 @@ namespace HexPortal.Tests
             Assert.That(s.IsDrawPending(A), Is.True);
             Assert.That(ev.OfType<TurnStarted>().Single().Player, Is.EqualTo(A));
             Assert.That(Engine.GetLegalCommands(s, A).All(c => c is DrawCommand), Is.True);
-            Assert.That(s.Units.Count(u => u.Owner == A), Is.EqualTo(4));
+            Assert.That(s.Units.Count(u => u.Owner == A), Is.EqualTo(3));
         }
 
         [Test]
@@ -296,6 +358,8 @@ namespace HexPortal.Tests
                 Assert.That(Board.IsHomeZone(s.GetTower(p).Pos, p), Is.True);
                 Assert.That(s.Units.Where(u => u.Owner == p).Select(u => u.Pos).All(h => Board.IsHomeZone(h, p)), Is.True);
                 Assert.That(s.Units.Count(u => u.Owner == p), Is.EqualTo(Catalog.MinPlacedCharacters));
+                // S-06 (v3.0): the cheapest character that fits the budget (dealt: one of each class, cheapest Cost 2).
+                Assert.That(s.Units.Where(u => u.Owner == p).All(u => u.Def.Cost == Catalog.Units.Min(d => d.Cost)), Is.True);
             }
             Assert.That(s.GetQuestChoices(B).Select(q => q.Id), Is.EquivalentTo(new[] { ids[1], ids[3], ids[4] }));
             Assert.That(s.Traps, Is.Empty);
@@ -338,7 +402,7 @@ namespace HexPortal.Tests
         public void S08_NothingOfASetupReachesTheOtherPlayerUntilBothFinished()
         {
             var s = Match.Create(18);
-            var ev = SetupPlayer(s, A, 4);
+            var ev = SetupPlayer(s, A, 3); // v3.0: at most 3 characters fit the 8 setup Mana
             int trap = AddToHand(s, A, "C-20"); // (added after finishing: never shown anyway)
             Assert.That(EventFilter.For(ev, B).Select(e => e.GetType()), Is.EqualTo(new[] { typeof(SetupFinished) }));
             Assert.That(EventFilter.For(ev, A).Count, Is.EqualTo(ev.Count));
@@ -349,7 +413,7 @@ namespace HexPortal.Tests
             Assert.That(view.OpponentSetupFinished, Is.True);
             Assert.That(view.OpponentHandCount, Is.EqualTo(DealtHandSize)); // not the live count (PM decision)
             Assert.That(view.Hand.Any(c => c.Id == trap), Is.False);
-            Assert.That(PlayerView.For(s, A).OwnUnits.Count, Is.EqualTo(4));
+            Assert.That(PlayerView.For(s, A).OwnUnits.Count, Is.EqualTo(3));
         }
 
         [Test]
@@ -360,14 +424,14 @@ namespace HexPortal.Tests
             Assert.That(s.GetDealtHandCount(A), Is.EqualTo(DealtHandSize));
             var seen = new List<int> { PlayerView.For(s, B).OpponentHandCount };
             var events = new List<GameEvent>();
-            events.AddRange(SetupPlayer(s, A, 2, finish: false));
+            events.AddRange(SetupPlayer(s, A, 1, finish: false)); // v3.0: 3 + trap 1 + 3 fits the 8 setup Mana
             seen.Add(PlayerView.For(s, B).OpponentHandCount);
             int trap = AddToHand(s, A, "C-20");
             events.AddRange(Engine.Apply(s, Engine.GetLegalCommands(s, A).OfType<PlaceTrapCommand>().First(c => c.CardId == trap)));
             events.AddRange(Engine.Apply(s, Engine.GetLegalCommands(s, A).OfType<PlaceUnitCommand>().First()));
             events.AddRange(Engine.Apply(s, new FinishSetupCommand(A)));
             seen.Add(PlayerView.For(s, B).OpponentHandCount);
-            Assert.That(s.GetHand(A).Count, Is.EqualTo(DealtHandSize - 3)); // live count changed...
+            Assert.That(s.GetHand(A).Count, Is.EqualTo(DealtHandSize - 2)); // live count changed (2 characters placed)...
             Assert.That(seen, Is.All.EqualTo(DealtHandSize));              // ...the view did not
             Assert.That(EventFilter.For(events, B).Select(e => e.GetType()), Is.EqualTo(new[] { typeof(SetupFinished) }));
 

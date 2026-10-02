@@ -13,7 +13,8 @@ namespace HexPortal.Tests
     public class MatchTests
     {
         // Matches end at round 15 at the latest (W-03), so six seeds keep the command counts of the checks below.
-        static readonly ulong[] LeakSeeds = { 101, 202, 303, 404, 505, 606 };
+        // v3.1/v3.2 (doubled Health, setup budget): two more matches (chosen by a scan) so that the rare Revealed still occurs.
+        static readonly ulong[] LeakSeeds = { 101, 202, 303, 404, 505, 606, 1212, 1717 };
         const int MaxCommands = 700;
         const int MaxRounds = 30;
 
@@ -64,7 +65,7 @@ namespace HexPortal.Tests
             foreach (var k in new[] { typeof(UnitAppeared), typeof(UnitVanished), typeof(Revealed), typeof(CardDrawn) })
                 Assert.That(seenKinds, Does.Contain(k), k.Name + " never produced");
             foreach (var k in new[] { typeof(ChooseQuestsCommand), typeof(PlaceUnitCommand), typeof(FinishSetupCommand),
-                         typeof(SetupTimeoutCommand), typeof(MoveCommand), typeof(AttackCommand), typeof(PlayCardCommand), typeof(DeployCommand),
+                         typeof(SetupTimeoutCommand), typeof(MoveCommand), typeof(AttackCommand), typeof(MoveAttackCommand), typeof(PlayCardCommand), typeof(DeployCommand),
                          typeof(EndTurnCommand), typeof(TurnTimeoutCommand), typeof(PrePickCommand), typeof(DrawCommand) })
                 Assert.That(kinds, Does.Contain(k), k.Name + " never played");
         }
@@ -142,7 +143,9 @@ namespace HexPortal.Tests
                 Assert.That(visible.Contains(u.Pos), Is.True, "enemy unit shown off sight: " + u.Id);
                 var real = s.GetUnit(u.Id);
                 Assert.That((real.Owner, real.Pos, real.Health), Is.EqualTo((o, u.Pos, u.Health)));
-                Assert.That((u.ActedThisTurn, u.MovedThisTurn, u.MovedLastOwnTurn, u.MoveBonus), Is.EqualTo((false, false, false, 0)));
+                Assert.That((u.ActedThisTurn, u.MoveBonus), Is.EqualTo((false, 0)));
+                // Effective Attack of a visible enemy: from its visible effects and terrain only.
+                Assert.That(u.EffectiveAttack, Is.EqualTo(Combat.AttackDamage(s, real, false)));
             }
             Assert.That(v.EnemyUnits.Count, Is.EqualTo(setup ? 0 : s.Units.Count(u => u.Owner == o && visible.Contains(u.Pos))));
             Assert.That(v.OwnUnits.Select(u => u.Id), Is.EqualTo(s.Units.Where(u => u.Owner == p).Select(u => u.Id)));
@@ -257,9 +260,12 @@ namespace HexPortal.Tests
                         }
                         else
                         {
-                            Assert.That(before.GetUnit(r.UnitId).Pos, Is.EqualTo(r.Cell));
+                            // T-05 (v3.2): a move-attacker attacks from its approach cell.
+                            var revealedFrom = c is MoveAttackCommand rma && rma.UnitId == r.UnitId ? rma.Approach : before.GetUnit(r.UnitId).Pos;
+                            Assert.That(revealedFrom, Is.EqualTo(r.Cell));
                             Assert.That(events.OfType<DamageDealt>().Any(d => d.SourceUnitId == r.UnitId && d.Kind != DamageKind.Splash)
                                 || (c is AttackCommand ac && ac.UnitId == r.UnitId) // e.g. the hit was absorbed by a Shield
+                                || (c is MoveAttackCommand mac && mac.UnitId == r.UnitId)
                                 || events.OfType<OverwatchFired>().Any(f => f.UnitId == r.UnitId),
                                 Is.True, "revealed without attacking: " + Serialize(e));
                             known.Add(r.UnitId);
@@ -368,6 +374,10 @@ namespace HexPortal.Tests
                 var scrambled = Scramble(after, p, rng);
                 Assert.That(Serialize(PlayerView.For(scrambled, p)), Is.EqualTo(Serialize(PlayerView.For(after, p))), "view of " + p + " after " + c);
                 Assert.That(Engine.GetLegalCommands(scrambled, p), Is.EqualTo(Engine.GetLegalCommands(after, p)), "legal of " + p + " after " + c);
+                // T-05 / UX-10 previews: from the view only, so equal too.
+                if (!after.InSetup)
+                    foreach (var u in after.Units.Where(x => x.Owner == p))
+                        Assert.That(SerializePreview(scrambled, p, u.Id), Is.EqualTo(SerializePreview(after, p, u.Id)), "preview of " + p + " after " + c);
                 st.Compared++;
             }
             var actor = c.Player;
@@ -394,7 +404,8 @@ namespace HexPortal.Tests
             // V-11 physical collision: a push stops before any piece on its line, seen or not. Pieces on the line
             // stay, and nothing is moved onto it; everything else is scrambled as usual.
             var pushLine = PushLine(before, c);
-            bool unitAction = c is MoveCommand || c is AttackCommand || c is OverwatchCommand;
+            bool unitAction = c is MoveCommand || c is AttackCommand || c is OverwatchCommand || c is MoveAttackCommand;
+            var moveAttack = c as MoveAttackCommand; // T-05 (v3.2): an arrival at Approach, then an attack on Target
             bool setupChoice = c is ChooseQuestsCommand || c is ChoosePassiveCommand; // c names ids from the actor's own offer
 
             // Observer side: what the observer sees of the actor's command must not depend on the actor's hidden data.
@@ -404,7 +415,7 @@ namespace HexPortal.Tests
             // next to it. Hits there are public: a death through the U-23 draw count (accepted, M4a), the tower through its
             // Health (V-09) and a P-04 block (P-00).
             Hex? shotCell = c is MoveCommand m0 ? m0.Dest : c is DeployCommand d0 ? d0.Cell
-                : c is AttackCommand a0 ? before.GetUnit(a0.UnitId).Pos : (Hex?)null;
+                : c is AttackCommand a0 ? before.GetUnit(a0.UnitId).Pos : moveAttack != null ? moveAttack.Approach : (Hex?)null;
             bool mageWatch = shotCell.HasValue && before.Units.Any(w => w.Owner == observer && w.OnOverwatch
                 && w.Class == UnitClass.Mage && Combat.InRange(w.Def, w.Pos, shotCell.Value));
             bool Splash(Hex h) => mageWatch && Hex.Distance(h, shotCell.Value) <= 1;
@@ -413,7 +424,8 @@ namespace HexPortal.Tests
             {
                 Full = false,   // D-05: a Market refill after a Market draw is a public outcome of the pools and the Rng
                 MinMana = before.GetMana(actor),     // T-01: never below what c costs (keeps c legal)
-                MinEnergy = unitAction ? 1 : 0,      // T-05: a unit action needs 1 Energy
+                MinEnergy = moveAttack != null ? Catalog.MoveAttackEnergy : unitAction ? 1 : 0, // T-05: Energy c needs
+                MinSetupMana = before.GetSetupMana(actor), // S-05: a setup placement stays affordable
                 // Q-02, Q-03, Q-04: the actor's quests (and the hidden Q-16 loss count, v2.10) are judged at its turn end
                 // and at the round end; the result is public.
                 Quests = !setupChoice && !turnEnd,
@@ -458,10 +470,15 @@ namespace HexPortal.Tests
             // Actor side: the actor's own command, with everything hidden from the actor scrambled except what the
             // rules let hidden pieces do to it.
             Hex? arrival = c is MoveCommand m ? m.Dest : c is DeployCommand d ? d.Cell
-                : c is AttackCommand a ? before.GetUnit(a.UnitId).Pos : (Hex?)null;
+                : c is AttackCommand a ? before.GetUnit(a.UnitId).Pos : moveAttack != null ? moveAttack.Approach : (Hex?)null;
             bool couldTrigger = arrival.HasValue && CouldTrigger(before, observer, arrival.Value);
-            var mageTarget = c is AttackCommand ma && before.GetUnit(ma.UnitId).Class == UnitClass.Mage ? ma.Target : (Hex?)null;
+            var mageTarget = c is AttackCommand ma && before.GetUnit(ma.UnitId).Class == UnitClass.Mage ? ma.Target
+                : moveAttack != null && before.GetUnit(moveAttack.UnitId).Class == UnitClass.Mage ? moveAttack.Target : (Hex?)null;
             bool NearMage(Hex h) => mageTarget.HasValue && Hex.Distance(h, mageTarget.Value) <= 1; // U-04 splash cells
+            // T-05 (v3.2): the move-attack's hit happens only if the target is still valid after the arrival; a Guardian next
+            // to it that the actor sees only from the approach cell covers it (U-11 with V-11: the actor's sight after
+            // the arrival). Pieces next to the target stay put.
+            bool NearTarget(Hex h) => moveAttack != null && Hex.Distance(h, moveAttack.Target) <= 1;
             // U-27: a hidden tower that could reach the arrival cell still shoots (the shot reveals it, V-08).
             bool TowerReach(Hex h) => arrival.HasValue && Hex.Distance(h, arrival.Value) <= Catalog.Tower.MaxRange;
             var enemyTower = before.GetTower(observer);
@@ -486,9 +503,10 @@ namespace HexPortal.Tests
                     || Home(u.Pos)                             // C-21 candidates, P-01 return cells
                     || pushLine.Contains(u.Pos)                // V-11 push collision
                     || NearMage(u.Pos)                         // U-04 splash: a death shows as a public U-23 draw count
+                    || NearTarget(u.Pos)                       // T-05 move-attack: cover decided after the arrival
                     || (turnEnd && u.Class == UnitClass.Healer) // U-05: a hidden Healer heals visible neighbours
                     || (turnEnd && u.Debuff != null && u.Debuff.Def.Id == "C-17"), // C-17: a poison death shows as a U-23 draw
-                NoEntry = h => Home(h) || pushLine.Contains(h) || NearMage(h),
+                NoEntry = h => Home(h) || pushLine.Contains(h) || NearMage(h) || NearTarget(h),
             };
             var scrA = Scramble(before, actor, rng, actorSpec);
             Assert.That(StillLegal(scrA, c), Is.True, "legality of " + c + " depended on hidden data");
@@ -498,6 +516,14 @@ namespace HexPortal.Tests
             if (actorSpec.Quests) st.QuestScrambles++;
             if (actorSpec.Passive) st.PassiveScrambles++;
             if (pushLine.Count > 0) st.Pushes++;
+        }
+
+        static string SerializePreview(GameState s, PlayerId p, int unitId)
+        {
+            var v = PlayerView.For(s, p);
+            var r = Preview.Ranges(v, unitId);
+            return string.Join(" ", Preview.MoveAttackTargets(v, unitId).Select(o => o.Target + "<-" + string.Join(",", o.Approaches)))
+                + " | " + string.Join(",", r.MoveCells) + " | " + string.Join(",", r.AttackCells) + " | " + string.Join(",", r.MoveAttackCells);
         }
 
         static bool StillLegal(GameState s, ICommand c)
@@ -513,6 +539,7 @@ namespace HexPortal.Tests
             if (c is MoveCommand m) ids.Add(m.UnitId);
             if (c is AttackCommand a) ids.Add(a.UnitId);
             if (c is OverwatchCommand w) ids.Add(w.UnitId);
+            if (c is MoveAttackCommand mac) ids.Add(mac.UnitId);
             if (c is PlayCardCommand pc && s.UnitAt(pc.Target) != null) ids.Add(s.UnitAt(pc.Target).Id);
             return ids;
         }
@@ -557,6 +584,11 @@ namespace HexPortal.Tests
                     if (!obsTower.IsPlaced) return false;
                     if (a.Target == obsTower.Pos) return true;
                     return s.GetUnit(a.UnitId).Class == UnitClass.Mage && Hex.Distance(a.Target, obsTower.Pos) <= 1;
+                case MoveAttackCommand ma: // T-05 (v3.2): the arrival stop, then the attack
+                    if (Stop(ma.Approach)) return true;
+                    if (!obsTower.IsPlaced) return false;
+                    if (ma.Target == obsTower.Pos) return true;
+                    return s.GetUnit(ma.UnitId).Class == UnitClass.Mage && Hex.Distance(ma.Target, obsTower.Pos) <= 1;
                 case PlayCardCommand pc:
                     return isPush || (pc.Dest.HasValue && Stop(pc.Dest.Value));
             }
@@ -761,8 +793,10 @@ namespace HexPortal.Tests
             int cardId = cards.Count > 0 && rng.NextInt(4) != 0 ? cards[rng.NextInt(cards.Count)] : rng.NextInt(0, s.NextCardId + 1);
             var quests = Catalog.Quests.Select(q => q.Id).ToList();
             rng.Shuffle(quests);
-            switch (rng.NextInt(14))
+            switch (rng.NextInt(15))
             {
+                case 13: return new MoveAttackCommand(player, rng.NextInt(0, s.NextUnitId + 1), cell,
+                    Board.Cells[rng.NextInt(Board.Cells.Count)]);
                 case 0: return new ChooseQuestsCommand(player, quests.Take(rng.NextInt(2, 5)).ToArray());
                 case 1: return new ChoosePassiveCommand(player, Catalog.Passives[rng.NextInt(Catalog.Passives.Count)].Id);
                 case 2: return new PlaceTowerCommand(player, cell);

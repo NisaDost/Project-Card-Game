@@ -74,6 +74,11 @@ namespace HexPortal.Core
 
         static bool IsTrapCard(CardInstance c) => c != null && !c.IsCharacter && c.Support.Category == CardCategory.Trap;
 
+        /// <summary>S-05 (v3.0): a card's Cost (characters §3.1, traps §4.2).</summary>
+        static int CostOf(CardInstance c) => c.IsCharacter ? Unit.DefOf(c.Character.Class).Cost : c.Support.Cost;
+
+        static bool Affordable(GameState s, PlayerId p, CardInstance c) => CostOf(c) <= s.GetSetupMana(p);
+
         /// <summary>Every setup command except SetupTimeoutCommand (see CanTimeout).</summary>
         static bool IsLegal(GameState s, ICommand c)
         {
@@ -95,9 +100,11 @@ namespace HexPortal.Core
                     return step == SetupStep.Tower && IsTowerCell(s, p, t.Cell);
                 case PlaceUnitCommand u:
                     var card = s.FindInHand(p, u.CardId);
-                    return step == SetupStep.Placement && card != null && card.IsCharacter && IsUnitCell(s, p, u.Cell);
+                    return step == SetupStep.Placement && card != null && card.IsCharacter && Affordable(s, p, card)
+                           && IsUnitCell(s, p, u.Cell);
                 case PlaceTrapCommand t:
-                    return step == SetupStep.Placement && IsTrapCard(s.FindInHand(p, t.CardId))
+                    var trapCard = s.FindInHand(p, t.CardId);
+                    return step == SetupStep.Placement && IsTrapCard(trapCard) && Affordable(s, p, trapCard)
                            && Traps.ActiveCount(s, p) < Catalog.MaxActiveTraps && IsTrapCell(s, p, t.Cell, ControlZone.Cells(s, p));
                 case FinishSetupCommand _:
                     return step == SetupStep.Placement && CanFinish(s, p);
@@ -132,14 +139,14 @@ namespace HexPortal.Core
                     break;
                 case SetupStep.Placement:
                     foreach (var card in s.GetHand(p))
-                        if (card.IsCharacter)
+                        if (card.IsCharacter && Affordable(s, p, card))
                             foreach (var h in Board.Cells)
                                 if (IsUnitCell(s, p, h)) list.Add(new PlaceUnitCommand(p, card.Id, h));
                     if (Traps.ActiveCount(s, p) < Catalog.MaxActiveTraps)
                     {
                         var zone = ControlZone.Cells(s, p);
                         foreach (var card in s.GetHand(p))
-                            if (IsTrapCard(card))
+                            if (IsTrapCard(card) && Affordable(s, p, card))
                                 foreach (var h in Board.Cells)
                                     if (IsTrapCell(s, p, h, zone)) list.Add(new PlaceTrapCommand(p, card.Id, h));
                     }
@@ -217,7 +224,8 @@ namespace HexPortal.Core
                 case PlaceTrapCommand t:
                     var card = s.FindInHand(p, t.CardId);
                     s.HandList(p).Remove(card);
-                    Traps.Place(s, p, card, t.Cell, events); // S-05: no Mana
+                    s.SetSetupMana(p, s.GetSetupMana(p) - CostOf(card)); // S-05 (v3.0): from the setup budget
+                    Traps.Place(s, p, card, t.Cell, events);
                     break;
                 case FinishSetupCommand _:
                     Finish(s, p, events);
@@ -254,16 +262,18 @@ namespace HexPortal.Core
             events.Add(new TowerPlaced(p, h));
         }
 
-        // S-05: no Mana; not a deploy (no traps, tower shots or overwatch during setup).
+        // S-05 (v3.0): paid from the setup budget; not a deploy (no traps, tower shots or overwatch during setup).
         static void PlaceUnit(GameState s, PlayerId p, CardInstance card, Hex h, EventLog events)
         {
             s.HandList(p).Remove(card);
+            s.SetSetupMana(p, s.GetSetupMana(p) - CostOf(card));
             var u = s.AddUnit(p, card.Character.Class, card.Character.Biome, h);
             events.Add(new UnitDeployed(u.Id, card.Id, h));
         }
 
-        /// <summary>S-06 (v2.8 S2): random offered quests and passive, a random tower cell, random character cards on
-        /// random cells until MinPlacedCharacters stand, then Finish. Choices already made are kept; no traps.</summary>
+        /// <summary>S-06 (v2.8 S2, v3.0): random offered quests and passive, a random tower cell, then while fewer than
+        /// MinPlacedCharacters stand the cheapest character card that fits the setup budget (ties at random) on a random
+        /// cell, then Finish. Choices already made are kept; no traps.</summary>
         static void AutoComplete(GameState s, PlayerId p, EventLog events)
         {
             if (StepOf(s, p) == SetupStep.Quests)
@@ -278,10 +288,14 @@ namespace HexPortal.Core
             while (!CanFinish(s, p))
             {
                 var chars = new List<CardInstance>();
+                int cheapest = int.MaxValue;
                 foreach (var c in s.GetHand(p))
-                    if (c.IsCharacter) chars.Add(c);
+                    if (c.IsCharacter && Affordable(s, p, c)) cheapest = Math.Min(cheapest, CostOf(c));
+                foreach (var c in s.GetHand(p))
+                    if (c.IsCharacter && CostOf(c) == cheapest) chars.Add(c);
                 var cells = UnitCells(s, p);
-                if (chars.Count == 0 || cells.Count == 0) break; // unreachable with the Catalog: 5 characters are dealt
+                // Unreachable with the Catalog: 5 characters are dealt and at most 2 traps (≤ 4 Mana) leave ≥ 4 of 8.
+                if (chars.Count == 0 || cells.Count == 0) break;
                 var card = chars[s.Rng.NextInt(chars.Count)];
                 PlaceUnit(s, p, card, cells[s.Rng.NextInt(cells.Count)], events);
             }

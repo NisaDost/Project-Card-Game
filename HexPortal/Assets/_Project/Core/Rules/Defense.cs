@@ -65,7 +65,7 @@ namespace HexPortal.Core
                 w.OnOverwatch = false;
                 Visibility.Reveal(state, w, events); // V-08: before OverwatchFired, so the target's owner sees the shot
                 events.Add(new OverwatchFired(w.Id, target.Id));
-                Combat.ResolveAttack(state, w, target.Pos, DamageKind.Overwatch, events);
+                Combat.ResolveAttack(state, w, target.Pos, DamageKind.Overwatch, false, events);
                 if (state.IsOver || state.GetUnit(target.Id) == null) return;
             }
         }

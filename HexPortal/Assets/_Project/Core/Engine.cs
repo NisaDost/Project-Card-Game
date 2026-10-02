@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using HexPortal.Core.Data;
 
 namespace HexPortal.Core
 {
@@ -47,6 +48,7 @@ namespace HexPortal.Core
                 case DrawCommand d: Draw(state, d, events); break;
                 case MoveCommand m: Move(state, m, events); break;
                 case AttackCommand a: Attack(state, a, events); break;
+                case MoveAttackCommand ma: MoveAttack(state, ma, events); break;
                 case OverwatchCommand o: Overwatch(state, o, events); break;
                 case DeployCommand dep: Deploy.Apply(state, dep, events); break;
                 case PlayCardCommand pc: Cards.Apply(state, pc, events); break;
@@ -88,9 +90,14 @@ namespace HexPortal.Core
             foreach (var u in state.Units)
             {
                 if (u.Owner != player || !Turn.CanAct(state, u)) continue;
-                foreach (var h in Movement.Destinations(state, u, visible)) list.Add(new MoveCommand(player, u.Id, h));
+                var dests = Movement.Destinations(state, u, visible);
+                foreach (var h in dests) list.Add(new MoveCommand(player, u.Id, h));
                 foreach (var h in Combat.LegalTargets(state, u, visible)) list.Add(new AttackCommand(player, u.Id, h));
                 list.Add(new OverwatchCommand(player, u.Id));
+                if (Turn.CanMoveAttack(state, u)) // T-05 (v3.2): approach cells in move order, targets in board order
+                    foreach (var h in dests)
+                        foreach (var t in Combat.LegalTargetsFrom(state, u, h, visible))
+                            list.Add(new MoveAttackCommand(player, u.Id, h, t));
             }
             var zone = ControlZone.Cells(state, player);
             Deploy.AddLegal(state, player, visible, zone, list);
@@ -119,11 +126,15 @@ namespace HexPortal.Core
             var u = ActingUnit(state, cmd, cmd.UnitId);
             if (!Movement.Destinations(state, u).Contains(cmd.Dest)) throw new IllegalCommandException("Illegal destination: " + cmd);
 
-            Turn.SpendAction(state, u);
+            Turn.SpendAction(state, u, Catalog.EnergyPerAction);
+            Arrive(state, u, cmd.Dest, events);
+        }
+
+        static void Arrive(GameState state, Unit u, Hex dest, EventLog events)
+        {
             var from = u.Pos;
-            u.Pos = cmd.Dest;
-            u.MovedThisTurn = true;
-            events.Add(new UnitMoved(u.Id, from, cmd.Dest));
+            u.Pos = dest;
+            events.Add(new UnitMoved(u.Id, from, dest));
             Defense.ResolveArrivalTriggers(state, u, ArrivalKind.Move, events);
         }
 
@@ -132,15 +143,36 @@ namespace HexPortal.Core
             var u = ActingUnit(state, cmd, cmd.UnitId);
             if (!Combat.LegalTargets(state, u).Contains(cmd.Target)) throw new IllegalCommandException("Illegal target: " + cmd);
 
-            Turn.SpendAction(state, u);
-            Combat.ResolveAttack(state, u, cmd.Target, DamageKind.Attack, events);
+            Turn.SpendAction(state, u, Catalog.EnergyPerAction);
+            Combat.ResolveAttack(state, u, cmd.Target, DamageKind.Attack, false, events);
             Defense.ResolveAttackTriggers(state, u, events); // U-29: after the attack and its splash
+        }
+
+        /// <summary>T-05 (v3.2): validated like a move to Approach plus an attack on Target from Approach (same functions as
+        /// GetLegalCommands). Arrival first (trap, then tower and overwatch, U-29, C-32); the attack (with the U-02 Charge)
+        /// happens only if the unit is still alive on Approach, the game goes on and Target is still a legal target. The
+        /// Energy is spent either way.</summary>
+        static void MoveAttack(GameState state, MoveAttackCommand cmd, EventLog events)
+        {
+            var u = ActingUnit(state, cmd, cmd.UnitId);
+            if (!Turn.CanMoveAttack(state, u)) throw new IllegalCommandException("Move-attack needs " + Catalog.MoveAttackEnergy + " Energy: " + cmd);
+            if (!Movement.Destinations(state, u).Contains(cmd.Approach)) throw new IllegalCommandException("Illegal approach: " + cmd);
+            var visible = Visibility.VisibleCells(state, u.Owner);
+            if (!Combat.LegalTargetsFrom(state, u, cmd.Approach, visible).Contains(cmd.Target))
+                throw new IllegalCommandException("Illegal target: " + cmd);
+
+            Turn.SpendAction(state, u, Catalog.MoveAttackEnergy);
+            Arrive(state, u, cmd.Approach, events);
+            if (state.IsOver || state.GetUnit(u.Id) == null || u.Pos != cmd.Approach) return;
+            if (!Combat.LegalTargets(state, u).Contains(cmd.Target)) return;
+            Combat.ResolveAttack(state, u, cmd.Target, DamageKind.Attack, true, events);
+            Defense.ResolveAttackTriggers(state, u, events);
         }
 
         static void Overwatch(GameState state, OverwatchCommand cmd, EventLog events)
         {
             var u = ActingUnit(state, cmd, cmd.UnitId);
-            Turn.SpendAction(state, u);
+            Turn.SpendAction(state, u, Catalog.EnergyPerAction);
             u.OnOverwatch = true;
             events.Add(new OverwatchSet(u.Id));
         }

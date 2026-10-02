@@ -181,6 +181,7 @@ namespace HexPortal.Tests
                     var set = new HashSet<Hex>();
                     Board.AddWithin(set, c, radius);
                     Assert.That(set.ToList(), Is.EqualTo(Board.Cells.Where(h => Hex.Distance(h, c) <= radius).ToList()), c + " r" + radius);
+                    Assert.That(Board.CellsWithin(c, radius), Is.EqualTo(Board.Cells.Where(h => Hex.Distance(h, c) <= radius).ToList()));
                 }
         }
 

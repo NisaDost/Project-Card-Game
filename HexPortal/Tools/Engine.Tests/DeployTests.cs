@@ -113,20 +113,19 @@ namespace HexPortal.Tests
             Assert.That(s.Traps, Is.Empty);
         }
 
+        /// <summary>v3.1 (U-30): a freshly deployed unit has full Health, so one Spike Trap can no longer kill it. Kept: the
+        /// trap first, then the tower shot on the survivor (U-29). The "dies on the trap, no shot" case is covered with a
+        /// wounded unit in TrapTests.U29_WoundedUnitDiesOnTheTrap_NoTowerShot.</summary>
         [Test]
-        public void U29_DeployOntoSpikeTrapAndDie_NoTowerShot()
+        public void U29_DeployOntoSpikeTrap_TrapThenTowerShot()
         {
             var b = Scene();
-            int card = b.Hand(A, "U-03-Desert"); // 3 Health
+            int card = b.Hand(A, "U-01-Desert");
             b.Trap(B, "C-20", InRange);
-            int drawn = b.PoolCard("C-13");
             var s = b.Build();
             var ev = Engine.Apply(s, new DeployCommand(A, card, InRange));
-            Assert.That(s.UnitAt(InRange), Is.Null);
-            Assert.That(ev.OfType<UnitDied>().Single().Killer, Is.EqualTo(B));
-            Assert.That(ev.OfType<TowerShot>(), Is.Empty);
-            Assert.That(s.IsTowerShotAvailable(B), Is.True);
-            Assert.That(s.GetHand(A).Select(c => c.Id), Is.EqualTo(new[] { drawn })); // U-23
+            Assert.That(ev.OfType<DamageDealt>().Select(d => d.Kind), Is.EqualTo(new[] { DamageKind.Trap, DamageKind.TowerShot }));
+            Assert.That(s.UnitAt(InRange).Health, Is.EqualTo(HealthOf(UnitClass.Guardian) - 3 - Catalog.Tower.Attack));
         }
 
         [Test]

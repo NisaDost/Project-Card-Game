@@ -18,6 +18,7 @@ namespace HexPortal.Core
         readonly Tower[] towers;
         readonly int[] energy = new int[2];                  // T-05
         readonly int[] mana = new int[2];                    // T-01…T-03. Never merged with Energy.
+        readonly int[] setupMana = new int[2];               // S-05 (v3.0): the setup budget, not carried into the match
         readonly bool[] towerShotAvailable = { true, true }; // U-27, per tower owner
         readonly bool[] drawPending = new bool[2];           // T-04 step 4
         readonly int[] prePickSlot = { PrePickCommand.None, PrePickCommand.None }; // T-11
@@ -80,6 +81,7 @@ namespace HexPortal.Core
             : this(map, matchSeed, new Tower(PlayerId.A), new Tower(PlayerId.B))
         {
             InSetup = true;
+            setupMana[0] = setupMana[1] = Catalog.SetupMana;
         }
 
         GameState(GameMap map, ulong matchSeed, Tower towerA, Tower towerB)
@@ -103,6 +105,7 @@ namespace HexPortal.Core
             towers = new[] { o.towers[0].Clone(), o.towers[1].Clone() };
             Array.Copy(o.energy, energy, 2);
             Array.Copy(o.mana, mana, 2);
+            Array.Copy(o.setupMana, setupMana, 2);
             Array.Copy(o.towerShotAvailable, towerShotAvailable, 2);
             Array.Copy(o.drawPending, drawPending, 2);
             Array.Copy(o.prePickSlot, prePickSlot, 2);
@@ -175,6 +178,9 @@ namespace HexPortal.Core
 
         public int GetMana(PlayerId p) => mana[(int)p];
         internal void SetMana(PlayerId p, int value) => mana[(int)p] = value;
+        /// <summary>S-05 (v3.0): what is left of the setup budget (only meaningful during setup).</summary>
+        public int GetSetupMana(PlayerId p) => setupMana[(int)p];
+        internal void SetSetupMana(PlayerId p, int value) => setupMana[(int)p] = value;
 
         public bool IsTowerShotAvailable(PlayerId towerOwner) => towerShotAvailable[(int)towerOwner];
         internal void SetTowerShotAvailable(PlayerId towerOwner, bool value) => towerShotAvailable[(int)towerOwner] = value;

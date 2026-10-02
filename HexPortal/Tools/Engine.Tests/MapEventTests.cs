@@ -24,27 +24,29 @@ namespace HexPortal.Tests
             return half.Concat(half.Select(h => h.Mirror())).ToArray();
         }
 
+        static readonly int EventRound = Catalog.EventRounds[0]; // 4 (v3.1)
+
         static bool Home(Hex h) => Board.IsHomeZone(h, A) || Board.IsHomeZone(h, B);
 
         // ---------- E-01, E-02, E-05 ----------
 
         [Test]
-        public void E01_E02_AnnouncedAtTheStartOfRoundTwo_ResolvedAtTheStartOfRoundThree_BeforeATurnStart()
+        public void E01_E02_AnnouncedAtTheStartOfRoundThree_ResolvedAtTheStartOfRoundFour_BeforeATurnStart()
         {
-            var s = new TestBoard().Active(B).Build();
-            var ev = End(s); // round 2
+            var s = new TestBoard().Round(EventRound - 2).Active(B).Build();
+            var ev = End(s); // round 3
             var ann = ev.OfType<MapEventAnnounced>().Single();
             Assert.That(ev.FindIndex(e => e is MapEventAnnounced), Is.LessThan(ev.FindIndex(e => e is TurnStarted)));
-            Assert.That(ann.Round, Is.EqualTo(3));
-            Assert.That((s.PendingEvent.Id, s.PendingEventRound, s.PendingEventCells), Is.EqualTo((ann.DefId, 3, ann.Cells)));
+            Assert.That(ann.Round, Is.EqualTo(EventRound));
+            Assert.That((s.PendingEvent.Id, s.PendingEventRound, s.PendingEventCells), Is.EqualTo((ann.DefId, EventRound, ann.Cells)));
             foreach (var p in new[] { A, B })
             {
                 Assert.That(EventFilter.For(ev, p).OfType<MapEventAnnounced>().Single(), Is.SameAs(ann)); // E-05: public
                 var v = PlayerView.For(s, p);
-                Assert.That((v.AnnouncedEvent, v.AnnouncedEventRound, v.AnnouncedEventCells), Is.EqualTo((ann.DefId, 3, ann.Cells)));
+                Assert.That((v.AnnouncedEvent, v.AnnouncedEventRound, v.AnnouncedEventCells), Is.EqualTo((ann.DefId, EventRound, ann.Cells)));
             }
             End(s);
-            ev = End(s); // round 3
+            ev = End(s); // round 4
             var res = ev.OfType<MapEventResolved>().Single();
             Assert.That(res.DefId, Is.EqualTo(ann.DefId));
             Assert.That(ev.FindIndex(e => e is MapEventResolved), Is.LessThan(ev.FindIndex(e => e is TurnStarted)));
@@ -58,17 +60,18 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void E01_EventsHappenInRounds3_6_9_12_AnnouncedOneRoundBefore()
+        public void E01_EventsHappenInRounds4_7_10_13_16_AnnouncedOneRoundBefore()
         {
             var s = new TestBoard().Build();
             var announced = new List<int>();
             var resolved = new List<int>();
-            while (s.Round <= 14)
+            while (!s.IsOver)
             {
                 var ev = End(s);
                 if (ev.OfType<MapEventAnnounced>().Any()) announced.Add(s.Round);
                 if (ev.OfType<MapEventResolved>().Any()) resolved.Add(s.Round);
             }
+            Assert.That(resolved, Is.EqualTo(new[] { 4, 7, 10, 13, 16 }));
             Assert.That(resolved, Is.EqualTo(Catalog.EventRounds));
             Assert.That(announced, Is.EqualTo(Catalog.EventRounds.Select(r => r - Catalog.EventAnnounceLead)));
         }
@@ -81,7 +84,7 @@ namespace HexPortal.Tests
             var types = new HashSet<string>();
             for (ulong seed = 1; seed <= 40; seed++)
             {
-                var b = new TestBoard(Biome.Forest, seed).Active(B).Rune(H(1, -1)).Rune(H(-1, 1)).Wellspring(H(2, -1)).Wellspring(H(-2, 1));
+                var b = new TestBoard(Biome.Forest, seed).Round(EventRound - 2).Active(B).Rune(H(1, -1)).Rune(H(-1, 1)).Wellspring(H(2, -1)).Wellspring(H(-2, 1));
                 b.Unit(UnitClass.Guardian, A, H(0, 1));
                 b.Unit(UnitClass.Guardian, B, H(1, -2));
                 b.Unit(UnitClass.Guardian, A, H(-2, 2));
@@ -174,7 +177,7 @@ namespace HexPortal.Tests
         {
             for (ulong seed = 1; seed <= 20; seed++)
             {
-                var b = new TestBoard(Biome.Forest, seed).Active(B);
+                var b = new TestBoard(Biome.Forest, seed).Round(EventRound - 2).Active(B);
                 foreach (var h in Board.Cells.Where(h => !Home(h) && h != Board.Portal)) b.Rune(h); // nothing is non-special
                 var s = b.Build();
                 Assert.That(End(s).OfType<MapEventAnnounced>().Single().DefId, Is.EqualTo("E-11"));
@@ -191,7 +194,7 @@ namespace HexPortal.Tests
             int pairAnnounced = 0;
             for (ulong seed = 1; seed <= 30; seed++)
             {
-                var b = new TestBoard(Biome.Forest, seed).Active(B);
+                var b = new TestBoard(Biome.Forest, seed).Round(EventRound - 2).Active(B);
                 foreach (var c in Board.Cells.Where(c => !Home(c) && c != Board.Portal && c != h && c != h.Mirror())) b.Rune(c);
                 b.Unit(UnitClass.Guardian, A, h);
                 var s = b.Build();

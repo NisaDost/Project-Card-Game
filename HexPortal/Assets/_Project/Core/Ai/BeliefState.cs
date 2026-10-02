@@ -106,14 +106,12 @@ namespace HexPortal.Core
             if (!added.Add(v.Id)) return;
             var u = new Unit(v.Id, v.Owner, v.Class, v.Biome, v.Pos)
             {
-                Health = v.Health, ActedThisTurn = v.ActedThisTurn, MovedThisTurn = v.MovedThisTurn,
-                MovedLastOwnTurn = v.MovedLastOwnTurn, OnOverwatch = v.OnOverwatch, MoveBonus = v.MoveBonus,
+                Health = v.Health, ActedThisTurn = v.ActedThisTurn,
+                OnOverwatch = v.OnOverwatch, MoveBonus = v.MoveBonus,
                 RevealedUntilTurn = v.RevealedUntilTurn,
             };
             if (v.BuffId != null) u.Buff = new ActiveEffect(Support(v.BuffId)) { TurnsLeft = v.BuffTurnsLeft };
             if (v.DebuffId != null) u.Debuff = new ActiveEffect(Support(v.DebuffId)) { TurnsLeft = v.DebuffTurnsLeft };
-            // U-02: an enemy Rider's last move is hidden (V-05): assume Charge is ready (conservative risk).
-            if (v.Owner != viewer && v.Class == UnitClass.Rider) u.MovedLastOwnTurn = true;
             s.PutUnit(u);
         }
 

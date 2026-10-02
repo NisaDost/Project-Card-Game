@@ -131,7 +131,7 @@ namespace HexPortal.Tests
             Assert.That(ev.OfType<UnitHealed>(), Is.Empty);
             Engine.Apply(s, new PlayCardCommand(A, wind, H(-1, 1)));
             Assert.That(s.GetMana(A), Is.EqualTo(0));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Unit.DefOf(UnitClass.Guardian).Health));
             Assert.That(Engine.GetLegalCommands(s, A).OfType<MoveCommand>(), Is.Empty);
         }
 

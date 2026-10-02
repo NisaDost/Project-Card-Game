@@ -94,7 +94,20 @@ namespace HexPortal.Sim
                 ["config a wins"] = games.Count(g => g.WinnerConfig == "a"), ["config b wins"] = games.Count(g => g.WinnerConfig == "b"),
                 ["reasons"] = Count(games.Select(g => g.ResultKey)),
                 ["W-03 quests (criterion 2) share"] = Rate(games.Count(g => g.ResultKey == "W-03 c2"), n),
-                ["reached round 15 share"] = Rate(games.Count(g => g.Rounds >= Catalog.RoundLimit), n),
+                ["W-01 share"] = Rate(games.Count(g => g.ResultKey == "W-01"), n),
+                ["reached round limit share"] = Rate(games.Count(g => g.Rounds >= Catalog.RoundLimit), n),
+                ["round limit"] = Catalog.RoundLimit,
+                ["A win rate 95% CI"] = WilsonCi(winsA, n),
+            };
+
+            // ---- Units and durability (U-30) ----
+            var hitsByClass = new SortedDictionary<string, object>();
+            foreach (var cls in games.SelectMany(g => g.HitsToKill.Keys).Distinct().OrderBy(k => k, StringComparer.Ordinal))
+                hitsByClass[cls] = Stats(games.SelectMany(g => g.HitsToKill.TryGetValue(cls, out var l) ? l : new List<int>()).Select(x => (double)x));
+            root["units"] = new SortedDictionary<string, object>
+            {
+                ["units killed per game"] = Ratio(games.Sum(g => g.UnitsKilled), n),
+                ["hits to kill (damaging events taken by each unit that died, per class)"] = hitsByClass,
             };
 
             // ---- Length ----
@@ -299,6 +312,18 @@ namespace HexPortal.Sim
             };
 
         static double Rate(int k, int n) => n == 0 ? 0 : Math.Round((double)k / n, 4);
+
+        /// <summary>Wilson score 95% interval for k successes in n trials, as "low..high".</summary>
+        static string WilsonCi(int k, int n)
+        {
+            if (n == 0) return "n/a";
+            const double z = 1.96;
+            double p = (double)k / n, d = 1 + z * z / n;
+            double centre = (p + z * z / (2 * n)) / d;
+            double half = z * Math.Sqrt(p * (1 - p) / n + z * z / (4.0 * n * n)) / d;
+            return Math.Round(centre - half, 4).ToString("0.0000", System.Globalization.CultureInfo.InvariantCulture) + ".."
+                + Math.Round(centre + half, 4).ToString("0.0000", System.Globalization.CultureInfo.InvariantCulture);
+        }
         static double Ratio(int k, int n) => n == 0 ? 0 : Math.Round((double)k / n, 3);
 
         static SortedDictionary<string, int> Count(IEnumerable<string> keys)

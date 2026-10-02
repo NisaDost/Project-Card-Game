@@ -45,6 +45,19 @@ namespace HexPortal.Core
                 }
         }
 
+        /// <summary>The on-board cells within <paramref name="radius"/> of center, as a list in Board.Cells order.</summary>
+        public static List<Hex> CellsWithin(Hex center, int radius)
+        {
+            var list = new List<Hex>();
+            for (int dr = -radius; dr <= radius; dr++)
+                for (int dq = Math.Max(-radius, -radius - dr); dq <= Math.Min(radius, radius - dr); dq++)
+                {
+                    var c = new Hex(center.Q + dq, center.R + dr);
+                    if (index.ContainsKey(c)) list.Add(c);
+                }
+            return list;
+        }
+
         /// <summary>1-based GDD row (row 1 = top, player B's edge): r + BoardRadius + 1.</summary>
         public static int GddRow(Hex h) => h.R + Catalog.BoardRadius + 1;
 

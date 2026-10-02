@@ -3,6 +3,7 @@ using HexPortal.Core.Data;
 
 namespace HexPortal.Core
 {
+
     /// <summary>A unit on the board. Only the engine changes it (setters are internal).</summary>
     public sealed class Unit
     {
@@ -14,11 +15,9 @@ namespace HexPortal.Core
 
         public Hex Pos { get; internal set; }
         public int Health { get; internal set; }
-        /// <summary>T-05: used its one action this turn.</summary>
+        /// <summary>T-05 (v3.2): used its one action this turn (move, attack, overwatch or move-attack), or was deployed or
+        /// returned this turn.</summary>
         public bool ActedThisTurn { get; internal set; }
-        public bool MovedThisTurn { get; internal set; }
-        /// <summary>U-02: moved during the owner's previous own turn (set at the end of each own turn).</summary>
-        public bool MovedLastOwnTurn { get; internal set; }
         /// <summary>U-28.</summary>
         public bool OnOverwatch { get; internal set; }
         /// <summary>C-05: the one buff slot (null = none).</summary>
@@ -46,7 +45,7 @@ namespace HexPortal.Core
 
         internal Unit Clone() => new Unit(Id, Owner, Class, Biome, Pos)
         {
-            Health = Health, ActedThisTurn = ActedThisTurn, MovedThisTurn = MovedThisTurn, MovedLastOwnTurn = MovedLastOwnTurn,
+            Health = Health, ActedThisTurn = ActedThisTurn,
             OnOverwatch = OnOverwatch, Buff = Buff == null ? null : Buff.Clone(), Debuff = Debuff == null ? null : Debuff.Clone(),
             MoveBonus = MoveBonus, RevealedUntilTurn = RevealedUntilTurn,
         };

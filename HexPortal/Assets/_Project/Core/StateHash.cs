@@ -61,6 +61,7 @@ namespace HexPortal.Core
             {
                 Add(ref h, s.GetEnergy(p));
                 Add(ref h, s.GetMana(p));
+                Add(ref h, s.GetSetupMana(p));
                 Add(ref h, s.IsTowerShotAvailable(p) ? 1 : 0);
                 Add(ref h, s.IsDrawPending(p) ? 1 : 0);
                 Add(ref h, s.GetPrePickSlot(p));
@@ -82,7 +83,7 @@ namespace HexPortal.Core
                 Add(ref h, u.Pos.Q);
                 Add(ref h, u.Pos.R);
                 Add(ref h, u.Health);
-                Add(ref h, (u.ActedThisTurn ? 1 : 0) | (u.MovedThisTurn ? 2 : 0) | (u.MovedLastOwnTurn ? 4 : 0) | (u.OnOverwatch ? 8 : 0));
+                Add(ref h, (u.ActedThisTurn ? 1 : 0) | (u.OnOverwatch ? 8 : 0));
                 Add(ref h, u.MoveBonus);
                 Add(ref h, u.RevealedUntilTurn);
                 AddEffect(ref h, u.Buff);

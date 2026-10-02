@@ -110,9 +110,14 @@ namespace HexPortal.Core
             }
             // 3. Every other character, spread: the largest smallest distance to the other non-Guardian units, then the
             //    largest sum of (capped) distances to them, then far from the tower, then the front row; ties at random.
+            // S-05 (v3.0): within the 8 setup Mana: Guardian 3 (+ Spike Trap 1) + Archer 2 + Healer 2, then whatever still fits.
             int card = 0;
-            foreach (var c in view.Hand)
-                if (c.IsCharacter) { card = c.Id; break; }
+            foreach (var cls in PlacementOrder)
+            {
+                foreach (var c in view.Hand)
+                    if (c.IsCharacter && c.Character.Class == cls && Unit.DefOf(cls).Cost <= view.SetupMana) { card = c.Id; break; }
+                if (card != 0) break;
+            }
             if (card != 0)
             {
                 var best = new List<ICommand>();
@@ -144,6 +149,8 @@ namespace HexPortal.Core
                 if (c is FinishSetupCommand) return c;
             return null;
         }
+
+        static readonly UnitClass[] PlacementOrder = { UnitClass.Archer, UnitClass.Healer, UnitClass.Mage, UnitClass.Rider };
 
         // Placement commands sorted by their cell in seat order, so a random pick among ties is seat-symmetric.
         static void SeatOrder(List<ICommand> cmds, PlayerId seat) =>

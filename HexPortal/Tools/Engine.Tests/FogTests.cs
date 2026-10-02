@@ -86,7 +86,7 @@ namespace HexPortal.Tests
 
             Engine.Apply(s, new MoveCommand(A, g, H(-2, 2))); // distance 3, not on the Archer's lines (no overwatch shot)
             var ghost = PlayerView.For(s, A).Cells.Single(c => c.Cell == H(-1, -1)).Unit;
-            Assert.That((ghost.Owner, ghost.Class, ghost.Biome, ghost.Health), Is.EqualTo((B, UnitClass.Archer, Biome.Snow, 3)));
+            Assert.That((ghost.Owner, ghost.Class, ghost.Biome, ghost.Health), Is.EqualTo((B, UnitClass.Archer, Biome.Snow, Unit.DefOf(UnitClass.Archer).Health)));
             Assert.That((ghost.BuffId, ghost.DebuffId, ghost.OnOverwatch, ghost.IsGhost), Is.EqualTo(((string)null, (string)null, false, true)));
         }
 

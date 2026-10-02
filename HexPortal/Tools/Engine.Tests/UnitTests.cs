@@ -15,6 +15,7 @@ namespace HexPortal.Tests
         static List<Hex> Targets(GameState s, int id) => Combat.LegalTargets(s, s.GetUnit(id));
         static List<Hex> Moves(GameState s, int id) => Movement.Destinations(s, s.GetUnit(id));
         static UnitDef Def(UnitClass c) => Catalog.Units.Single(u => u.Class == c);
+        static int Hp(UnitClass c) => Def(c).Health; // v3.1 full Health
 
         static HashSet<Hex> AllCells() => new HashSet<Hex>(Board.Cells);
 
@@ -283,7 +284,7 @@ namespace HexPortal.Tests
             Assert.That(Visibility.VisibleCells(s, A).Contains(H(0, -4)), Is.False);
             Assert.That(Targets(s, a), Is.EqualTo(new[] { H(0, -3) }));
             Engine.Apply(s, new AttackCommand(A, a, H(0, -3)));
-            Assert.That(s.UnitAt(H(0, -3)).Health, Is.EqualTo(3 - 2));
+            Assert.That(s.UnitAt(H(0, -3)).Health, Is.EqualTo(Hp(UnitClass.Healer) - Def(UnitClass.Archer).Attack));
 
             // Once another unit of A sees the Guardian, its cover applies.
             var b2 = new TestBoard();
@@ -321,8 +322,8 @@ namespace HexPortal.Tests
             int covered = b.Unit(UnitClass.Archer, B, H(1, -1));
             var s = b.Build();
             Engine.Apply(s, new AttackCommand(A, m, H(1, 0)));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6 - 2));
-            Assert.That(s.GetUnit(covered).Health, Is.EqualTo(3 - Catalog.MageSplashDamage));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Def(UnitClass.Mage).Attack));
+            Assert.That(s.GetUnit(covered).Health, Is.EqualTo(Hp(UnitClass.Archer) - Catalog.MageSplashDamage));
         }
 
         // ---------- U-20 damage, U-02 charge ----------
@@ -336,7 +337,7 @@ namespace HexPortal.Tests
             var s = b.Build();
             var ev = Engine.Apply(s, new AttackCommand(A, a, H(1, 0)));
             int expected = Def(UnitClass.Archer).Attack + Catalog.BiomeAttackBonus;
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6 - expected));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian) - expected));
             var dmg = ev.OfType<DamageDealt>().Single();
             Assert.That(dmg.Amount, Is.EqualTo(expected));
             Assert.That(dmg.Kind, Is.EqualTo(DamageKind.Attack));
@@ -353,7 +354,7 @@ namespace HexPortal.Tests
             int g = b.Unit(UnitClass.Guardian, B, H(1, 0), Biome.Forest);
             var s = b.Build();
             Engine.Apply(s, new AttackCommand(A, a, H(1, 0)));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6 - Def(UnitClass.Archer).Attack));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Def(UnitClass.Archer).Attack));
         }
 
         [Test]
@@ -366,39 +367,53 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void U02_RiderChargeBonusIfMovedLastOwnTurn()
+        public void U02_RiderChargeOnlyOnAMoveAttack()
         {
+            int charged = Def(UnitClass.Rider).Attack + Catalog.RiderChargeBonus;
             var b = new TestBoard();
             int r = b.Unit(UnitClass.Rider, A, H(-3, 0));
             int g = b.Unit(UnitClass.Guardian, B, H(0, 0));
             var s = b.Build();
-            Engine.Apply(s, new MoveCommand(A, r, H(-1, 0)));
-            Engine.Apply(s, new EndTurnCommand(A));
-            Engine.Apply(s, new EndTurnCommand(B));
-            Assert.That(s.GetUnit(r).MovedLastOwnTurn, Is.True);
-            Engine.Apply(s, new AttackCommand(A, r, H(0, 0)));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6 - (Def(UnitClass.Rider).Attack + Catalog.RiderChargeBonus)));
+            Engine.Apply(s, new MoveAttackCommand(A, r, H(-1, 0), H(0, 0)));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian) - charged));
 
-            // Did not move in the previous own turn -> no charge.
+            // Plain attack -> no charge.
             var b2 = new TestBoard();
             int r2 = b2.Unit(UnitClass.Rider, A, H(-1, 0));
             int g2 = b2.Unit(UnitClass.Guardian, B, H(0, 0));
             var s2 = b2.Build();
-            Engine.Apply(s2, new EndTurnCommand(A));
-            Engine.Apply(s2, new EndTurnCommand(B));
             Engine.Apply(s2, new AttackCommand(A, r2, H(0, 0)));
-            Assert.That(s2.GetUnit(g2).Health, Is.EqualTo(6 - Def(UnitClass.Rider).Attack));
+            Assert.That(s2.GetUnit(g2).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Def(UnitClass.Rider).Attack));
 
-            // Moved two own turns ago, not in the last one -> no charge.
+            // Moved in the previous own turn, plain attack now -> no charge.
             var b3 = new TestBoard();
             int r3 = b3.Unit(UnitClass.Rider, A, H(-3, 0));
             int g3 = b3.Unit(UnitClass.Guardian, B, H(0, 0));
             var s3 = b3.Build();
             Engine.Apply(s3, new MoveCommand(A, r3, H(-1, 0)));
-            for (int i = 0; i < 4; i++) Engine.Apply(s3, new EndTurnCommand(s3.ActivePlayer));
-            Assert.That(s3.GetUnit(r3).MovedLastOwnTurn, Is.False);
+            Engine.Apply(s3, new EndTurnCommand(A));
+            Engine.Apply(s3, new EndTurnCommand(B));
             Engine.Apply(s3, new AttackCommand(A, r3, H(0, 0)));
-            Assert.That(s3.GetUnit(g3).Health, Is.EqualTo(6 - Def(UnitClass.Rider).Attack));
+            Assert.That(s3.GetUnit(g3).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Def(UnitClass.Rider).Attack));
+
+            // Other classes get no Charge from a move-attack.
+            var b5 = new TestBoard();
+            int a5 = b5.Unit(UnitClass.Guardian, A, H(-2, 0));
+            int g5 = b5.Unit(UnitClass.Guardian, B, H(0, 0));
+            var s5 = b5.Build();
+            Engine.Apply(s5, new MoveAttackCommand(A, a5, H(-1, 0), H(0, 0)));
+            Assert.That(s5.GetUnit(g5).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Def(UnitClass.Guardian).Attack));
+
+            // C-15: a teleport is not a move.
+            var b4 = new TestBoard().Mana(A, 3);
+            int r4 = b4.Unit(UnitClass.Rider, A, H(-3, 0));
+            int g4 = b4.Unit(UnitClass.Guardian, B, H(0, 0));
+            b4.Unit(UnitClass.Archer, A, H(-1, 1)); // Control Zone around (-1,0)
+            int tp = b4.Hand(A, "C-15");
+            var s4 = b4.Build();
+            Engine.Apply(s4, new PlayCardCommand(A, tp, H(-3, 0), H(-1, 0)));
+            Engine.Apply(s4, new AttackCommand(A, r4, H(0, 0)));
+            Assert.That(s4.GetUnit(g4).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Def(UnitClass.Rider).Attack));
         }
 
         [Test]
@@ -407,12 +422,11 @@ namespace HexPortal.Tests
             var b = new TestBoard();
             int r = b.Unit(UnitClass.Rider, B, H(0, 0));
             b.U(r).OnOverwatch = true;
-            b.U(r).MovedLastOwnTurn = true; // forced: even then, overwatch shots get no charge
             int g = b.Unit(UnitClass.Guardian, A, H(-2, 0));
             var s = b.Build();
             var ev = Engine.Apply(s, new MoveCommand(A, g, H(-1, 0)));
             Assert.That(ev.OfType<OverwatchFired>().Count(), Is.EqualTo(1));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6 - Def(UnitClass.Rider).Attack));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Def(UnitClass.Rider).Attack));
         }
 
         // ---------- U-03 / U-25 Archer ----------
@@ -434,7 +448,7 @@ namespace HexPortal.Tests
             var s = b.Build();
             Assert.That(Targets(s, a), Is.EqualTo(new[] { H(0, -3) }));
             Engine.Apply(s, new AttackCommand(A, a, H(0, -3)));
-            Assert.That(s.GetUnit(far).Health, Is.EqualTo(6 - def.Attack));
+            Assert.That(s.GetUnit(far).Health, Is.EqualTo(Hp(UnitClass.Guardian) - def.Attack));
         }
 
         [Test]
@@ -473,7 +487,7 @@ namespace HexPortal.Tests
             var s = b.Build();
             Assert.That(Targets(s, a), Is.EqualTo(new[] { H(1, 0) }));
             Engine.Apply(s, new AttackCommand(A, a, H(1, 0)));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(6 - Def(UnitClass.Archer).Attack));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Def(UnitClass.Archer).Attack));
         }
 
         // ---------- U-04 Mage splash ----------
@@ -490,11 +504,11 @@ namespace HexPortal.Tests
             var s = b.Build();
             var ev = Engine.Apply(s, new AttackCommand(A, m, H(1, -1)));
 
-            Assert.That(s.GetUnit(target).Health, Is.EqualTo(6 - Def(UnitClass.Mage).Attack));
-            Assert.That(s.GetUnit(e1).Health, Is.EqualTo(3 - Catalog.MageSplashDamage));
-            Assert.That(s.GetUnit(e2).Health, Is.EqualTo(3 - Catalog.MageSplashDamage));
+            Assert.That(s.GetUnit(target).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Def(UnitClass.Mage).Attack));
+            Assert.That(s.GetUnit(e1).Health, Is.EqualTo(Hp(UnitClass.Archer) - Catalog.MageSplashDamage));
+            Assert.That(s.GetUnit(e2).Health, Is.EqualTo(Hp(UnitClass.Healer) - Catalog.MageSplashDamage));
             Assert.That(s.GetTower(B).Health, Is.EqualTo(Catalog.Tower.Health - Catalog.MageSplashDamage));
-            Assert.That(s.GetUnit(ally).Health, Is.EqualTo(3));
+            Assert.That(s.GetUnit(ally).Health, Is.EqualTo(Hp(UnitClass.Archer)));
             Assert.That(ev.OfType<DamageDealt>().Count(d => d.Kind == DamageKind.Splash), Is.EqualTo(3));
             Assert.That(ev.OfType<DamageDealt>().First().Kind, Is.EqualTo(DamageKind.Attack));
         }
@@ -550,7 +564,7 @@ namespace HexPortal.Tests
             b.Unit(UnitClass.Healer, A, H(0, 0));
             b.Unit(UnitClass.Healer, A, H(1, 0));
             int full = b.Unit(UnitClass.Guardian, A, H(0, -1)); // adjacent to (0,0) only
-            int almost = b.Unit(UnitClass.Guardian, A, H(1, -1), health: 5); // adjacent to both
+            int almost = b.Unit(UnitClass.Guardian, A, H(1, -1), health: Hp(UnitClass.Guardian) - 1); // adjacent to both
             var s = b.Build();
             var ev = Engine.Apply(s, new EndTurnCommand(B));
             Assert.That(s.GetUnit(full).Health, Is.EqualTo(Def(UnitClass.Guardian).Health));
@@ -569,8 +583,8 @@ namespace HexPortal.Tests
             int d = b.Unit(UnitClass.Guardian, B, H(1, 0));
             var s = b.Build();
             var ev = Engine.Apply(s, new AttackCommand(A, a, H(1, 0)));
-            Assert.That(s.GetUnit(a).Health, Is.EqualTo(6));
-            Assert.That(s.GetUnit(d).Health, Is.EqualTo(4));
+            Assert.That(s.GetUnit(a).Health, Is.EqualTo(Hp(UnitClass.Guardian)));
+            Assert.That(s.GetUnit(d).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Def(UnitClass.Guardian).Attack));
             Assert.That(ev.OfType<DamageDealt>().Count(), Is.EqualTo(1));
         }
 
@@ -580,7 +594,7 @@ namespace HexPortal.Tests
             var b = new TestBoard();
             int r = b.Unit(UnitClass.Rider, A, H(0, 0));
             int g = b.Unit(UnitClass.Guardian, A, H(2, -1));
-            int victim = b.Unit(UnitClass.Archer, B, H(1, 0));
+            int victim = b.Unit(UnitClass.Archer, B, H(1, 0), health: Def(UnitClass.Rider).Attack); // U-30: a wounded unit
             var s = b.Build();
             Engine.Apply(s, new AttackCommand(A, r, H(1, 0)));
             Assert.That(s.GetUnit(victim), Is.Null);
@@ -594,9 +608,9 @@ namespace HexPortal.Tests
         {
             var b = new TestBoard();
             int r = b.Unit(UnitClass.Rider, A, H(0, 0));
-            int victim = b.Unit(UnitClass.Archer, B, H(1, 0));
+            int victim = b.Unit(UnitClass.Archer, B, H(1, 0), health: 1);
             var s = b.Build();
-            var died = Engine.Apply(s, new AttackCommand(A, r, H(1, 0))).OfType<UnitDied>().Single();
+            var died =Engine.Apply(s, new AttackCommand(A, r, H(1, 0))).OfType<UnitDied>().Single();
             Assert.That(died.UnitId, Is.EqualTo(victim));
             Assert.That(died.Owner, Is.EqualTo(B));
             Assert.That(died.Killer, Is.EqualTo(A));
