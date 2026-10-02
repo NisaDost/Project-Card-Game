@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using HexPortal.Core;
@@ -6,77 +7,76 @@ using NUnit.Framework;
 
 namespace HexPortal.Tests
 {
-    // GDD §2 board geometry (B-01…B-06, B-21) and the generic hex helpers. Values from the hex-grid skill.
+    // GDD §2 board geometry (B-01…B-06, B-21; v3.0 radius-6 hexagon) and the generic hex helpers. Values from the
+    // hex-grid skill.
     public class BoardTests
     {
-        static Hex D(int x, int y) => Hex.FromDoubled(x, y);
+        static Hex H(int q, int r) => new Hex(q, r);
+
+        static bool InHexagon(int q, int r, int radius) =>
+            Math.Abs(q) <= radius && Math.Abs(r) <= radius && Math.Abs(q + r) <= radius;
 
         // ---------- Geometry ----------
 
         [Test]
-        public void B01_BoardHas59Cells_RowLengths_7_6_7_6_7_6_7_6_7()
+        public void B01_BoardIsRadius6Hexagon_127Cells_Rows7To13To7()
         {
-            Assert.That(Board.Cells.Count, Is.EqualTo(59));
+            Assert.That(Board.Cells.Count, Is.EqualTo(127));
             Assert.That(Board.Cells.Count, Is.EqualTo(Catalog.CellCount));
             Assert.That(Board.Cells, Is.Unique);
 
-            var perRow = Enumerable.Range(1, 9).Select(row => Board.Cells.Count(h => Board.GddRow(h) == row)).ToArray();
-            Assert.That(perRow, Is.EqualTo(new[] { 7, 6, 7, 6, 7, 6, 7, 6, 7 }));
+            var perRow = Enumerable.Range(1, 13).Select(row => Board.Cells.Count(h => Board.GddRow(h) == row)).ToArray();
+            Assert.That(perRow, Is.EqualTo(new[] { 7, 8, 9, 10, 11, 12, 13, 12, 11, 10, 9, 8, 7 }));
             Assert.That(perRow, Is.EqualTo(Catalog.RowLengths));
 
-            // GddCol runs 1..rowLength within each row.
-            for (int row = 1; row <= 9; row++)
+            // GddCol runs 1..rowLength within each row, left to right (increasing q).
+            for (int row = 1; row <= 13; row++)
                 Assert.That(Board.Cells.Where(h => Board.GddRow(h) == row).Select(Board.GddCol),
                     Is.EqualTo(Enumerable.Range(1, perRow[row - 1])), "row " + row);
         }
 
         [Test]
-        public void B01_AxialDoubledRoundTripForAll59Cells()
+        public void B01_CellsAreExactlyTheAxialHexagon_OrderedByRThenQ()
         {
-            var expected = new List<(int, int)>();
-            for (int y = 0; y <= 8; y++)
-                for (int x = y % 2; x <= 12; x += 2)
-                    expected.Add((x, y));
-            Assert.That(expected.Count, Is.EqualTo(59));
+            var expected = new List<Hex>();
+            for (int r = -6; r <= 6; r++)
+                for (int q = -6; q <= 6; q++)
+                    if (InHexagon(q, r, 6)) expected.Add(H(q, r));
+            Assert.That(expected.Count, Is.EqualTo(127));
+            Assert.That(Board.Cells, Is.EqualTo(expected));
 
-            var actual = new List<(int, int)>();
-            foreach (var h in Board.Cells)
-            {
-                h.ToDoubled(out int x, out int y);
-                Assert.That((x + y) % 2, Is.EqualTo(0), h.ToString());
-                Assert.That(Hex.FromDoubled(x, y), Is.EqualTo(h));
-                actual.Add((x, y));
-            }
-            // Cells are ordered by y, then x.
-            Assert.That(actual, Is.EqualTo(expected));
-
-            foreach (var (x, y) in expected)
-                Assert.That(Board.IsOnBoard(D(x, y)), Is.True);
-            Assert.That(Board.IsOnBoard(new Hex(5, 0)), Is.False);
-            Assert.That(Board.IsOnBoard(new Hex(0, 5)), Is.False);
-            Assert.That(Board.IsOnBoard(D(13, 1)), Is.False);
+            for (int r = -8; r <= 8; r++)
+                for (int q = -8; q <= 8; q++)
+                    Assert.That(Board.IsOnBoard(H(q, r)), Is.EqualTo(InHexagon(q, r, 6)), H(q, r).ToString());
+            for (int i = 0; i < Board.Cells.Count; i++)
+                Assert.That(Board.IndexOf(Board.Cells[i]), Is.EqualTo(i));
+            Assert.That(Board.IndexOf(H(7, 0)), Is.EqualTo(-1));
+            Assert.That(Board.IndexOf(H(4, 3)), Is.EqualTo(-1)); // |q+r| = 7
         }
 
         [Test]
-        public void B02_PortalIsRow5Col4_Axial00_Doubled64()
+        public void B02_PortalIsRow7Col7_Axial00()
         {
-            Assert.That(Board.Portal, Is.EqualTo(new Hex(0, 0)));
-            Assert.That(Board.GddRow(Board.Portal), Is.EqualTo(5));
-            Assert.That(Board.GddCol(Board.Portal), Is.EqualTo(4));
-            Board.Portal.ToDoubled(out int x, out int y);
-            Assert.That((x, y), Is.EqualTo((6, 4)));
+            Assert.That(Board.Portal, Is.EqualTo(H(0, 0)));
+            Assert.That(Board.GddRow(Board.Portal), Is.EqualTo(7));
+            Assert.That(Board.GddCol(Board.Portal), Is.EqualTo(7));
         }
 
         [Test]
-        public void B03_HomeZones13Each_ARows8to9_BRows1to2()
+        public void B03_HomeZones15Each_ARows12to13_BRows1to2_Distance5ToPortal()
         {
             var a = Board.Cells.Where(h => Board.IsHomeZone(h, PlayerId.A)).ToList();
             var b = Board.Cells.Where(h => Board.IsHomeZone(h, PlayerId.B)).ToList();
-            Assert.That(a.Count, Is.EqualTo(13));
-            Assert.That(b.Count, Is.EqualTo(13));
-            Assert.That(a.Select(Board.GddRow).Distinct(), Is.EquivalentTo(new[] { 8, 9 }));
+            Assert.That(a.Count, Is.EqualTo(15));
+            Assert.That(b.Count, Is.EqualTo(15));
+            Assert.That(a.Select(Board.GddRow).Distinct(), Is.EquivalentTo(new[] { 12, 13 }));
             Assert.That(b.Select(Board.GddRow).Distinct(), Is.EquivalentTo(new[] { 1, 2 }));
+            Assert.That(a.All(h => h.R >= 5), Is.True);
+            Assert.That(b.All(h => h.R <= -5), Is.True);
             Assert.That(a.Intersect(b), Is.Empty);
+            Assert.That(a.Min(h => Hex.Distance(h, Board.Portal)), Is.EqualTo(5));
+            Assert.That(b.Min(h => Hex.Distance(h, Board.Portal)), Is.EqualTo(5));
+            Assert.That(Board.IsHomeZone(H(0, 7), PlayerId.A), Is.False); // off board
         }
 
         [Test]
@@ -86,9 +86,8 @@ namespace HexPortal.Tests
             {
                 Assert.That(h.Mirror().Mirror(), Is.EqualTo(h));
                 Assert.That(Board.IsOnBoard(h.Mirror()), Is.True, h.ToString());
-                h.ToDoubled(out int x, out int y);
-                h.Mirror().ToDoubled(out int mx, out int my);
-                Assert.That((mx, my), Is.EqualTo((12 - x, 8 - y)));
+                Assert.That(h.Mirror(), Is.EqualTo(H(-h.Q, -h.R)));
+                Assert.That(Board.GddRow(h.Mirror()), Is.EqualTo(14 - Board.GddRow(h)));
             }
         }
 
@@ -101,12 +100,12 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void B06_HalvesAre29Each_Disjoint_CoverBoardWithPortal()
+        public void B06_HalvesAre63Each_Disjoint_CoverBoardWithPortal()
         {
             var a = Board.Cells.Where(h => Board.IsInHalf(h, PlayerId.A)).ToList();
             var b = Board.Cells.Where(h => Board.IsInHalf(h, PlayerId.B)).ToList();
-            Assert.That(a.Count, Is.EqualTo(29));
-            Assert.That(b.Count, Is.EqualTo(29));
+            Assert.That(a.Count, Is.EqualTo(63));
+            Assert.That(b.Count, Is.EqualTo(63));
             Assert.That(a.Intersect(b), Is.Empty);
             Assert.That(a.Contains(Board.Portal) || b.Contains(Board.Portal), Is.False);
             Assert.That(a.Concat(b).Append(Board.Portal), Is.EquivalentTo(Board.Cells));
@@ -118,21 +117,31 @@ namespace HexPortal.Tests
             foreach (var h in Board.Cells)
                 Assert.That(Board.IsInHalf(h.Mirror(), PlayerId.A), Is.EqualTo(Board.IsInHalf(h, PlayerId.B)), h.ToString());
 
-            // A's half = rows 6–9 and the 3 cells of row 5 right of the Portal.
+            // A's half = rows 8–13 (r > 0) and the 6 cells of row 7 right of the Portal.
             var a = Board.Cells.Where(h => Board.IsInHalf(h, PlayerId.A)).ToList();
-            Assert.That(a.Count(h => Board.GddRow(h) >= 6), Is.EqualTo(26));
-            Assert.That(a.Where(h => Board.GddRow(h) == 5).Select(Board.GddCol), Is.EquivalentTo(new[] { 5, 6, 7 }));
+            Assert.That(a.Count(h => Board.GddRow(h) >= 8), Is.EqualTo(57));
+            Assert.That(a.Where(h => Board.GddRow(h) == 7).Select(Board.GddCol), Is.EquivalentTo(new[] { 8, 9, 10, 11, 12, 13 }));
         }
 
         [Test]
-        public void B21_UpperHalfIs29Cells_EqualsHalfB()
+        public void B21_UpperHalfIs63Cells_EqualsHalfB()
         {
             var upper = Board.Cells.Where(Board.IsInUpperHalf).ToList();
-            Assert.That(upper.Count, Is.EqualTo(29));
+            Assert.That(upper.Count, Is.EqualTo(63));
             Assert.That(upper, Is.EqualTo(Board.Cells.Where(h => Board.IsInHalf(h, PlayerId.B))));
-            // Rows 1–4 and the 3 cells of row 5 left of the Portal.
-            Assert.That(upper.Count(h => Board.GddRow(h) <= 4), Is.EqualTo(26));
-            Assert.That(upper.Where(h => Board.GddRow(h) == 5).Select(Board.GddCol), Is.EquivalentTo(new[] { 1, 2, 3 }));
+            // Rows 1–6 and the 6 cells of row 7 left of the Portal: r < 0, or r = 0 and q < 0.
+            Assert.That(upper.Count(h => Board.GddRow(h) <= 6), Is.EqualTo(57));
+            Assert.That(upper.Where(h => Board.GddRow(h) == 7).Select(Board.GddCol), Is.EquivalentTo(new[] { 1, 2, 3, 4, 5, 6 }));
+            Assert.That(upper.All(h => h.R < 0 || (h.R == 0 && h.Q < 0)), Is.True);
+        }
+
+        [Test]
+        public void B23_SpecialBand_IsRows3To5_AxialRMinus4ToMinus2_30Cells()
+        {
+            var band = Board.Cells.Where(h => Board.IsInUpperHalf(h)
+                && Board.GddRow(h) >= Catalog.SpecialTileRowMin && Board.GddRow(h) <= Catalog.SpecialTileRowMax).ToList();
+            Assert.That(band.Count, Is.EqualTo(30));
+            Assert.That(band.Select(h => h.R).Distinct(), Is.EquivalentTo(new[] { -4, -3, -2 }));
         }
 
         [Test]
@@ -152,38 +161,50 @@ namespace HexPortal.Tests
             foreach (var a in Board.Cells)
             {
                 Assert.That(Hex.Distance(a, a), Is.EqualTo(0));
+                Assert.That(Hex.Distance(a, Board.Portal), Is.LessThanOrEqualTo(Catalog.BoardRadius));
                 foreach (var b in Board.Cells)
                     Assert.That(Hex.Distance(a, b), Is.EqualTo(Hex.Distance(b, a)));
             }
-            // Corner to corner: doubled (0,0) -> (12,8).
-            Assert.That(Hex.Distance(D(0, 0), D(12, 8)), Is.EqualTo(10));
+            // Opposite corners: (0,-6) -> (0,6).
+            Assert.That(Hex.Distance(H(0, -6), H(0, 6)), Is.EqualTo(12));
+            Assert.That(Hex.Distance(H(6, -6), H(-6, 6)), Is.EqualTo(12));
             Assert.That(new Hex(1, 2) + new Hex(-3, 1), Is.EqualTo(new Hex(-2, 3)));
             Assert.That(new Hex(1, 2) != new Hex(1, 3), Is.True);
         }
 
-        // ---------- BFS (generic reach helper; unit rules come in M2) ----------
-
-        [TestCase(6, 4, 1, 6)]
-        [TestCase(6, 4, 2, 18)]
-        [TestCase(6, 4, 3, 36)]
-        [TestCase(0, 0, 1, 2)]
-        [TestCase(0, 0, 2, 6)]
-        [TestCase(0, 0, 3, 11)]
-        [TestCase(1, 1, 1, 5)]
-        [TestCase(1, 1, 2, 10)]
-        [TestCase(1, 1, 3, 17)]
-        public void Hex_ReachCounts(int x, int y, int steps, int expected)
+        [Test]
+        public void Hex_AddWithinEqualsAFilteredScanOfCells_SameOrder()
         {
-            var start = D(x, y);
+            foreach (var c in Board.Cells)
+                for (int radius = 0; radius <= 4; radius++)
+                {
+                    var set = new HashSet<Hex>();
+                    Board.AddWithin(set, c, radius);
+                    Assert.That(set.ToList(), Is.EqualTo(Board.Cells.Where(h => Hex.Distance(h, c) <= radius).ToList()), c + " r" + radius);
+                }
+        }
+
+        // ---------- BFS (generic reach helper) ----------
+
+        // Portal (0,0); corner (0,-6) (3 on-board neighbours); mid top edge (3,-6) (4 on-board neighbours).
+        [TestCase(0, 0, 1, 6)]
+        [TestCase(0, 0, 2, 18)]
+        [TestCase(0, 0, 3, 36)]
+        [TestCase(0, -6, 1, 3)]
+        [TestCase(0, -6, 2, 8)]
+        [TestCase(0, -6, 3, 15)]
+        [TestCase(3, -6, 1, 4)]
+        [TestCase(3, -6, 2, 11)]
+        [TestCase(3, -6, 3, 21)]
+        public void Hex_ReachCounts(int q, int r, int steps, int expected)
+        {
+            var start = H(q, r);
             var reach = HexSearch.Reachable(start, steps, _ => true, _ => true);
             Assert.That(reach.Count, Is.EqualTo(expected));
             Assert.That(reach, Is.Unique);
             Assert.That(reach, Does.Not.Contain(start));
-            foreach (var h in reach)
-            {
-                Assert.That(Board.IsOnBoard(h), Is.True);
-                Assert.That(Hex.Distance(start, h), Is.InRange(1, steps));
-            }
+            // On an empty board BFS reach equals the on-board distance ball.
+            Assert.That(reach, Is.EquivalentTo(Board.Cells.Where(h => h != start && Hex.Distance(start, h) <= steps)));
         }
 
         [Test]

@@ -129,7 +129,7 @@ namespace HexPortal.Core
         }
 
         public const int PassiveTrapMasterPerTrapCard = 2; // P-02 per trap card in hand
-        public const int TowerColumnSpread = 2;            // tower cell: |doubled x − 6| at most this (3 back-row cells)
+        public const int TowerColumnSpread = 2;            // tower cell: |2q + r| at most this (3 back-row cells)
         public const int SpreadCap = 3;                    // unit placement: min distance to own pieces, capped
     }
 }

@@ -62,11 +62,12 @@ namespace HexPortal.Core
 
         static bool IsBackCenter(Hex h, PlayerId p)
         {
-            h.ToDoubled(out int x, out int y);
-            return y == BackRow(p) && Math.Abs(x - 6) <= AiWeights.TowerColumnSpread;
+            // 2q + r is the doubled-width column offset from the board's centre line (0 = centre).
+            return h.R == BackRow(p) && Math.Abs(2 * h.Q + h.R) <= AiWeights.TowerColumnSpread;
         }
 
-        static int BackRow(PlayerId p) => p == PlayerId.A ? Catalog.RowLengths.Count - 1 : 0;
+        /// <summary>Axial r of p's back (edge) row.</summary>
+        static int BackRow(PlayerId p) => p == PlayerId.A ? Catalog.BoardRadius : -Catalog.BoardRadius;
 
         static ICommand Placement(PlayerView view, IReadOnlyList<ICommand> legal, Rng rng)
         {
@@ -128,8 +129,7 @@ namespace HexPortal.Core
                         sum += d;
                     }
                     int fromTower = Math.Min(AiWeights.SpreadCap, Hex.Distance(pu.Cell, tower));
-                    pu.Cell.ToDoubled(out _, out int y);
-                    int score = spread * 10000 + sum * 100 + fromTower * 10 + (y != BackRow(view.Viewer) ? 1 : 0);
+                    int score = spread * 10000 + sum * 100 + fromTower * 10 + (pu.Cell.R != BackRow(view.Viewer) ? 1 : 0);
                     if (score > bestScore)
                     {
                         best.Clear();

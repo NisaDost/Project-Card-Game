@@ -115,16 +115,19 @@ namespace HexPortal.Tests
         [Test]
         public void U27_PassThroughDoesNotTrigger()
         {
-            // B's tower at doubled (5,1) = (1,-3). From the corner (-1,-4) (distance 3) both exits are in range.
-            var tower = H(1, -3);
-            var corner = Hex.FromDoubled(0, 0);
-            var b = new TestBoard().Tower(B, tower);
+            // B's tower at (1,-4). The board corner (0,-6) has 3 exits; a rock closes (-1,-5), so both remaining exits
+            // (1,-6) and (0,-5) are in range and every path passes through the tower's range.
+            var tower = H(1, -4);
+            var corner = H(0, -6);
+            var b = new TestBoard().Tower(B, tower).Rock(H(-1, -5));
             int r = b.Unit(UnitClass.Rider, A, corner);
             var s = b.Build();
             Assert.That(Hex.Distance(corner, tower), Is.EqualTo(3));
-            Assert.That(Hex.Distance(corner.Neighbor(0), tower), Is.EqualTo(2));
-            Assert.That(Hex.Distance(corner.Neighbor(5), tower), Is.EqualTo(2));
-            var dest = H(-2, -1);
+            var exits = Enumerable.Range(0, 6).Select(corner.Neighbor).Where(h => Board.IsOnBoard(h) && h != H(-1, -5)).ToList();
+            Assert.That(exits, Is.EquivalentTo(new[] { H(1, -6), H(0, -5) }));
+            foreach (var e in exits) Assert.That(Hex.Distance(e, tower), Is.EqualTo(2));
+            var dest = H(-2, -3);
+            Assert.That(Hex.Distance(dest, corner), Is.EqualTo(3));
             Assert.That(Hex.Distance(dest, tower), Is.EqualTo(3));
 
             var ev = Engine.Apply(s, new MoveCommand(A, r, dest));

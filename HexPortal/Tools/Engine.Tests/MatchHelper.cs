@@ -104,7 +104,21 @@ namespace HexPortal.Tests
                 return pre[rng.NextInt(pre.Count)];
             }
             if (rng.NextInt(40) == 0) return new TurnTimeoutCommand(s.ActivePlayer);
-            return Choose(Engine.GetLegalCommands(s, s.ActivePlayer), rng);
+            var legal = Engine.GetLegalCommands(s, s.ActivePlayer);
+            return Advance(s, legal, Choose(legal, rng), rng);
+        }
+
+        /// <summary>v3.0 board (127 cells): a pure random walk rarely meets the enemy, so half of the chosen moves are
+        /// replaced by a legal move of the same unit that gets closest to the enemy tower (ties at random). Every
+        /// command stays one of <paramref name="legal"/>; only the sampling is biased toward contact.</summary>
+        public static ICommand Advance(GameState s, List<ICommand> legal, ICommand chosen, Rng rng)
+        {
+            if (!(chosen is MoveCommand m) || rng.NextInt(2) == 0) return chosen;
+            var goal = s.GetTower(m.Player.Opponent()).Pos;
+            var own = legal.OfType<MoveCommand>().Where(x => x.UnitId == m.UnitId).ToList();
+            int best = own.Min(x => Hex.Distance(x.Dest, goal));
+            var ties = own.Where(x => Hex.Distance(x.Dest, goal) == best).ToList();
+            return ties[rng.NextInt(ties.Count)];
         }
 
         /// <summary>Full-match play: a command chosen uniformly from GetLegalCommands of a player who may act (setup: either
@@ -126,7 +140,7 @@ namespace HexPortal.Tests
             }
             if (rng.NextInt(50) == 0) return new TurnTimeoutCommand(s.ActivePlayer);
             var legal = Engine.GetLegalCommands(s, s.ActivePlayer);
-            return legal[rng.NextInt(legal.Count)];
+            return Advance(s, legal, legal[rng.NextInt(legal.Count)], rng);
         }
 
         // ---------- Canonical serializers ----------

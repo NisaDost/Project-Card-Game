@@ -27,8 +27,8 @@ namespace HexPortal.Tests
         public void Q02_QuestsAreCheckedAtTheEndOfTheOwnersTurn()
         {
             var b = new TestBoard().Round(3).Active(B).Quests(A, "Q-19");
-            b.Unit(UnitClass.Archer, A, H(0, -3)); // B's home zone
-            b.Unit(UnitClass.Archer, A, H(-1, -3));
+            b.Unit(UnitClass.Archer, A, H(0, -5)); // B's home zone (r ≤ -5)
+            b.Unit(UnitClass.Archer, A, H(-1, -5));
             var s = b.Build();
             var ev = End(s); // B's turn end: A's quests are not checked
             Assert.That(Completed(ev, A), Is.Empty);
@@ -42,8 +42,8 @@ namespace HexPortal.Tests
         public void Q01_Q03_QuestsAreHiddenUntilCompleted_ThenPublicAndPermanent()
         {
             var b = new TestBoard().Round(3).Quests(A, "Q-19", "Q-11", "Q-15");
-            int u1 = b.Unit(UnitClass.Archer, A, H(0, -3));
-            b.Unit(UnitClass.Archer, A, H(-1, -3));
+            int u1 = b.Unit(UnitClass.Archer, A, H(0, -5)); // B's home zone (r ≤ -5)
+            b.Unit(UnitClass.Archer, A, H(-1, -5));
             var s = b.Build();
             var viewB = PlayerView.For(s, B);
             Assert.That(viewB.OpponentCompletedQuests, Is.Empty);
@@ -58,7 +58,7 @@ namespace HexPortal.Tests
 
             // Q-03: it stays completed after the condition is gone.
             End(s);
-            Engine.Apply(s, new MoveCommand(A, u1, H(0, -2)));
+            Engine.Apply(s, new MoveCommand(A, u1, H(0, -4))); // out of the home zone
             ev = End(s);
             Assert.That(Completed(ev, A), Is.Empty);
             Assert.That(Status(s, A, "Q-19"), Is.EqualTo(QuestStatus.Completed));
@@ -156,7 +156,7 @@ namespace HexPortal.Tests
             var b = new TestBoard().Round(3).Quests(A, "Q-12");
             int poisoned = b.Unit(UnitClass.Healer, B, H(3, -3), health: 1);
             b.Effect(poisoned, "C-17");
-            int toTower = b.Unit(UnitClass.Archer, B, H(0, 1), health: 2);
+            int toTower = b.Unit(UnitClass.Archer, B, H(-1, 3), health: 2);
             int watcher = b.Unit(UnitClass.Archer, A, H(2, 0));
             b.U(watcher).OnOverwatch = true;
             int toWatch = b.Unit(UnitClass.Guardian, B, H(3, -1), health: 1);
@@ -164,7 +164,7 @@ namespace HexPortal.Tests
 
             var ev = End(s); // B's turn start: poison
             Assert.That(ev.OfType<UnitDied>().Single(d => d.UnitId == poisoned).Killer, Is.EqualTo(A));
-            ev = Engine.Apply(s, new MoveCommand(B, toTower, H(-1, 2))); // A's tower shoots
+            ev = Engine.Apply(s, new MoveCommand(B, toTower, H(-2, 4))); // 2 from A's tower (-3,6): it shoots
             Assert.That(ev.OfType<UnitDied>().Single().Killer, Is.EqualTo(A));
             ev = Engine.Apply(s, new MoveCommand(B, toWatch, H(2, -1))); // A's overwatch
             Assert.That(ev.OfType<UnitDied>().Single().Killer, Is.EqualTo(A));
@@ -180,12 +180,12 @@ namespace HexPortal.Tests
         public void Q13_FiveDamageToTheEnemyTowerInTotal_SplashCounts()
         {
             var b = new TestBoard().Round(3).Quests(A, "Q-13");
-            int archer = b.Unit(UnitClass.Archer, A, H(2, -2));
-            int mage = b.Unit(UnitClass.Mage, A, H(1, -2));
-            b.Unit(UnitClass.Archer, B, H(2, -3)); // next to B's tower (2,-4)
+            int archer = b.Unit(UnitClass.Archer, A, H(3, -4)); // straight line, 2 from B's tower (3,-6)
+            int mage = b.Unit(UnitClass.Mage, A, H(2, -4));
+            b.Unit(UnitClass.Archer, B, H(3, -5)); // next to B's tower (3,-6)
             var s = b.Build();
             Engine.Apply(s, new AttackCommand(A, archer, TestBoard.DefaultTowerB)); // 2
-            Engine.Apply(s, new AttackCommand(A, mage, H(2, -3)));                 // splash 1 on the tower
+            Engine.Apply(s, new AttackCommand(A, mage, H(3, -5)));                 // splash 1 on the tower
             Assert.That(s.GetProgress(A).TowerDamage, Is.EqualTo(3));
             Assert.That(Completed(End(s), A), Is.Empty);
             End(s);
@@ -313,8 +313,8 @@ namespace HexPortal.Tests
         public void T08_TimersCountDownBeforeQuestsAreChecked()
         {
             var b = new TestBoard().Round(3).Quests(A, "Q-19");
-            int x = b.Unit(UnitClass.Archer, A, H(0, -3));
-            b.Unit(UnitClass.Archer, A, H(-1, -3));
+            int x = b.Unit(UnitClass.Archer, A, H(0, -5)); // B's home zone (r ≤ -5)
+            b.Unit(UnitClass.Archer, A, H(-1, -5));
             b.Effect(x, "C-10", 1); // expires at this turn end (C-04)
             var s = b.Build();
             var ev = End(s);
@@ -362,12 +362,12 @@ namespace HexPortal.Tests
         public void Q19_TwoUnitsInTheEnemyHomeZone_OneIsNotEnough()
         {
             var b = new TestBoard().Round(3).Quests(A, "Q-19");
-            b.Unit(UnitClass.Archer, A, H(0, -3));
-            int second = b.Unit(UnitClass.Archer, A, H(0, -2));
+            b.Unit(UnitClass.Archer, A, H(0, -5));              // B's home zone (r ≤ -5)
+            int second = b.Unit(UnitClass.Archer, A, H(0, -4)); // just outside it
             var s = b.Build();
             Assert.That(Completed(End(s), A), Is.Empty);
             End(s);
-            Engine.Apply(s, new MoveCommand(A, second, H(1, -3)));
+            Engine.Apply(s, new MoveCommand(A, second, H(1, -5)));
             Assert.That(Completed(End(s), A), Is.EqualTo(new[] { "Q-19" }));
         }
     }

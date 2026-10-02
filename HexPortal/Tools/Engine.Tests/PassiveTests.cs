@@ -80,7 +80,7 @@ namespace HexPortal.Tests
         [Test]
         public void P01_FirstDeadUnitReturnsAsANewUnitAtTheNextOwnTurnStart_Once()
         {
-            var free = H(0, 3);
+            var free = H(0, 5); // A's home zone (r ≥ 5)
             var b = RockHomeExcept(new TestBoard().Round(3).Active(B).Passive(A, "P-01"), A, free, TestBoard.DefaultTowerA);
             int victim = b.Unit(UnitClass.Rider, A, H(0, 1), Biome.Snow, health: 1);
             b.Effect(victim, "C-11");
@@ -112,7 +112,7 @@ namespace HexPortal.Tests
         [Test]
         public void P01_TheReturnedUnitCannotActInTheTurnItReturns_ButCanInTheNext()
         {
-            var free = H(0, 3);
+            var free = H(0, 5); // A's home zone (r ≥ 5)
             var b = RockHomeExcept(new TestBoard().Round(3).Active(B).Passive(A, "P-01"), A, free, TestBoard.DefaultTowerA);
             b.Unit(UnitClass.Archer, A, H(0, 1), health: 1);
             int archer = b.Unit(UnitClass.Archer, B, H(0, -1));
@@ -150,7 +150,7 @@ namespace HexPortal.Tests
         [Test]
         public void P01_NoEmptyHomeCell_RetriedAtLaterOwnTurnStarts()
         {
-            var free = H(0, 3);
+            var free = H(0, 5); // A's home zone (r ≥ 5)
             var b = RockHomeExcept(new TestBoard().Round(3).Active(B).Passive(A, "P-01"), A, free, TestBoard.DefaultTowerA);
             int blocker = b.Unit(UnitClass.Guardian, A, free);
             b.Unit(UnitClass.Archer, A, H(0, 1), health: 1);
@@ -161,7 +161,7 @@ namespace HexPortal.Tests
             Assert.That(ev.OfType<UnitRevived>(), Is.Empty);
             Assert.That(ev.OfType<PassiveRevealed>(), Is.Empty);
             Assert.That(s.GetProgress(A).LastBreathPending, Is.True);
-            Engine.Apply(s, new MoveCommand(A, blocker, H(0, 2)));
+            Engine.Apply(s, new MoveCommand(A, blocker, H(0, 4)));
             End(s);
             ev = End(s);
             Assert.That(ev.OfType<UnitRevived>().Single().Cell, Is.EqualTo(free));
@@ -171,7 +171,7 @@ namespace HexPortal.Tests
         [Test]
         public void P01_ReturnTriggersAnEnemyTrap()
         {
-            var free = H(0, 3);
+            var free = H(0, 5); // A's home zone (r ≥ 5)
             var b = RockHomeExcept(new TestBoard().Round(3).Active(B).Passive(A, "P-01"), A, free, TestBoard.DefaultTowerA);
             b.Unit(UnitClass.Archer, A, H(0, 1), health: 1);
             int archer = b.Unit(UnitClass.Archer, B, H(0, -1));
@@ -189,12 +189,12 @@ namespace HexPortal.Tests
         [Test]
         public void P01_ReturnNeverTriggersTowerOrOverwatchShots()
         {
-            var free = H(0, 3);
+            var free = H(0, 5); // A's home zone (r ≥ 5)
             var b = RockHomeExcept(new TestBoard().Round(3).Active(B).Passive(A, "P-01"), A, free, TestBoard.DefaultTowerA)
-                .Tower(B, H(1, 2)); // 1 cell from the return cell
+                .Tower(B, H(1, 4)); // 1 cell from the return cell
             b.Unit(UnitClass.Archer, A, H(0, 1), health: 1);
             int archer = b.Unit(UnitClass.Archer, B, H(0, -1));
-            int watcher = b.Unit(UnitClass.Archer, B, H(2, 1)); // straight line (2,1) -> (1,2) -> (0,3)
+            int watcher = b.Unit(UnitClass.Archer, B, H(2, 3)); // straight line (2,3) -> (1,4) -> (0,5), nothing blocks (U-03)
             b.U(watcher).OnOverwatch = true;
             var s = b.Build();
             Engine.Apply(s, new AttackCommand(B, archer, H(0, 1)));
@@ -274,8 +274,8 @@ namespace HexPortal.Tests
         public void P04_ThickWallBlocksTheFirstThreeTowerDamage_NotCountedForQ13()
         {
             var b = new TestBoard().Round(3).Passive(B, "P-04").Quests(A, "Q-13");
-            int archer = b.Unit(UnitClass.Archer, A, H(2, -2));
-            int mage = b.Unit(UnitClass.Mage, A, H(1, -2));
+            int archer = b.Unit(UnitClass.Archer, A, H(3, -4)); // straight line, 2 from B's tower (3,-6)
+            int mage = b.Unit(UnitClass.Mage, A, H(2, -4));     // 2 from the tower
             var s = b.Build();
             var ev = Engine.Apply(s, new AttackCommand(A, archer, TestBoard.DefaultTowerB)); // 2: all blocked
             AssertRevealed(ev, B, "P-04", s);

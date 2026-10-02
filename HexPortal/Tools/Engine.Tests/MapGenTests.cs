@@ -175,7 +175,7 @@ namespace HexPortal.Tests
         // ---------- Biomes (B-22) ----------
 
         [Test]
-        public void B22_EachBiomeAtLeast8InUpperHalf()
+        public void B22_EachBiomeAtLeast18InUpperHalf()
         {
             foreach (var m in maps)
                 foreach (var b in Biomes)
@@ -184,9 +184,9 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void B22_MeanClusterSizeAtMost6_Seeds1To1000()
+        public void B22_SmallClusters_MeanAtMost7_5_MeanLargestAtMost20_Seeds1To1000()
         {
-            int clusterCount = 0, cellCount = 0;
+            int clusterCount = 0, cellCount = 0, maxCluster = 0;
             long largestSum = 0;
             foreach (var m in maps)
             {
@@ -194,17 +194,20 @@ namespace HexPortal.Tests
                 clusterCount += clusters.Count;
                 cellCount += clusters.Sum(c => c.Count);
                 largestSum += clusters.Max(c => c.Count);
+                maxCluster = System.Math.Max(maxCluster, clusters.Max(c => c.Count));
             }
-            Assert.That(cellCount, Is.EqualTo(29 * SeedCount));
+            Assert.That(cellCount, Is.EqualTo(63 * SeedCount));
             double mean = (double)cellCount / clusterCount;
-            TestContext.Out.WriteLine($"[stats] mean cluster size: {mean:F2}, mean largest cluster: {(double)largestSum / SeedCount:F2}");
-            Assert.That(mean, Is.LessThanOrEqualTo(6.0));
+            TestContext.Out.WriteLine($"[stats] mean cluster size: {mean:F2}, mean largest cluster: {(double)largestSum / SeedCount:F2}, max cluster: {maxCluster}");
+            // PM (v3.0 board): small clusters and no single giant region; GDD numbers unchanged.
+            Assert.That(mean, Is.LessThanOrEqualTo(7.5));
+            Assert.That((double)largestSum / SeedCount, Is.LessThanOrEqualTo(20.0));
         }
 
         // ---------- Special tiles (B-23) ----------
 
         [Test]
-        public void B23_TwoRunesOneWellspringPerHalf_InGddRows3to4_And6to7()
+        public void B23_TwoRunesOneWellspringPerHalf_InGddRows3to5_And9to11()
         {
             foreach (var m in maps)
                 foreach (var p in new[] { PlayerId.A, PlayerId.B })
@@ -213,10 +216,12 @@ namespace HexPortal.Tests
                     var wells = Find(m, Marker.Wellspring, false).Where(h => Board.IsInHalf(h, p)).ToList();
                     Assert.That(runes.Count, Is.EqualTo(Catalog.RuneStonesPerHalf));
                     Assert.That(wells.Count, Is.EqualTo(Catalog.WellspringsPerHalf));
-                    var rows = p == PlayerId.B ? new[] { 3, 4 } : new[] { 6, 7 };
+                    var rows = p == PlayerId.B ? new[] { 3, 4, 5 } : new[] { 9, 10, 11 };
+                    var axialR = p == PlayerId.B ? new[] { -4, -3, -2 } : new[] { 2, 3, 4 };
                     foreach (var h in runes.Concat(wells))
                     {
                         Assert.That(rows, Does.Contain(Board.GddRow(h)), "seed " + m.RequestedSeed);
+                        Assert.That(axialR, Does.Contain(h.R), "seed " + m.RequestedSeed);
                         Assert.That(m.Get(h).Biome, Is.Not.EqualTo(Biome.None)); // markers keep the biome
                     }
                 }
@@ -267,7 +272,7 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void B24_ValidatorRejectsBiomeUnder8()
+        public void B24_ValidatorRejectsBiomeUnder18()
         {
             var m = MapGenerator.Generate(1);
             var upper = Board.Cells.Where(Board.IsInUpperHalf).ToList();

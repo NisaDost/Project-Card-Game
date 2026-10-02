@@ -76,16 +76,18 @@ namespace HexPortal.Tests
         public void U07_MoveReachesUpToMoveSteps_ThroughEmptyCells()
         {
             // Reach counts on an empty, fully visible board (hex-grid skill).
-            var cases = new (UnitClass cls, int x, int y, int expected)[]
+            // Portal (0,0); board corner (0,-6); mid right edge (6,-3) (same counts as the mid top edge in BoardTests,
+            // which holds B's default tower).
+            var cases = new (UnitClass cls, int q, int r, int expected)[]
             {
-                (UnitClass.Guardian, 6, 4, 6), (UnitClass.Mage, 6, 4, 18), (UnitClass.Rider, 6, 4, 36),
-                (UnitClass.Guardian, 0, 0, 2), (UnitClass.Archer, 0, 0, 6),
-                (UnitClass.Healer, 1, 1, 5), (UnitClass.Mage, 1, 1, 10),
+                (UnitClass.Guardian, 0, 0, 6), (UnitClass.Mage, 0, 0, 18), (UnitClass.Rider, 0, 0, 36),
+                (UnitClass.Guardian, 0, -6, 3), (UnitClass.Archer, 0, -6, 8),
+                (UnitClass.Healer, 6, -3, 4), (UnitClass.Mage, 6, -3, 11),
             };
             foreach (var c in cases)
             {
                 var b = new TestBoard();
-                var start = Hex.FromDoubled(c.x, c.y);
+                var start = H(c.q, c.r);
                 int id = b.Unit(c.cls, A, start);
                 var moves = Moves(b.Build(), id);
                 Assert.That(moves.Count, Is.EqualTo(c.expected), c.cls + " at " + start);
@@ -138,17 +140,17 @@ namespace HexPortal.Tests
             foreach (var n in new[] { H(1, 0), H(1, -1), H(0, -1), H(-1, 0), H(-1, 1), H(0, 1) })
                 Assert.That(moves, Does.Not.Contain(n));
 
-            // Rock blocks: both neighbours of a corner are rock -> no moves.
-            var corner = Hex.FromDoubled(0, 0);
-            var b2 = new TestBoard().Rock(Hex.FromDoubled(2, 0)).Rock(Hex.FromDoubled(1, 1));
+            // Rock blocks: all 3 neighbours of the board corner (0,-6) are rock -> no moves.
+            var corner = H(0, -6);
+            var b2 = new TestBoard().Rock(H(1, -6)).Rock(H(0, -5)).Rock(H(-1, -5));
             int r2 = b2.Unit(UnitClass.Rider, A, corner);
             Assert.That(Moves(b2.Build(), r2), Is.Empty);
 
             // Same corner with a unit instead of one rock: the Rider gets through.
-            var b3 = new TestBoard().Rock(Hex.FromDoubled(1, 1));
+            var b3 = new TestBoard().Rock(H(0, -5)).Rock(H(-1, -5));
             int r3 = b3.Unit(UnitClass.Rider, A, corner);
-            b3.Unit(UnitClass.Guardian, B, Hex.FromDoubled(2, 0));
-            Assert.That(Moves(b3.Build(), r3), Does.Contain(Hex.FromDoubled(4, 0)));
+            b3.Unit(UnitClass.Guardian, B, H(1, -6));
+            Assert.That(Moves(b3.Build(), r3), Does.Contain(H(2, -6)));
         }
 
         [Test]

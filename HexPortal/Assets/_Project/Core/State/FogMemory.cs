@@ -65,6 +65,16 @@ namespace HexPortal.Core
             lastSeen[i] = seen;
         }
 
+        // Board.Cells index access for the per-event fog update (no Hex -> index lookups).
+        internal CellVisibility GetAt(int i) => visibility[i];
+        internal LastSeen GetLastSeenAt(int i) => lastSeen[i];
+
+        internal void SetAt(int i, CellVisibility v, LastSeen seen)
+        {
+            visibility[i] = v;
+            lastSeen[i] = seen;
+        }
+
         internal FogMemory Clone()
         {
             var m = new FogMemory();

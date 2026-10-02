@@ -53,8 +53,8 @@ namespace HexPortal.Tests
         {
             var b = new TestBoard().Round(3).Quests(A, "Q-11", "Q-19").QuestStatus(A, "Q-11", QuestStatus.Completed);
             b.Unit(UnitClass.Guardian, A, Board.Portal);
-            b.Unit(UnitClass.Archer, A, H(0, -3));
-            b.Unit(UnitClass.Archer, A, H(-1, -3));
+            b.Unit(UnitClass.Archer, A, H(0, -5)); // B's home zone (r ≤ -5)
+            b.Unit(UnitClass.Archer, A, H(-1, -5));
             var s = b.Build();
             Assert.That(End(s).OfType<QuestCompleted>().Single().QuestId, Is.EqualTo("Q-19"));
             End(s);

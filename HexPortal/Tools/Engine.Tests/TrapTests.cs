@@ -172,14 +172,14 @@ namespace HexPortal.Tests
                 Hex Run()
                 {
                     var b = new TestBoard(seed: seed).Active(B);
-                    b.Unit(UnitClass.Archer, B, H(-1, -3)); // B's home zone, occupied
+                    b.Unit(UnitClass.Archer, B, H(-1, -5)); // B's home zone (r ≤ -5), occupied
                     int g = b.Unit(UnitClass.Guardian, B, H(1, 0));
                     b.Trap(A, "C-21", H(1, 1));
                     var s = b.Build();
                     var ev = Engine.Apply(s, new MoveCommand(B, g, H(1, 1)));
                     var u = s.GetUnit(g);
                     Assert.That(Board.IsHomeZone(u.Pos, B), Is.True);
-                    Assert.That(u.Pos, Is.Not.EqualTo(H(-1, -3)).And.Not.EqualTo(s.GetTower(B).Pos));
+                    Assert.That(u.Pos, Is.Not.EqualTo(H(-1, -5)).And.Not.EqualTo(s.GetTower(B).Pos));
                     Assert.That(u.Health, Is.EqualTo(6));
                     var t = ev.OfType<UnitTeleported>().Single();
                     Assert.That((t.From, t.To), Is.EqualTo((H(1, 1), u.Pos)));
@@ -203,7 +203,7 @@ namespace HexPortal.Tests
         [Test]
         public void C21_MirrorCanChainIntoAnotherTrap()
         {
-            var keep = H(0, 3);
+            var keep = H(0, 5); // the only free cell of A's home zone (r ≥ 5)
             var b = FillHomeA(new TestBoard(), keep);
             int g = b.Unit(UnitClass.Guardian, A, H(0, 1));
             b.Trap(B, "C-21", H(1, 1));
@@ -236,15 +236,15 @@ namespace HexPortal.Tests
         [Test]
         public void U29_MirrorMovesUnitIntoOverwatchRange_NoShot()
         {
-            Assert.That(Hex.Distance(H(-2, 2), H(1, 1)), Is.GreaterThan(2)); // the trap cell is out of range
-            AssertMirrorMoveDrawsNoOverwatch(H(-2, 3), H(-2, 2));
+            Assert.That(Hex.Distance(H(-2, 4), H(1, 1)), Is.GreaterThan(2)); // the trap cell is out of range
+            AssertMirrorMoveDrawsNoOverwatch(H(-2, 5), H(-2, 4));
         }
 
         [Test]
         public void U29_MirrorMovesUnitBetweenTwoInRangeCells_NoShot()
         {
-            Assert.That(Hex.Distance(H(0, 2), H(1, 1)), Is.InRange(1, 2)); // the trap cell is in range too
-            AssertMirrorMoveDrawsNoOverwatch(H(-1, 3), H(0, 2));
+            Assert.That(Hex.Distance(H(0, 3), H(1, 1)), Is.InRange(1, 2)); // the trap cell is in range too
+            AssertMirrorMoveDrawsNoOverwatch(H(-1, 5), H(0, 3));
         }
 
         [Test]

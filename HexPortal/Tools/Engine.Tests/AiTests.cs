@@ -11,13 +11,10 @@ namespace HexPortal.Tests
     // §13 greedy AI (AI-01…AI-06): legality, PlayerView-only proofs, tactical scenarios, setup, pre-pick, AI-vs-AI matches.
     public class AiTests
     {
-        static Hex D(int x, int y) => Hex.FromDoubled(x, y);
+        static Hex D(int x, int y) => TestBoard.D59(x, y);
+        static Hex H(int q, int r) => new Hex(q, r);
 
-        static string Doubled(Hex h)
-        {
-            h.ToDoubled(out int x, out int y);
-            return "(" + x + "," + y + ")";
-        }
+        static string Doubled(Hex h) => h.ToString();
 
         /// <summary>Every cell p has never seen becomes Explored with its real terrain (no exploration value left).</summary>
         static void ExploreAll(GameState s, PlayerId p)
@@ -170,13 +167,14 @@ namespace HexPortal.Tests
         [Test]
         public void AI02_DefendsItsTowerWhenThreatened()
         {
-            // Two equal lethal targets; one stands next to A's tower (6,8).
+            // Two equal lethal targets; one stands next to A's tower (-3,6).
             var tb = new TestBoard();
-            int mage = tb.Unit(UnitClass.Mage, A, D(6, 6));
-            tb.Unit(UnitClass.Rider, B, D(5, 7), health: 2);   // next to the tower
-            tb.Unit(UnitClass.Rider, B, D(7, 5), health: 2);   // away from it
+            int mage = tb.Unit(UnitClass.Mage, A, H(-2, 4));
+            tb.Unit(UnitClass.Rider, B, H(-3, 5), health: 2);   // next to the tower
+            tb.Unit(UnitClass.Rider, B, H(-1, 3), health: 2);   // away from it (distance 3)
             var s = tb.Build();
-            Assert.That(Choose(s, A, AiLevel.Normal), Is.EqualTo(new AttackCommand(A, mage, D(5, 7))));
+            Assert.That(Hex.Distance(H(-3, 5), TestBoard.DefaultTowerA), Is.EqualTo(1));
+            Assert.That(Choose(s, A, AiLevel.Normal), Is.EqualTo(new AttackCommand(A, mage, H(-3, 5))));
         }
 
         [Test]
@@ -233,7 +231,7 @@ namespace HexPortal.Tests
         public void AI02_KeepsAttackingAThickWallTowerOnceTheWallIsUsedUp()
         {
             var tb = new TestBoard();
-            int archer = tb.Unit(UnitClass.Archer, A, D(9, 3)); // straight line, distance 3 from B's tower (6,0): out of its range
+            int archer = tb.Unit(UnitClass.Archer, A, H(3, -3)); // straight line, distance 3 from B's tower (3,-6): out of its range
             tb.Passive(B, "P-04");
             tb.Tower(B, TestBoard.DefaultTowerB, 9);
             var s = tb.Build();
@@ -280,13 +278,15 @@ namespace HexPortal.Tests
         {
             GameState Build(PlayerId p)
             {
-                Hex M(int x, int y) => p == A ? D(x, y) : D(12 - x, 8 - y);
+                Hex M(int x, int y) => p == A ? D(x, y) : D(x, y).Mirror();
+                Hex MA(int q, int r) => p == A ? H(q, r) : H(q, r).Mirror();
                 var tb = new TestBoard();
                 tb.Unit(UnitClass.Guardian, p, M(6, 6)); // two equal moves (5,5) and (7,5): a tie
-                tb.Unit(UnitClass.Archer, p, M(2, 6));
-                // In the Control Zone: a C-18 target. On the left edge, pushes 2, 3, 4 (NW, W, SW) are blocked and tie; their
-                // mirrors 5, 0, 1 do not keep that order, so the seat-rotated direction order is really checked.
-                tb.Unit(UnitClass.Healer, p.Opponent(), M(0, 6));
+                tb.Unit(UnitClass.Archer, p, MA(-5, 0));
+                // In the Control Zone: a C-18 target. On the left corner (-6,0), pushes 2, 3, 4 (NW, W, SW) leave the board,
+                // push 0 hits the Archer: they tie; their mirrors 5, 0, 1 do not keep that order, so the seat-rotated
+                // direction order is really checked.
+                tb.Unit(UnitClass.Healer, p.Opponent(), MA(-6, 0));
                 foreach (var r in new[] { M(4, 6), M(8, 6), M(5, 7), M(7, 7) }) tb.Rock(r);
                 tb.Hand(p, "U-05-Desert"); // deploy: many Control Zone cells, several with equal scores
                 tb.Hand(p, "C-18");
@@ -422,9 +422,8 @@ namespace HexPortal.Tests
                 foreach (var p in Players)
                 {
                     var tower = s.GetTower(p).Pos;
-                    tower.ToDoubled(out int tx, out int ty);
-                    Assert.That(ty, Is.EqualTo(p == A ? 8 : 0), "back row");
-                    Assert.That(Math.Abs(tx - 6), Is.LessThanOrEqualTo(2));
+                    Assert.That(tower.R, Is.EqualTo(p == A ? 6 : -6), "back row");
+                    Assert.That(Math.Abs(2 * tower.Q + tower.R), Is.LessThanOrEqualTo(2), "back-row centre (3 cells)");
                     var own = s.Units.Where(u => u.Owner == p).ToList();
                     Assert.That(own.Count, Is.EqualTo(Catalog.Units.Count), "every dealt character is placed");
                     Assert.That(own.Any(u => u.Class == UnitClass.Guardian && Hex.Distance(u.Pos, tower) == 1), "Guardian next to the tower");

@@ -348,9 +348,16 @@ namespace HexPortal.Core
                     if (d >= Catalog.Tower.MinRange && d <= Catalog.Tower.MaxRange) score -= AiWeights.EnemyTowerRange;
                 }
                 // Caution (interim reading of "next to Hidden cells"): never-seen cells just beyond the unit's sight.
-                foreach (var h in Board.Cells)
-                    if (ctx.Hidden[Board.IndexOf(h)] && !visible.Contains(h) && Hex.Distance(h, u.Pos) == u.Def.Sight + 1)
-                        score -= AiWeights.HiddenNeighbour;
+                // Walks only the ring at distance Sight + 1 (hot path: runs for every candidate).
+                int k = u.Def.Sight + 1;
+                var h = u.Pos + new Hex(-k, k); // Directions[4] * k
+                for (int side = 0; side < 6; side++)
+                    for (int step = 0; step < k; step++)
+                    {
+                        int i = Board.IndexOf(h);
+                        if (i >= 0 && ctx.Hidden[i] && !visible.Contains(h)) score -= AiWeights.HiddenNeighbour;
+                        h = h.Neighbor(side);
+                    }
             }
             return score;
         }

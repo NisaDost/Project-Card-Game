@@ -62,7 +62,7 @@ namespace HexPortal.Tests
         public void Q13_SiegeShowsTheTowerDamageDealtSoFar()
         {
             var b = new TestBoard().Round(3).Quests(A, "Q-13");
-            int archer = b.Unit(UnitClass.Archer, A, H(2, -2));
+            int archer = b.Unit(UnitClass.Archer, A, H(3, -4)); // straight line, 2 from B's tower (3,-6)
             var s = b.Build();
             Engine.Apply(s, new AttackCommand(A, archer, TestBoard.DefaultTowerB));
             var siege = Q(s, A, "Q-13");
@@ -89,7 +89,7 @@ namespace HexPortal.Tests
         {
             var b = new TestBoard().Round(3).Rune(H(1, -1)).Quests(A, "Q-11", "Q-15", "Q-19");
             b.Unit(UnitClass.Guardian, A, H(1, -1), Biome.Forest);   // on a rune, own biome (board is Forest)
-            b.Unit(UnitClass.Archer, A, H(0, -3), Biome.Forest);     // B's home zone, own biome
+            b.Unit(UnitClass.Archer, A, H(0, -5), Biome.Forest);     // B's home zone (r ≤ -5), own biome
             b.Unit(UnitClass.Healer, A, H(0, 1), Biome.Desert);      // off biome
             var s = b.Build();
             Assert.That(Q(s, A, "Q-11").Current, Is.EqualTo(1));

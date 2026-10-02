@@ -18,10 +18,6 @@ namespace HexPortal.Core
             return zone;
         }
 
-        static void AddWithin(HashSet<Hex> set, Hex center)
-        {
-            foreach (var c in Board.Cells)
-                if (Hex.Distance(c, center) <= Catalog.ControlRange) set.Add(c);
-        }
+        static void AddWithin(HashSet<Hex> set, Hex center) => Board.AddWithin(set, center, Catalog.ControlRange);
     }
 }

@@ -27,11 +27,7 @@ namespace HexPortal.Core
         /// <summary>V-08: the unit attacked recently and is Visible to its opponent wherever it is.</summary>
         public static bool IsRevealed(GameState state, Unit unit) => unit.RevealedUntilTurn >= state.TurnIndex;
 
-        static void AddWithin(HashSet<Hex> set, Hex center, int sight)
-        {
-            foreach (var c in Board.Cells)
-                if (Hex.Distance(c, center) <= sight) set.Add(c);
-        }
+        static void AddWithin(HashSet<Hex> set, Hex center, int sight) => Board.AddWithin(set, center, sight);
 
         /// <summary>V-08 (v2.8 V1): an attacker becomes Visible to the opponent until the end of the opponent's next turn;
         /// an attack made during the opponent's turn (overwatch, tower shot) until the end of that turn. Call before the
@@ -92,26 +88,49 @@ namespace HexPortal.Core
         internal static void UpdateMemory(GameState state, ISet<Hex> visibleA, ISet<Hex> visibleB)
         {
             if (state.InSetup || state.Light) return;
+            // Hot path (runs after every event): index the pieces once instead of UnitAt/TowerAt per cell. Same pieces
+            // as UnitAt/TowerAt: the first unit in list order and the first placed tower on a cell.
+            int n = Board.Cells.Count;
+            var unitAt = new Unit[n];
+            foreach (var u in state.Units)
+            {
+                int i = Board.IndexOf(u.Pos);
+                if (i >= 0 && unitAt[i] == null) unitAt[i] = u;
+            }
+            var towerAt = new Tower[n];
+            foreach (var p in new[] { PlayerId.A, PlayerId.B })
+            {
+                var t = state.GetTower(p);
+                int i = t.IsPlaced ? Board.IndexOf(t.Pos) : -1;
+                if (i >= 0 && towerAt[i] == null) towerAt[i] = t;
+            }
+            var isVisible = new bool[n];
             foreach (var p in new[] { PlayerId.A, PlayerId.B })
             {
                 var mem = state.GetFog(p);
                 var visible = p == PlayerId.A ? visibleA : visibleB;
-                var seenUnits = new HashSet<int>();
-                foreach (var h in Board.Cells)
+                System.Array.Clear(isVisible, 0, n);
+                foreach (var h in visible)
                 {
-                    if (!visible.Contains(h)) continue;
-                    var snap = Capture(state, h, p);
-                    if (snap.HasUnit) seenUnits.Add(snap.UnitId);
-                    mem.Set(h, CellVisibility.Visible, snap);
+                    int i = Board.IndexOf(h);
+                    if (i >= 0) isVisible[i] = true;
                 }
-                foreach (var h in Board.Cells)
+                var seenUnits = new HashSet<int>();
+                for (int i = 0; i < n; i++)
                 {
-                    if (visible.Contains(h)) continue;
-                    var v = mem.Get(h);
+                    if (!isVisible[i]) continue;
+                    var snap = Capture(state.Map.Get(Board.Cells[i]), unitAt[i], towerAt[i], p);
+                    if (snap.HasUnit) seenUnits.Add(snap.UnitId);
+                    mem.SetAt(i, CellVisibility.Visible, snap);
+                }
+                for (int i = 0; i < n; i++)
+                {
+                    if (isVisible[i]) continue;
+                    var v = mem.GetAt(i);
                     if (v == CellVisibility.Hidden) continue;
-                    var snap = mem.GetLastSeen(h);
+                    var snap = mem.GetLastSeenAt(i);
                     if (snap.HasUnit && seenUnits.Contains(snap.UnitId)) snap = snap.WithoutUnit();
-                    mem.Set(h, CellVisibility.Explored, snap);
+                    mem.SetAt(i, CellVisibility.Explored, snap);
                 }
             }
         }
@@ -137,12 +156,9 @@ namespace HexPortal.Core
 
         // The cell as the viewer sees it now: terrain, and an enemy unit (alive) or the enemy tower. Own pieces are
         // never stored: the viewer always knows them.
-        static LastSeen Capture(GameState state, Hex h, PlayerId viewer)
+        static LastSeen Capture(Tile tile, Unit u, Tower t, PlayerId viewer)
         {
-            var tile = state.Map.Get(h);
-            var u = state.UnitAt(h);
             bool unit = u != null && u.Owner != viewer && u.Health > 0;
-            var t = state.TowerAt(h);
             bool tower = t != null && t.Owner != viewer;
             return new LastSeen(tile,
                 unit ? u.Id : 0, unit ? u.Owner : PlayerId.A, unit ? u.Class : UnitClass.Guardian,

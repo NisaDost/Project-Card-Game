@@ -592,7 +592,7 @@ namespace HexPortal.Tests
         public void Replay_MatchFromSeedIsDeterministic()
         {
             const ulong seed = 77;
-            var rng = new Rng(4);
+            var rng = new Rng(2); // v3.0 board: Rng(4) never reached an attack before the round limit
             var s1 = Match.Create(seed);
             var commands = new List<ICommand>();
             for (int i = 0; i < 400 && !s1.IsOver; i++)
@@ -832,7 +832,7 @@ namespace HexPortal.Tests
                 s => s.SetConsecutiveTimeouts(B, 1),
                 s => s.SetDealtHandCount(A, 3),
                 s => s.GetFog(A).Set(Board.Portal, CellVisibility.Explored, s.GetFog(A).GetLastSeen(Board.Portal)),
-                s => s.GetFog(B).Set(Board.Cells[50], CellVisibility.Explored, s.GetFog(B).GetLastSeen(Board.Cells[50])), // A's half: Hidden for B
+                s => s.GetFog(B).Set(new Hex(0, 3), CellVisibility.Explored, s.GetFog(B).GetLastSeen(new Hex(0, 3))), // A's half: Hidden for B
                 s => s.GetFog(A).Set(Board.Cells[40], CellVisibility.Explored, new LastSeen(new Tile(Biome.Snow, Marker.None), 99, B, UnitClass.Mage, Biome.Snow, 2, false, A, 0)),
                 // M4b: quests, passives, W-01 watch, map events.
                 s => s.GetProgress(A).SetQuestStatus(1, QuestStatus.Completed),

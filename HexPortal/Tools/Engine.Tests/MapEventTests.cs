@@ -124,6 +124,52 @@ namespace HexPortal.Tests
         }
 
         [Test]
+        public void E03_E10_E11_E12_EveryTypeHasTerrainEligibleTargets_OnGeneratedMaps_Seeds1To1000()
+        {
+            var min = Catalog.MapEvents.ToDictionary(e => e.Id, e => int.MaxValue);
+            for (ulong seed = 1; seed <= 1000; seed++)
+            {
+                var s = new TestBoard(MapGenerator.Generate(seed)).Build();
+                foreach (var def in Catalog.MapEvents)
+                {
+                    var cand = MapEvents.Candidates(s, def);
+                    min[def.Id] = System.Math.Min(min[def.Id], cand.Count);
+                    foreach (var c in cand)
+                    {
+                        Assert.That(Board.IsInUpperHalf(c), Is.True); // one representative per mirror pair
+                        if (def.Id == "E-11")
+                        {
+                            Assert.That(Hex.Distance(c, Board.Portal), Is.GreaterThanOrEqualTo(Catalog.BiomeShiftMinPortalDistance));
+                            var cells = Cluster(c);
+                            int n = cells.Length / 2;
+                            Assert.That(cells.Take(n).Intersect(cells.Skip(n)), Is.Empty, "cluster overlaps its mirror at " + c);
+                        }
+                        else
+                        {
+                            Assert.That(Home(c) || Home(c.Mirror()), Is.False);
+                            Assert.That(s.Map.Get(c).Marker, Is.EqualTo(Marker.None));
+                        }
+                    }
+                }
+            }
+            TestContext.Out.WriteLine("[stats] min terrain-eligible targets (mirror pairs) over seeds 1..1000: "
+                + string.Join(", ", min.Select(kv => kv.Key + "=" + kv.Value)));
+            foreach (var kv in min) Assert.That(kv.Value, Is.GreaterThan(0), kv.Key);
+        }
+
+        [Test]
+        public void E11_NoClusterOverlapsItsMirror_AnywhereOnTheBoard()
+        {
+            foreach (var c in Board.Cells.Where(h => Hex.Distance(h, Board.Portal) >= Catalog.BiomeShiftMinPortalDistance))
+            {
+                var cells = Cluster(c);
+                int n = cells.Length / 2;
+                Assert.That(cells.Take(n).Intersect(cells.Skip(n)), Is.Empty, c.ToString());
+                Assert.That(cells.All(Board.IsOnBoard), Is.True);
+            }
+        }
+
+        [Test]
         public void E03_ATypeWithoutTargetsIsReplacedByOneWithTargets()
         {
             for (ulong seed = 1; seed <= 20; seed++)
@@ -206,13 +252,14 @@ namespace HexPortal.Tests
         [Test]
         public void E11_TheClusterAndItsMirrorBecomeOneOtherBiome_MarkersKept()
         {
-            var center = H(2, -3); // distance 3 from the Portal; its neighbours include B's tower (2,-4)
+            var center = H(2, -3); // distance 3 from the Portal; its neighbours include B's tower, placed at (2,-4)
             var cells = Cluster(center);
             Assert.That(cells.Length, Is.EqualTo(14));
             var seenBiomes = new HashSet<Biome>();
             for (ulong seed = 1; seed <= 12; seed++)
             {
-                var b = new TestBoard(Biome.Forest, seed).Round(2).Active(B).PendingEvent("E-11", 3, cells);
+                var b = new TestBoard(Biome.Forest, seed).Round(2).Active(B).PendingEvent("E-11", 3, cells)
+                    .Tower(B, H(2, -4)).Tower(A, H(-2, 4));
                 b.Biome(center, Biome.Desert).Biome(center.Mirror(), Biome.Desert);
                 b.Rune(H(1, -2)).Rune(H(-1, 2)).Rock(H(3, -3)).Rock(H(-3, 3)).Wellspring(H(2, -2)).Wellspring(H(-2, 2));
                 var s = b.Build();

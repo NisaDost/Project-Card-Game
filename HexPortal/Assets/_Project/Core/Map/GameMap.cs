@@ -2,7 +2,7 @@ using System;
 
 namespace HexPortal.Core
 {
-    /// <summary>Terrain of the 59 cells, stored by Board.Cells index. B-24: records the requested seed and attempt count.</summary>
+    /// <summary>Terrain of the 127 cells, stored by Board.Cells index. B-24: records the requested seed and attempt count.</summary>
     public sealed class GameMap
     {
         public readonly ulong RequestedSeed;

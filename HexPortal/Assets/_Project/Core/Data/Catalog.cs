@@ -8,16 +8,17 @@ namespace HexPortal.Core.Data
     public static class Catalog
     {
         // ---------- Board (B) ----------
-        public static readonly IReadOnlyList<int> RowLengths = new[] { 7, 6, 7, 6, 7, 6, 7, 6, 7 }; // B-01
-        public const int CellCount = 59;             // B-01
+        public const int BoardRadius = 6;            // B-01 (v3.0): hexagon of radius 6 around the Portal
+        public static readonly IReadOnlyList<int> RowLengths = new[] { 7, 8, 9, 10, 11, 12, 13, 12, 11, 10, 9, 8, 7 }; // B-01
+        public const int CellCount = 127;            // B-01
         public const int HomeZoneRows = 2;           // B-03
-        public const int MinCellsPerBiome = 8;       // B-22, per upper half
-        public const int BiomeSeedsPerBiomeMin = 3;  // B-22 (v2.2): seeds per biome
-        public const int BiomeSeedsPerBiomeMax = 5;  // B-22 (v2.2): seeds per biome
+        public const int MinCellsPerBiome = 18;      // B-22 (v3.0), per upper half
+        public const int BiomeSeedsPerBiomeMin = 5;  // B-22 (v3.0): seeds per biome
+        public const int BiomeSeedsPerBiomeMax = 7;  // B-22 (v3.0): seeds per biome
         public const int RuneStonesPerHalf = 2;      // B-23
         public const int WellspringsPerHalf = 1;     // B-23
-        public const int SpecialTileRowMin = 3;      // B-23, GDD rows (1-based) of the upper half
-        public const int SpecialTileRowMax = 4;      // B-23
+        public const int SpecialTileRowMin = 3;      // B-23, GDD rows (1-based) of the upper half: axial r = -4
+        public const int SpecialTileRowMax = 5;      // B-23 (v3.0): axial r = -2
         public const int BiomeAttackBonus = 1;       // B-10, U-20
 
         // ---------- Units (U) ----------
@@ -87,7 +88,8 @@ namespace HexPortal.Core.Data
         public const int PassiveOffer = 3;           // S-04
         public const int PassivePick = 1;            // S-04
         public const int PlacementSeconds = 45;      // S-05
-        public const int MinPlacedCharacters = 3;    // S-05
+        public const int MinPlacedCharacters = 1;    // S-05 (v3.0)
+        public const int SetupMana = 8;              // S-05 (v3.0): setup budget, used from v3b
 
         // ---------- Turn: Mana (T-01…T-03) ----------
         public const int ManaCap = 6;                // T-01: Mana = min(round, ManaCap)

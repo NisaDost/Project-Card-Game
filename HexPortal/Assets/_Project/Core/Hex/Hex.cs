@@ -33,19 +33,6 @@ namespace HexPortal.Core
         /// <summary>B-04: the 180° pair cell around the Portal.</summary>
         public Hex Mirror() => new Hex(-Q, -R);
 
-        /// <summary>Doubled-width storage coords (x, y), y = 0 at the top (player B's side).</summary>
-        public static Hex FromDoubled(int x, int y)
-        {
-            int r = y - 4;
-            return new Hex(((x - 6) - r) / 2, r);
-        }
-
-        public void ToDoubled(out int x, out int y)
-        {
-            y = R + 4;
-            x = 2 * Q + R + 6;
-        }
-
         public static Hex operator +(Hex a, Hex b) => new Hex(a.Q + b.Q, a.R + b.R);
         public static bool operator ==(Hex a, Hex b) => a.Q == b.Q && a.R == b.R;
         public static bool operator !=(Hex a, Hex b) => !(a == b);

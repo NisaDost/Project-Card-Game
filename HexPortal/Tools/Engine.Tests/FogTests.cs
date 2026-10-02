@@ -154,7 +154,7 @@ namespace HexPortal.Tests
             int teleport = b.Hand(B, "C-15");
             var s = b.Build();
             Engine.Apply(s, new AttackCommand(B, archer, H(-1, 1)));
-            var dest = H(2, -3); // next to B's tower, distance 4 from A's Guardian
+            var dest = H(3, -5); // next to B's tower (3,-6), distance 6 from A's Guardian
             var ev = Engine.Apply(s, new PlayCardCommand(B, teleport, H(-1, -2), dest));
             Assert.That(Visibility.VisibleCells(s, A).Contains(dest), Is.True);
             Assert.That(Visibility.VisibleCells(s, A).Contains(H(-1, -2)), Is.False);

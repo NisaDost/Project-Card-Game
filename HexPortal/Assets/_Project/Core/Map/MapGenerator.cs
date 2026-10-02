@@ -29,7 +29,7 @@ namespace HexPortal.Core
             throw new InvalidOperationException("No valid map after " + MaxAttempts + " attempts, seed " + seed);
         }
 
-        // B-22: 3–5 seeds per biome on distinct random upper cells, then balanced growth.
+        // B-22: 5–7 seeds per biome (v3.0) on distinct random upper cells, then balanced growth.
         static void GenerateUpperBiomes(GameMap map, Rng rng)
         {
             var empty = new List<Hex>();
@@ -127,7 +127,7 @@ namespace HexPortal.Core
                     if (Hex.Distance(a, h) == 1) near = true;
                 if (!near) candidates.Add(h);
             }
-            // Unreachable with the current Catalog: 2 runes block at most 10 of the 13 band cells.
+            // Unreachable with the current Catalog: 2 runes block at most 14 of the 30 band cells.
             if (candidates.Count == 0) throw new InvalidOperationException("No room for special tiles (check Catalog B-23).");
             return candidates[rng.NextInt(candidates.Count)];
         }

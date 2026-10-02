@@ -6,15 +6,24 @@ namespace HexPortal.Tests
 {
     /// <summary>
     /// Builds exact GameState scenarios. Default: flat Forest map (Portal = None/Portal), towers at
-    /// doubled (6,8) for A and (6,0) for B, A active in round 1 with full Energy.
+    /// the back-row centres (-3,6) for A and (3,-6) for B, A active in round 1 with full Energy.
     /// Units default to Desert, so they get no biome bonus on the default map.
     /// Cards: pools, Market and hands start EMPTY (so turn-start draws are skipped unless a test adds cards);
     /// FullPools() restores the D-01/D-02 pools. Mana is A's round-1 value (1) unless set.
     /// </summary>
     public sealed class TestBoard
     {
-        public static readonly Hex DefaultTowerA = Hex.FromDoubled(6, 8); // (-2,4)
-        public static readonly Hex DefaultTowerB = Hex.FromDoubled(6, 0); // (2,-4)
+        // Back-row centre of each home zone (B-03, v3.0), mirrors of each other.
+        public static readonly Hex DefaultTowerA = new Hex(-3, 6);
+        public static readonly Hex DefaultTowerB = new Hex(3, -6);
+
+        /// <summary>A cell given in the doubled coordinates of the pre-v3.0 59-cell board (x 0..12, y 0..8), kept so older
+        /// scenarios stay readable. Every such cell is also on the v3.0 board (radius 6); edges and home zones differ.</summary>
+        public static Hex D59(int x, int y)
+        {
+            int r = y - 4;
+            return new Hex(((x - 6) - r) / 2, r);
+        }
 
         readonly GameMap map;
         public readonly GameState State;

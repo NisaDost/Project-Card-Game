@@ -22,7 +22,8 @@ namespace HexPortal.Tests
         {
             var b = new TestBoard(MapGenerator.Generate(seed)).FullPools();
             b.Rock(new Hex(-2, 1)).Rock(new Hex(2, -1));
-            var homeA = new[] { Hex.FromDoubled(2, 8), Hex.FromDoubled(4, 8), Hex.FromDoubled(8, 8), Hex.FromDoubled(10, 8), Hex.FromDoubled(5, 7) };
+            // A's home zone (r ≥ 5); the default tower is at (-3,6).
+            var homeA = new[] { new Hex(-5, 6), new Hex(-4, 6), new Hex(-2, 6), new Hex(-1, 6), new Hex(-3, 5) };
             for (int i = 0; i < Classes.Length; i++)
             {
                 var posA = homeA[i];
@@ -67,7 +68,7 @@ namespace HexPortal.Tests
             var commands = new List<ICommand>();
             foreach (int i in script)
             {
-                if (s1.Winner.HasValue) break;
+                if (s1.IsOver) break; // a W-03 draw has no winner
                 var c = Pick(s1, i);
                 commands.Add(c);
                 Engine.Apply(s1, c);
@@ -101,7 +102,7 @@ namespace HexPortal.Tests
             var rng = new Rng(3);
             var s1 = NewGame(seed);
             var commands = new List<ICommand>();
-            for (int step = 0; step < 300 && !s1.Winner.HasValue; step++)
+            for (int step = 0; step < 300 && !s1.IsOver; step++)
             {
                 var waiting = Engine.GetLegalCommands(s1, s1.ActivePlayer.Opponent());
                 var c = rng.NextInt(5) == 0 ? waiting[rng.NextInt(waiting.Count)] : Choose(Engine.GetLegalCommands(s1, s1.ActivePlayer), rng);
@@ -131,7 +132,7 @@ namespace HexPortal.Tests
                 int steps = 0, games = 1, attacks = 0;
                 while (steps < 250)
                 {
-                    if (s.Winner.HasValue)
+                    if (s.IsOver) // a W-03 draw has no winner
                     {
                         s = NewGame(seed + (ulong)(1000 * games++));
                         continue;
@@ -216,7 +217,7 @@ namespace HexPortal.Tests
             {
                 var rng = new Rng(seed);
                 var s = NewGame(seed);
-                for (int step = 0; step < 150 && !s.Winner.HasValue; step++)
+                for (int step = 0; step < 150 && !s.IsOver; step++) // a W-03 draw has no winner
                 {
                     // Random commands (any player, any unit/card id incl. dead/unknown, any cell) not in the legal set.
                     for (int k = 0; k < 20; k++)

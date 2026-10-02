@@ -41,11 +41,12 @@ namespace HexPortal.Tests
         {
             var b = new TestBoard();
             b.Unit(UnitClass.Archer, A, H(0, 1));
-            b.Unit(UnitClass.Mage, A, H(-3, 0)); // board edge: off-board neighbours are dropped
+            b.Unit(UnitClass.Mage, A, H(-6, 2)); // board edge: off-board neighbours are dropped
             b.Unit(UnitClass.Guardian, B, H(2, -1)); // enemy units add nothing to A's zone
             var s = b.Build();
             Assert.That(Catalog.ControlRange, Is.EqualTo(1));
-            var expected = Within1(TestBoard.DefaultTowerA, H(0, 1), H(-3, 0));
+            var expected = Within1(TestBoard.DefaultTowerA, H(0, 1), H(-6, 2));
+            Assert.That(expected.Count(h => Hex.Distance(h, H(-6, 2)) <= 1), Is.EqualTo(5)); // 2 of 6 neighbours are off the board
             Assert.That(ControlZone.Cells(s, A), Is.EquivalentTo(expected));
             Assert.That(ControlZone.Cells(s, B), Is.EquivalentTo(Within1(TestBoard.DefaultTowerB, H(2, -1))));
         }
