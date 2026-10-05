@@ -30,6 +30,8 @@ namespace HexPortal.Game
         public MatchMode Mode { get; private set; }
         public PlayerId AiSeat { get; private set; }
         public AiLevel AiLevel { get; private set; }
+        /// <summary>UX-08 tutorial: the AI only draws and ends its turns in play (setup is normal).</summary>
+        public bool PassiveAi { get; private set; }
         public bool TimerEnabled { get; private set; }
         public bool HasMatch => state != null;
         /// <summary>Who holds the device: hotseat = the player setting up / the active player; vs AI = the human.</summary>
@@ -58,9 +60,10 @@ namespace HexPortal.Game
             Changed?.Invoke();
         }
 
-        public void NewAiMatch(ulong seed, PlayerId humanSeat, AiLevel level, bool timer)
+        public void NewAiMatch(ulong seed, PlayerId humanSeat, AiLevel level, bool timer, bool passiveAi = false)
         {
             Start(seed, timer, MatchMode.VsAi);
+            PassiveAi = passiveAi;
             Viewer = humanSeat;
             AiSeat = humanSeat.Opponent();
             AiLevel = level;
@@ -73,6 +76,7 @@ namespace HexPortal.Game
 
         void Start(ulong seed, bool timer, MatchMode mode)
         {
+            PassiveAi = false;
             state = Match.Create(seed);
             MatchNumber++;
             Mode = mode;
@@ -81,6 +85,16 @@ namespace HexPortal.Game
             aiPrePickTurn = -1;
             LastError = null;
             ResetClock();
+        }
+
+        /// <summary>Leaves the current match (tutorial "Çık"): no match, the UI returns to the menu.</summary>
+        public void Close()
+        {
+            state = null;
+            view = null;
+            legal = new List<ICommand>();
+            HandoffPending = false;
+            Changed?.Invoke();
         }
 
         public void AcknowledgeHandoff()
@@ -106,6 +120,11 @@ namespace HexPortal.Game
         ICommand AiChoice()
         {
             var aiLegal = Engine.GetLegalCommands(state, AiSeat);
+            if (PassiveAi && state.Phase == GamePhase.Playing && aiLegal.Count > 0)
+            {
+                foreach (var c in aiLegal) if (c is DrawCommand) return c;
+                foreach (var c in aiLegal) if (c is EndTurnCommand) return c;
+            }
             return aiLegal.Count == 0 ? null : GreedyAi.Choose(PlayerView.For(state, AiSeat), aiLegal, AiLevel, aiRng);
         }
 

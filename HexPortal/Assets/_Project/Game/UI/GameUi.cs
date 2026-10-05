@@ -137,6 +137,9 @@ namespace HexPortal.Game
             var ok = root.Q<Button>("confirm-ok"); ok.text = Strings.Confirm; ok.clicked += AcceptConfirm;
 
             root.Q<Label>("menu-title").text = Strings.Title;
+            tutorial = new Tutorial(match, root, match.Close);
+            var tut = root.Q<Button>("menu-tutorial"); tut.text = Strings.Tutorial;
+            tut.clicked += StartTutorial;
             var hot = root.Q<Button>("menu-hotseat"); hot.text = Strings.Hotseat; hot.clicked += StartHotseat;
             menuTimer = root.Q<Button>("menu-timer"); menuTimer.text = Strings.TimerOn;
             menuTimer.clicked += () => { timerOn = !timerOn; menuTimer.text = timerOn ? Strings.TimerOn : Strings.TimerOff; };
@@ -177,6 +180,17 @@ namespace HexPortal.Game
             facing = null;
             ClearLog();
             match.NewMatch(seed, timerOn);
+        }
+
+        Tutorial tutorial;
+        /// <summary>UX-08 tutorial (menu "Öğretici").</summary>
+        public Tutorial Tutorial => tutorial;
+
+        public void StartTutorial()
+        {
+            facing = null;
+            ClearLog();
+            tutorial.Start();
         }
 
         void StartAi(AiLevel level)

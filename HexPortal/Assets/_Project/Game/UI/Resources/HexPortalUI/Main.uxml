@@ -113,6 +113,7 @@
             <ui:Button name="menu-ai-timer" class="btn big" />
             <ui:Button name="menu-hotseat" class="btn big" />
             <ui:Button name="menu-timer" class="btn big" />
+            <ui:Button name="menu-tutorial" class="btn big" />
         </ui:VisualElement>
     </ui:VisualElement>
 

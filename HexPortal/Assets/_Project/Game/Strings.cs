@@ -8,6 +8,15 @@ namespace HexPortal.Game
     {
         public const string Title = "HexPortal";
         public const string Hotseat = "Aynı cihazda 2 kişi";
+        // UX-08 tutorial
+        public const string Tutorial = "Öğretici";
+        public const string TutorialSkip = "Atla";
+        public const string TutorialExit = "Çık";
+        public const string TutorialStep1 = "1/4 · Enerji: Önce sağdan bir kart çek. Sonra bir birimine dokun: mavi karolara hareket (1 Enerji), kırmızı hedefe saldırı (1 Enerji). Turuncu hedef ilerle-saldır'dır (2 Enerji). Bir birimini hareket ettir ya da saldır.";
+        public const string TutorialStep2 = "2/4 · Mana: Kartlar Mana ile oynanır ve yalnızca Kontrol Alanında (birimlerinin ve kulenin yanı) kullanılabilir. Elinden bir kartı vurgulu bir karoya sürükle ya da dokun.";
+        public const string TutorialStep3 = "3/4 · Sis: Koyu bulutlar keşfedilmemiş karolardır. Birimlerini ilerleterek sisi aç. Enerjin bittiyse Turu Bitir.";
+        public const string TutorialStep4 = "4/4 · Görevler ve Portal: Görevler düğmesinden gizli görevlerine bak. 2 görevi bitirince merkezdeki Portal açılır; bir birimin orada rakibin turunu atlatırsa kazanırsın.";
+        public const string TutorialDone = "Öğretici bitti! İstersen bu maça devam et ya da Çık ile menüye dön.";
         public const string TimerOn = "Süre (2 kişi): Açık";
         public const string AiEasy = "Yapay zekâya karşı — Kolay";
         public const string AiNormal = "Yapay zekâya karşı — Normal";
