@@ -12,7 +12,9 @@ namespace HexPortal.Game
     /// allocate.</summary>
     public sealed class UnitsView : MonoBehaviour
     {
-        const float MoveSeconds = 0.35f;
+        const float MoveSeconds = 0.25f;
+        const float LungeSeconds = 0.2f, ShakeSeconds = 0.2f, DieSeconds = 0.3f, PopSeconds = 0.2f;
+        const float CardFlySeconds = 0.35f, BoltSeconds = 0.15f;
         const float FloatSeconds = 1.4f;
         const float BurstSeconds = 0.6f;
         const int TowerKeyA = -1, TowerKeyB = -2, NoKey = int.MinValue;
@@ -31,6 +33,11 @@ namespace HexPortal.Game
             public Renderer BodyRenderer, Rim;
             public Vector3 From, To;
             public float T = 1f;
+            // M7 tweens: 1 = idle, negative = waiting (delay). Purely visual; finished at once when new events arrive.
+            public float LungeT = 1f, ShakeT = 1f, DieT = 1f, PopT = 1f;
+            public Vector3 LungeDir;
+            public bool Animating;
+            public bool Dying => DieT < 1f;
             // Overlay tag (UX "stat bars"): big Health bar + number, small Attack chip, buff/debuff/overwatch chips.
             public VisualElement Tag, HpFill;
             public Label Hp, Atk, Buff, Debuff, Watching;
@@ -64,6 +71,21 @@ namespace HexPortal.Game
         readonly List<Floater> floaters = new List<Floater>();
         readonly List<Burst> bursts = new List<Burst>();
         readonly Dictionary<int, Seen> seen = new Dictionary<int, Seen>();
+        readonly List<Fx> fxs = new List<Fx>();
+        readonly List<int> pendingPops = new List<int>();
+
+        /// <summary>Pooled overlay effect (UI only, no GameObjects): a card flying to its target cell, or a shot bolt.</summary>
+        sealed class Fx
+        {
+            public VisualElement El;
+            public bool Card;
+            public Vector2 FromPanel;
+            public Vector3 From, To;
+            public float Age, Dur;
+            public bool Active;
+        }
+
+        public int FxPoolSize => fxs.Count;
         VisualElement overlay, tagLayer;
         bool barsHidden;
         Camera cam;
@@ -129,10 +151,11 @@ namespace HexPortal.Game
             foreach (var vis in visuals)
                 if (!vis.Used && vis.Root.activeSelf)
                 {
-                    vis.Root.SetActive(false);
                     vis.Tag.style.display = DisplayStyle.None;
                     vis.Key = NoKey;
+                    if (!vis.Dying) vis.Root.SetActive(false); // a dying piece stays until its death tween ends
                 }
+            pendingPops.Clear();
         }
 
         void Claim(int key)
@@ -149,7 +172,10 @@ namespace HexPortal.Game
                 vis.Tag.style.display = DisplayStyle.None;
                 vis.Key = NoKey;
                 vis.Used = false;
+                ResetAnim(vis);
             }
+            pendingPops.Clear();
+            foreach (var f in fxs) { f.Active = false; f.El.style.display = DisplayStyle.None; }
             foreach (var f in floaters) { f.Age = FloatSeconds; f.Label.style.display = DisplayStyle.None; }
             foreach (var b in bursts) { b.Age = BurstSeconds; b.Go.SetActive(false); }
         }
@@ -160,6 +186,7 @@ namespace HexPortal.Game
             vis.IsTower = false;
             if (vis.BodyKind != (int)u.Class) SetBody(vis, (int)u.Class);
             Place(vis, u.Pos);
+            if (pendingPops.Contains(u.Id)) { vis.PopT = 0f; vis.Animating = true; vis.Root.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f); }
             bool own = u.Owner == v.Viewer;
             bool dim = own && u.ActedThisTurn && v.ActivePlayer == v.Viewer && v.Phase == GamePhase.Playing;
             var body = Gfx.BiomeColor(u.Biome);
@@ -245,7 +272,7 @@ namespace HexPortal.Game
             foreach (var v in visuals)
                 if (v.Key == key) return v;
             foreach (var v in visuals)
-                if (!v.Used) // every key in the view was claimed in pass 1, so this key is gone
+                if (!v.Used && !v.Dying) // every key in the view was claimed in pass 1, so this key is gone
                 {
                     v.Key = key;
                     v.T = 1f;
@@ -325,10 +352,13 @@ namespace HexPortal.Game
 
         public void Play(IReadOnlyList<GameEvent> events)
         {
+            SkipRunning(); // a new batch always wins: running tweens jump to their end
             foreach (var e in events)
             {
                 switch (e)
                 {
+                    case UnitDeployed dep: pendingPops.Add(dep.UnitId); break;
+                    case CardPlayed cp: CardFly(cp.Player, cp.Target); break;
                     case UnitMoved m: Tween(m.UnitId, m.From); break;
                     case UnitPushed p: if (p.From != p.To) Tween(p.UnitId, p.From); break;
                     case UnitTeleported t: Tween(t.UnitId, t.From); break;
@@ -336,11 +366,13 @@ namespace HexPortal.Game
                         Float(d.Target, "-" + d.Amount, new Color(1f, 0.25f, 0.2f), true);
                         board.Flash(d.Target, d.Kind == DamageKind.Trap ? Gfx.TrapHl
                             : d.Kind == DamageKind.TowerShot || d.Kind == DamageKind.Overwatch ? Gfx.ShotHl : Gfx.AttackHl);
+                        AnimateDamage(d);
                         break;
                     case UnitHealed h: FloatAtUnit(h.UnitId, "+" + h.Amount, new Color(0.3f, 1f, 0.4f)); break;
                     case ShieldBlocked s: FloatAtUnit(s.UnitId, Strings.Blocked, Color.white); break;
                     case TowerDamageBlocked tb: if (TowerCell(tb.Owner, out var tc)) Float(tc, Strings.Blocked, Color.white, false); break;
                     case UnitDied u:
+                        StartDeath(u.UnitId);
                         if (seen.TryGetValue(u.UnitId, out var s2)) { BurstAt(s2.Pos); board.Flash(s2.Pos, Gfx.DeathHl); Float(s2.Pos, Strings.DeathMark, new Color(1f, 0.15f, 0.15f), true); }
                         break;
                     case TrapTriggered tr: board.Flash(tr.Cell, Gfx.TrapHl); Float(tr.Cell, Strings.TrapHit, new Color(0.85f, 0.45f, 1f), false); break;
@@ -372,7 +404,180 @@ namespace HexPortal.Game
                     v.From = HexLayout.ToWorld(from, BoardView.TileHeight);
                     v.Root.transform.localPosition = v.From;
                     v.T = 0f;
+                    v.Animating = true;
                 }
+        }
+
+        Visual Active(int key)
+        {
+            foreach (var v in visuals)
+                if (v.Key == key && v.Root.activeSelf) return v;
+            return null;
+        }
+
+        /// <summary>Seconds until the piece's current move tween ends (a move-attack lunges after the hop).</summary>
+        static float Busy(Visual v) => v == null ? 0f : (1f - v.T) * MoveSeconds + (v.LungeT < 1f ? (1f - v.LungeT) * LungeSeconds : 0f);
+
+        void AnimateDamage(DamageDealt d)
+        {
+            float hitDelay = 0f;
+            bool shot = d.Kind == DamageKind.TowerShot || d.Kind == DamageKind.Overwatch;
+            if (d.Kind == DamageKind.Attack && d.SourceUnitId >= 0)
+            {
+                var a = Active(d.SourceUnitId);
+                if (a != null)
+                {
+                    float wait = (1f - a.T) * MoveSeconds;
+                    var dir = HexLayout.ToWorld(d.Target, BoardView.TileHeight) - a.To;
+                    dir.y = 0f;
+                    a.LungeDir = dir.sqrMagnitude > 0.0001f ? dir.normalized : Vector3.zero;
+                    a.LungeT = -wait / LungeSeconds;
+                    a.Animating = true;
+                    hitDelay = wait + LungeSeconds * 0.5f;
+                }
+            }
+            else if (shot)
+            {
+                Vector3 from;
+                bool ok;
+                if (d.SourceUnitId == DamageDealt.Tower) { ok = TowerCell(d.SourcePlayer, out var tc); from = HexLayout.ToWorld(tc, BoardView.TileHeight + 1.6f); }
+                else { var sv = Active(d.SourceUnitId); ok = sv != null; from = ok ? sv.To + new Vector3(0f, 1f, 0f) : default; }
+                if (ok) { Bolt(from, HexLayout.ToWorld(d.Target, BoardView.TileHeight + 0.8f)); hitDelay = BoltSeconds; }
+            }
+            Visual t = d.TargetUnitId >= 0 ? Active(d.TargetUnitId)
+                : d.TargetUnitId == DamageDealt.Tower ? Active(TowerKey(d.SourcePlayer == PlayerId.A ? PlayerId.B : PlayerId.A)) : null;
+            if (t != null)
+            {
+                hitDelay = Mathf.Max(hitDelay, Busy(t));
+                t.ShakeT = -hitDelay / ShakeSeconds;
+                t.Animating = true;
+            }
+        }
+
+        void StartDeath(int unitId)
+        {
+            var v = Active(unitId);
+            if (v == null) return;
+            float wait = Mathf.Max(Busy(v), v.ShakeT < 1f ? (1f - v.ShakeT) * ShakeSeconds : 0f);
+            v.DieT = -wait / DieSeconds;
+            v.Animating = true;
+        }
+
+        static void ResetAnim(Visual v)
+        {
+            v.T = 1f; v.LungeT = v.ShakeT = v.DieT = v.PopT = 1f;
+            v.Animating = false;
+            v.Root.transform.localScale = Vector3.one;
+        }
+
+        /// <summary>Ends every running tween at its final state (pieces snap, dying pieces go, overlay effects hide).</summary>
+        void SkipRunning()
+        {
+            foreach (var v in visuals)
+            {
+                if (!v.Animating) continue;
+                bool dying = v.Dying;
+                ResetAnim(v);
+                if (dying && v.Key == NoKey) { v.Root.SetActive(false); continue; }
+                v.Root.transform.localPosition = v.To;
+            }
+            foreach (var f in fxs)
+                if (f.Active) { f.Active = false; f.El.style.display = DisplayStyle.None; }
+        }
+
+        Fx GetFx(bool card)
+        {
+            foreach (var x in fxs)
+                if (!x.Active && x.Card == card) return x;
+            var f = new Fx { Card = card, El = new VisualElement { pickingMode = PickingMode.Ignore } };
+            var s = f.El.style;
+            s.position = Position.Absolute;
+            if (card)
+            {
+                s.width = 56; s.height = 78; s.marginLeft = -28; s.marginTop = -39;
+                s.backgroundColor = new Color(0.95f, 0.92f, 0.8f);
+                s.borderTopWidth = s.borderBottomWidth = s.borderLeftWidth = s.borderRightWidth = 4;
+                s.borderTopColor = s.borderBottomColor = s.borderLeftColor = s.borderRightColor = new Color(0.55f, 0.4f, 0.9f);
+                s.borderTopLeftRadius = s.borderTopRightRadius = s.borderBottomLeftRadius = s.borderBottomRightRadius = 8;
+            }
+            else
+            {
+                s.width = 18; s.height = 18; s.marginLeft = -9; s.marginTop = -9;
+                s.backgroundColor = new Color(1f, 0.9f, 0.2f);
+                s.borderTopLeftRadius = s.borderTopRightRadius = s.borderBottomLeftRadius = s.borderBottomRightRadius = 9;
+            }
+            s.display = DisplayStyle.None;
+            overlay.Add(f.El);
+            fxs.Add(f);
+            return f;
+        }
+
+        void CardFly(PlayerId player, Hex target)
+        {
+            if (overlay == null || overlay.panel == null || view == null) return;
+            var f = GetFx(true);
+            var r = overlay.layout;
+            bool mine = player == view.Viewer;
+            f.FromPanel = new Vector2(r.width * 0.5f, mine ? r.height - 60f : 60f);
+            f.To = HexLayout.ToWorld(target, BoardView.TileHeight + 0.5f);
+            f.Age = 0f; f.Dur = CardFlySeconds; f.Active = true;
+            f.El.style.opacity = 1f;
+            f.El.style.display = DisplayStyle.Flex;
+        }
+
+        void Bolt(Vector3 from, Vector3 to)
+        {
+            if (overlay == null || overlay.panel == null) return;
+            var f = GetFx(false);
+            f.From = from; f.To = to;
+            f.Age = 0f; f.Dur = BoltSeconds; f.Active = true;
+            f.El.style.opacity = 1f;
+            f.El.style.display = DisplayStyle.Flex;
+        }
+
+        /// <summary>Applies the M7 tweens to one piece; returns false when all of them are done.</summary>
+        static bool Animate(Visual v, float dt)
+        {
+            bool running = false;
+            var pos = v.To;
+            if (v.T < 1f)
+            {
+                v.T = Mathf.Min(1f, v.T + dt / MoveSeconds);
+                float k = Mathf.SmoothStep(0f, 1f, v.T);
+                pos = Vector3.Lerp(v.From, v.To, k);
+                pos.y += Mathf.Sin(v.T * Mathf.PI) * 0.45f; // hop
+                running |= v.T < 1f;
+            }
+            if (v.LungeT < 1f)
+            {
+                v.LungeT = Mathf.Min(1f, v.LungeT + dt / LungeSeconds);
+                if (v.LungeT > 0f) pos += v.LungeDir * (Mathf.Sin(v.LungeT * Mathf.PI) * 0.4f);
+                running |= v.LungeT < 1f;
+            }
+            if (v.ShakeT < 1f)
+            {
+                v.ShakeT = Mathf.Min(1f, v.ShakeT + dt / ShakeSeconds);
+                if (v.ShakeT > 0f) pos.x += Mathf.Sin(v.ShakeT * 40f) * 0.09f * (1f - v.ShakeT);
+                running |= v.ShakeT < 1f;
+            }
+            float scale = 1f;
+            if (v.PopT < 1f)
+            {
+                v.PopT = Mathf.Min(1f, v.PopT + dt / PopSeconds);
+                scale = v.PopT < 0.7f ? Mathf.Lerp(0.1f, 1.15f, v.PopT / 0.7f) : Mathf.Lerp(1.15f, 1f, (v.PopT - 0.7f) / 0.3f);
+                running |= v.PopT < 1f;
+            }
+            if (v.DieT < 1f)
+            {
+                v.DieT = Mathf.Min(1f, v.DieT + dt / DieSeconds);
+                float k = Mathf.Max(0f, v.DieT);
+                scale = 1f - k;
+                pos.y -= k * 0.6f;
+                running |= v.DieT < 1f;
+            }
+            v.Root.transform.localPosition = pos;
+            v.Root.transform.localScale = new Vector3(scale, scale, scale);
+            return running;
         }
 
         void FloatAtUnit(int unitId, string text, Color color)
@@ -431,10 +636,13 @@ namespace HexPortal.Game
             {
                 var v = visuals[i];
                 if (!v.Root.activeSelf) continue;
-                if (v.T < 1f)
+                bool wasDying = v.Dying;
+                if (v.Animating && !Animate(v, dt))
                 {
-                    v.T = Mathf.Min(1f, v.T + dt / MoveSeconds);
-                    v.Root.transform.localPosition = Vector3.Lerp(v.From, v.To, Mathf.SmoothStep(0f, 1f, v.T));
+                    bool gone = wasDying;
+                    ResetAnim(v);
+                    if (gone) { v.Root.SetActive(false); continue; }
+                    v.Root.transform.localPosition = v.To;
                 }
                 if (!barsHidden) PlaceLabel(v.Tag, v.Root.transform.position + new Vector3(0f, v.IsTower ? 2.1f : 1.55f, 0f));
             }
@@ -457,6 +665,24 @@ namespace HexPortal.Game
                 float s = Mathf.Lerp(0.4f, 2.2f, k);
                 b.Go.transform.localScale = new Vector3(s, s * 0.7f, s);
                 Gfx.SetColor(b.R, new Color(1f, 0.15f, 0.1f, 0.75f * (1f - k)));
+            }
+            for (int i = 0; i < fxs.Count; i++)
+            {
+                var f = fxs[i];
+                if (!f.Active) continue;
+                f.Age += dt;
+                if (f.Age >= f.Dur) { f.Active = false; f.El.style.display = DisplayStyle.None; continue; }
+                float k = f.Age / f.Dur;
+                if (f.Card)
+                {
+                    var s = cam.WorldToScreenPoint(f.To);
+                    var end = RuntimePanelUtils.ScreenToPanel(overlay.panel, new Vector2(s.x, Screen.height - s.y));
+                    var p = Vector2.Lerp(f.FromPanel, end, Mathf.SmoothStep(0f, 1f, k));
+                    f.El.style.left = p.x;
+                    f.El.style.top = p.y;
+                    f.El.style.opacity = k < 0.6f ? 1f : (1f - k) / 0.4f;
+                }
+                else PlaceLabel(f.El, Vector3.Lerp(f.From, f.To, k));
             }
         }
 
