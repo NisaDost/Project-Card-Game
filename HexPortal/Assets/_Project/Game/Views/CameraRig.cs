@@ -111,6 +111,35 @@ namespace HexPortal.Game
             Apply();
         }
 
+        /// <summary>Default zoom when nothing is framed: a bit closer than the whole board (double tap shows all).</summary>
+        const float StartZoom = 1.2f;
+        /// <summary>World units of margin around framed points (about two cells).</summary>
+        const float FrameMargin = 3.5f;
+
+        /// <summary>Start-of-turn framing: the bounding area of the given world points (own units + tower), zoomed as close
+        /// as fits but within the zoom limits. With no points, the default framing a bit closer than the whole board.</summary>
+        public void Frame(System.Collections.Generic.List<Vector3> points)
+        {
+            EnsureBounds();
+            var shift = Quaternion.Euler(0f, yaw, 0f) * new Vector3(0f, 0f, -depth * ShiftPerDepth);
+            if (points == null || points.Count == 0)
+            {
+                distance = DefaultDistance / StartZoom;
+                target = boardCentre + shift;
+            }
+            else
+            {
+                Vector3 min = points[0], max = points[0];
+                for (int i = 1; i < points.Count; i++) { min = Vector3.Min(min, points[i]); max = Vector3.Max(max, points[i]); }
+                float extent = Mathf.Max(max.x - min.x, max.z - min.z) + FrameMargin * 2f;
+                // Same distance-per-extent ratio as the whole-board framing (board depth -> DefaultDistance).
+                distance = Mathf.Clamp(extent * DistancePerDepth, MinDistance, DefaultDistance / StartZoom);
+                target = (min + max) * 0.5f + shift * (distance / DefaultDistance);
+            }
+            Clamp();
+            Apply();
+        }
+
         /// <summary>One-finger / right-mouse drag: the board point under the pointer follows the pointer.</summary>
         public void Pan(Vector2 fromScreen, Vector2 toScreen)
         {

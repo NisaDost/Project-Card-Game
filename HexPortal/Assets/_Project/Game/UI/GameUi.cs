@@ -23,6 +23,7 @@ namespace HexPortal.Game
         const float DoubleTapDistance = 90f;
         const float ToastSeconds = 1.8f;
         const float NoticeSeconds = 1.8f;
+        const float TurnNoticeSeconds = 0.8f;
         const int LogLines = 4;
         const float HandWidth = 1170f;     // .hand width at the 1920 reference (left 330, right 420)
         const float CardStride = 196f;     // card width + margins
@@ -114,7 +115,9 @@ namespace HexPortal.Game
             eventBanner = root.Q<Label>("event-banner"); manaText = root.Q<Label>("mana-text"); energyText = root.Q<Label>("energy-text");
             timer = root.Q<Label>("timer"); timerBank = root.Q<Label>("timer-bank"); prompt = root.Q<Label>("prompt"); questText = root.Q<Label>("quest-text");
             confirmText = root.Q<Label>("confirm-text");
-            toast = root.Q<Label>("toast"); notice = root.Q<Label>("notice"); eventLog = root.Q<Label>("event-log");
+            toast = root.Q<Label>("toast"); notice = root.Q<Label>("notice");
+            notice.pickingMode = PickingMode.Position; // a tap dismisses the notice (it sits in the top strip, never over the board)
+            notice.RegisterCallback<PointerDownEvent>(e => { noticeUntil = 0f; notice.style.display = DisplayStyle.None; e.StopPropagation(); }); eventLog = root.Q<Label>("event-log");
             root.Q<Label>("mana-icon").text = Strings.ManaIcon;
             root.Q<Label>("energy-icon").text = Strings.EnergyIcon;
             for (int i = 0; i < 3; i++)
@@ -221,7 +224,7 @@ namespace HexPortal.Game
             notice.EnableInClassList("bad", bad);
             notice.EnableInClassList("good", !bad);
             notice.style.display = DisplayStyle.Flex;
-            noticeUntil = Time.unscaledTime + NoticeSeconds;
+            noticeUntil = Time.unscaledTime + (text == Strings.YourTurn || text == Strings.OpponentTurn ? TurnNoticeSeconds : NoticeSeconds);
         }
 
         // ---------- Screens ----------
@@ -272,8 +275,11 @@ namespace HexPortal.Game
                 Show(Screen.Handoff);
                 return;
             }
-            if (shownMatch != match.MatchNumber) { shownMatch = match.MatchNumber; facing = null; ClearLog(); }
-            if (facing != v.Viewer) { CameraRig.Face(cam, v.Viewer); facing = v.Viewer; }
+            if (shownMatch != match.MatchNumber) { shownMatch = match.MatchNumber; facing = null; framedTurn = -1; ClearLog(); }
+            bool faced = facing != v.Viewer;
+            if (faced) { CameraRig.Face(cam, v.Viewer); facing = v.Viewer; }
+            bool myTurnStart = v.Phase == GamePhase.Playing && v.ActivePlayer == v.Viewer && v.TurnIndex != framedTurn;
+            if (faced || myTurnStart) FrameOwn(v, myTurnStart);
             board.Render(v);
             units.Render(v);
             if (v.Phase == GamePhase.Setup && v.SetupStep == SetupStep.Quests) { BuildQuestOptions(v); Show(Screen.Quests); return; }
@@ -287,6 +293,23 @@ namespace HexPortal.Game
         }
 
         static bool IsOpponentTurn(PlayerView v) => v.Phase == GamePhase.Playing && v.ActivePlayer != v.Viewer;
+
+        readonly List<Vector3> framePoints = new List<Vector3>();
+        int framedTurn = -1;
+
+        /// <summary>Start of the player's turn: frame own units + tower (double tap still shows the whole board).</summary>
+        void FrameOwn(PlayerView v, bool turnStart)
+        {
+            if (CameraRig.Instance == null) return;
+            if (turnStart) framedTurn = v.TurnIndex;
+            framePoints.Clear();
+            if (v.Phase == GamePhase.Playing)
+            {
+                foreach (var u in v.OwnUnits) framePoints.Add(HexLayout.ToWorld(u.Pos, BoardView.TileHeight));
+                if (v.OwnTowerPos.HasValue) framePoints.Add(HexLayout.ToWorld(v.OwnTowerPos.Value, BoardView.TileHeight));
+            }
+            CameraRig.Instance.Frame(framePoints);
+        }
 
         /// <summary>UX-10 plan arrows only exist vs the AI on its turn (in hotseat the waiting player does not hold the device).</summary>
         bool PlanningAllowed() => match.HasMatch && match.Mode == MatchMode.VsAi && IsOpponentTurn(match.View);
@@ -705,7 +728,12 @@ namespace HexPortal.Game
         }
 
         /// <summary>UX-12: stat bars are hidden while a card or unit is selected (or a card is dragged).</summary>
-        void SyncSelectionMode() => units.SetBarsHidden(selectedUnit >= 0 || selectedCard >= 0 || dragging);
+        void SyncSelectionMode()
+        {
+            bool on = selectedUnit >= 0 || selectedCard >= 0 || dragging;
+            units.SetBarsHidden(on);
+            hand.EnableInClassList("selecting", on && !dragging); // UX-12: hand out of the way (not while a card is dragged from it)
+        }
 
         void ShowDefaultHighlights()
         {
