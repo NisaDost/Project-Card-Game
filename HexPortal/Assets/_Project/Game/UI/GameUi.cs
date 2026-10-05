@@ -26,6 +26,7 @@ namespace HexPortal.Game
         const int LogLines = 4;
         const float HandWidth = 1170f;     // .hand width at the 1920 reference (left 330, right 420)
         const float CardStride = 196f;     // card width + margins
+        const float GroupGap = 28f;        // .hand-group horizontal margins (UX-04 three groups)
 
         readonly MatchController match;
         readonly VisualElement root;
@@ -33,10 +34,13 @@ namespace HexPortal.Game
         readonly UnitsView units;
         readonly Camera cam;
 
-        readonly VisualElement screenMenu, screenQuests, screenPassive, screenHandoff, screenResult, hud, questPanel, cardDetail, dragCard, confirmPanel;
-        readonly VisualElement hand, questOptions, passiveOptions, manaPips, energyPips, oppInfo;
-        readonly Label timerBank, ownTower, roundLabel, oppTower, oppHand, oppQuests, turnBanner, eventBanner, manaText, energyText,
-            timer, prompt, questText, detailText, confirmText, toast, notice, eventLog;
+        readonly VisualElement screenMenu, screenQuests, screenPassive, screenHandoff, screenResult, hud, questPanel, dragCard, confirmPanel, infoPanel;
+        readonly VisualElement hand, handTraps, handChars, handBuffs, questOptions, passiveOptions, manaPips, energyPips, oppInfo;
+        readonly Label timerBank, ownTower, roundLabel, oppTower, oppHand, oppQuests, turnBanner, eventBanner, manaText, manaCaption, energyText,
+            timer, prompt, questText, confirmText, toast, notice, eventLog, infoIcon, infoTitle, infoText;
+        readonly List<VisualElement> handCards = new List<VisualElement>();
+        readonly HashSet<Hex> redCells = new HashSet<Hex>();
+        readonly List<Hex> previewOnly = new List<Hex>();
         readonly Button[] market = new Button[3];
         readonly Button blindBtn, endBtn, overwatchBtn, questsConfirm, menuTimer;
         readonly List<string> pickedQuests = new List<string>();
@@ -49,7 +53,8 @@ namespace HexPortal.Game
         PlayerId humanSeat = PlayerId.A;
         int selectedUnit = -1;
         int selectedCard = -1;
-        readonly List<ICommand> secondPick = new List<ICommand>();
+        readonly List<ICommand> secondPick = new List<ICommand>(); // card second picks (C-15, C-18) or move-attack approaches (T-05)
+        bool rangePreview; // UX-10: the selected unit only shows its ranges (opponent turn), no commands
         PlayerId? facing;
         int shownMatch = -1;
         int shownTurn = -1, shownBank = -1;
@@ -58,6 +63,7 @@ namespace HexPortal.Game
 
         // Card pointer state.
         int pressCard = -1;
+        int pressPointer = -1;
         Vector2 pressPos;
         bool dragging, longPressed;
         IVisualElementScheduledItem longPressJob;
@@ -90,15 +96,18 @@ namespace HexPortal.Game
             this.match = match; this.root = root; this.board = board; this.units = units; this.cam = cam;
             screenMenu = root.Q("screen-menu"); screenQuests = root.Q("screen-quests"); screenPassive = root.Q("screen-passive");
             screenHandoff = root.Q("screen-handoff"); screenResult = root.Q("screen-result"); hud = root.Q("hud");
-            questPanel = root.Q("quest-panel"); cardDetail = root.Q("card-detail"); dragCard = root.Q("drag-card"); confirmPanel = root.Q("confirm-panel");
-            hand = root.Q("hand"); questOptions = root.Q("quest-options"); passiveOptions = root.Q("passive-options");
+            questPanel = root.Q("quest-panel"); infoPanel = root.Q("info-panel"); dragCard = root.Q("drag-card"); confirmPanel = root.Q("confirm-panel");
+            hand = root.Q("hand"); handTraps = root.Q("hand-traps"); handChars = root.Q("hand-chars"); handBuffs = root.Q("hand-buffs");
+            manaCaption = root.Q<Label>("mana-caption");
+            infoIcon = root.Q<Label>("info-icon"); infoTitle = root.Q<Label>("info-title"); infoText = root.Q<Label>("info-text");
+            infoPanel.RegisterCallback<PointerUpEvent>(_ => HideInfo()); questOptions = root.Q("quest-options"); passiveOptions = root.Q("passive-options");
             manaPips = root.Q("mana-pips"); energyPips = root.Q("energy-pips"); oppInfo = root.Q("opp-info");
             ownTower = root.Q<Label>("own-tower"); roundLabel = root.Q<Label>("round");
             oppTower = root.Q<Label>("opp-tower"); oppHand = root.Q<Label>("opp-hand"); oppQuests = root.Q<Label>("opp-quests");
             turnBanner = root.Q<Label>("turn-banner");
             eventBanner = root.Q<Label>("event-banner"); manaText = root.Q<Label>("mana-text"); energyText = root.Q<Label>("energy-text");
             timer = root.Q<Label>("timer"); timerBank = root.Q<Label>("timer-bank"); prompt = root.Q<Label>("prompt"); questText = root.Q<Label>("quest-text");
-            detailText = root.Q<Label>("detail-text"); confirmText = root.Q<Label>("confirm-text");
+            confirmText = root.Q<Label>("confirm-text");
             toast = root.Q<Label>("toast"); notice = root.Q<Label>("notice"); eventLog = root.Q<Label>("event-log");
             root.Q<Label>("mana-icon").text = Strings.ManaIcon;
             root.Q<Label>("energy-icon").text = Strings.EnergyIcon;
@@ -115,7 +124,6 @@ namespace HexPortal.Game
             var questBtn = root.Q<Button>("quest-btn"); questBtn.text = Strings.Quests; questBtn.clicked += () => questPanel.style.display = DisplayStyle.Flex;
             oppInfo.RegisterCallback<PointerUpEvent>(_ => questPanel.style.display = DisplayStyle.Flex); // details live in the panel
             var qc = root.Q<Button>("quest-close"); qc.text = Strings.Close; qc.clicked += () => questPanel.style.display = DisplayStyle.None;
-            var dc = root.Q<Button>("detail-close"); dc.text = Strings.Close; dc.clicked += () => cardDetail.style.display = DisplayStyle.None;
             var cc = root.Q<Button>("confirm-cancel"); cc.text = Strings.Cancel; cc.clicked += CancelConfirm;
             var ok = root.Q<Button>("confirm-ok"); ok.text = Strings.Confirm; ok.clicked += AcceptConfirm;
 
@@ -142,8 +150,12 @@ namespace HexPortal.Game
             hit.RegisterCallback<PointerUpEvent>(e => OnBoardUp(hit, e));
             hit.RegisterCallback<PointerCancelEvent>(e => { if (hit.HasPointerCapture(e.pointerId)) hit.ReleasePointer(e.pointerId); boardPointers = 0; boardPointer = -1; });
             hit.RegisterCallback<WheelEvent>(OnWheel);
-            hud.RegisterCallback<PointerMoveEvent>(OnCardMove, TrickleDown.TrickleDown);
-            hud.RegisterCallback<PointerUpEvent>(OnCardUp, TrickleDown.TrickleDown);
+            // Card drag (UX-03): the pressed pointer is captured by the root, so its move/up/cancel reach these handlers
+            // wherever the finger goes (board, HUD, off-panel). TrickleDown also sees them if the capture was refused.
+            root.RegisterCallback<PointerMoveEvent>(OnCardMove, TrickleDown.TrickleDown);
+            root.RegisterCallback<PointerUpEvent>(OnCardUp, TrickleDown.TrickleDown);
+            root.RegisterCallback<PointerCancelEvent>(OnCardCancel, TrickleDown.TrickleDown);
+            root.RegisterCallback<PointerCaptureOutEvent>(OnCardCaptureOut);
 
             match.Changed += Refresh;
             match.EventsApplied += OnEvents;
@@ -224,7 +236,8 @@ namespace HexPortal.Game
             if (s != Screen.Board)
             {
                 questPanel.style.display = DisplayStyle.None;
-                cardDetail.style.display = DisplayStyle.None;
+                HideInfo();
+                CancelPointers();
                 CancelConfirm();
                 notice.style.display = DisplayStyle.None;
                 toast.style.display = DisplayStyle.None;
@@ -235,6 +248,8 @@ namespace HexPortal.Game
         {
             if (!match.HasMatch) { Show(Screen.Menu); return; }
             var v = match.View;
+            int keepPreview = rangePreview ? selectedUnit : -1; // UX-10: a range preview survives the opponent's steps
+            CancelPointers(); // the hand is rebuilt below: a drag in progress returns its card (UX-03)
             ClearSelection();
             if (match.IsOver)
             {
@@ -259,7 +274,12 @@ namespace HexPortal.Game
             Show(Screen.Board);
             RefreshHud(v);
             ShowDefaultHighlights();
+            if (keepPreview >= 0 && IsOpponentTurn(v))
+                foreach (var u in v.OwnUnits)
+                    if (u.Id == keepPreview) { SelectUnit(keepPreview); break; }
         }
+
+        static bool IsOpponentTurn(PlayerView v) => v.Phase == GamePhase.Playing && v.ActivePlayer != v.Viewer;
 
         void BuildQuestOptions(PlayerView v)
         {
@@ -332,15 +352,19 @@ namespace HexPortal.Game
             oppTower.text = Strings.TowerIcon + " " + v.EnemyTowerHealth;
             oppHand.text = Strings.HandIcon + " " + v.OpponentHandCount;
             oppQuests.text = Strings.QuestDone + v.OpponentCompletedQuests.Count + " " + Strings.QuestFail + v.OpponentFailedQuests.Count; // Q-03, Q-04, V-09
-            turnBanner.text = setup ? Strings.Setup : myTurn ? Strings.YourTurn : Strings.OpponentTurn;
+            turnBanner.text = setup ? Strings.Setup + " · " + Strings.ManaIcon + " " + v.SetupMana + "/" + Catalog.SetupMana : myTurn ? Strings.YourTurn : Strings.OpponentTurn;
             turnBanner.EnableInClassList("mine", myTurn);
             turnBanner.EnableInClassList("theirs", !setup && !myTurn);
             eventBanner.style.display = v.AnnouncedEvent != null ? DisplayStyle.Flex : DisplayStyle.None;
             if (v.AnnouncedEvent != null) eventBanner.text = Strings.EventIcon + " " + Strings.Name(v.AnnouncedEvent) + " · " + Strings.RoundShort + v.AnnouncedEventRound;
 
-            manaText.text = v.Mana.ToString();
+            // S-05 (v3.0): during setup the Mana meter shows the setup budget left.
+            manaText.text = setup ? v.SetupMana + "/" + Catalog.SetupMana : v.Mana.ToString();
+            manaCaption.text = Strings.SetupMana;
+            manaCaption.style.display = setup ? DisplayStyle.Flex : DisplayStyle.None;
             energyText.text = v.Energy.ToString();
-            Pips(manaPips, v.Mana, Mathf.Max(v.Mana, Catalog.ManaCap), "mana-pip");
+            if (setup) Pips(manaPips, v.SetupMana, Mathf.Max(v.SetupMana, Catalog.SetupMana), "mana-pip");
+            else Pips(manaPips, v.Mana, Mathf.Max(v.Mana, Catalog.ManaCap), "mana-pip");
             Pips(energyPips, v.Energy, Catalog.EnergyPerTurn, "energy-pip");
 
             for (int i = 0; i < 3; i++)
@@ -354,9 +378,11 @@ namespace HexPortal.Game
             SetOn(blindBtn, !setup && HasDraw(DrawCommand.Blind), DrawReason(v, false));
             blindBtn.EnableInClassList("picked", v.PrePickSlot == DrawCommand.Blind);
 
-            endBtn.text = setup ? Strings.FinishSetup : Strings.EndTurn;
             bool canEnd = setup ? Find<FinishSetupCommand>() != null : Find<EndTurnCommand>() != null;
-            SetOn(endBtn, canEnd, setup ? Strings.ReasonFinishSetup : !myTurn ? Strings.ReasonOpponentTurn
+            string finishWhy = SetupFinishReason(v);
+            endBtn.text = !setup ? Strings.EndTurn : canEnd ? Strings.FinishSetup : Strings.FinishSetup + "\n" + finishWhy;
+            endBtn.EnableInClassList("with-reason", setup && !canEnd);
+            SetOn(endBtn, canEnd, setup ? finishWhy : !myTurn ? Strings.ReasonOpponentTurn
                 : v.DrawPending ? Strings.ReasonDrawFirst : Strings.ReasonNotNow);
 
             var q = new System.Text.StringBuilder();
@@ -452,23 +478,70 @@ namespace HexPortal.Game
         static string CardIcon(CardInstance c) =>
             c.IsCharacter ? Strings.ClassIcon(c.Character.Class) : Strings.CardIcon(c.Support.Category);
 
+        /// <summary>S-05/S-06 (v3.0): why "Finish setup" is off (text only; the legal list decides).</summary>
+        static string SetupFinishReason(PlayerView v)
+        {
+            if (!v.OwnTowerPos.HasValue) return Strings.ReasonPlaceTowerFirst;
+            if (v.OwnUnits.Count < Catalog.MinPlacedCharacters) return Strings.ReasonMinCharacters;
+            return Strings.ReasonFinishSetup;
+        }
+
+        /// <summary>UX-04 (v3.0) hand group: 0 traps (left), 1 characters (middle), 2 buff/debuff (right).</summary>
+        static int HandGroup(CardInstance c) =>
+            c.IsCharacter ? 1 : c.Support.Category == CardCategory.Trap ? 0 : 2;
+
         void BuildHand(PlayerView v)
         {
-            hand.Clear();
+            handTraps.Clear(); handChars.Clear(); handBuffs.Clear();
+            handCards.Clear();
             int n = v.Hand.Count;
+            int groups = 0;
+            for (int g = 0; g < 3; g++)
+                foreach (var c in v.Hand)
+                    if (HandGroup(c) == g) { groups++; break; }
             // More cards than fit (setup deals more than the play-time limit): overlap them, keep each card full size.
-            float overlap = n > 1 ? Mathf.Max(0f, (n * CardStride - HandWidth) / (n - 1)) : 0f;
-            for (int i = 0; i < n; i++)
+            float overlap = n > 1 ? Mathf.Max(0f, (n * CardStride + groups * GroupGap - HandWidth) / (n - 1)) : 0f;
+            bool setup = v.Phase == GamePhase.Setup;
+            for (int g = 0; g < 3; g++)
             {
-                var card = v.Hand[i];
-                var el = MakeCard(card);
-                int id = card.Id;
-                el.EnableInClassList("unplayable", !HasCardCommand(id));
-                el.EnableInClassList("selected", id == selectedCard);
-                if (i > 0 && overlap > 0f) el.style.marginLeft = -overlap;
-                el.RegisterCallback<PointerDownEvent>(e => OnCardDown(id, e));
-                hand.Add(el);
+                var parent = g == 0 ? handTraps : g == 1 ? handChars : handBuffs;
+                foreach (var card in v.Hand)
+                {
+                    if (HandGroup(card) != g) continue;
+                    var el = MakeCard(card);
+                    int id = card.Id;
+                    el.userData = id;
+                    el.EnableInClassList("unplayable", !HasCardCommand(id));
+                    el.EnableInClassList("selected", id == selectedCard);
+                    if (setup && card.Cost > v.SetupMana) // S-05: does not fit the setup budget
+                    {
+                        el.AddToClassList("over-budget");
+                        var note = new Label(Strings.ReasonSetupMana) { pickingMode = PickingMode.Ignore };
+                        note.AddToClassList("card-note");
+                        el.Add(note);
+                    }
+                    if (parent.childCount > 0 && overlap > 0f) el.style.marginLeft = -overlap;
+                    el.RegisterCallback<PointerDownEvent>(e => OnCardDown(id, e));
+                    parent.Add(el);
+                    handCards.Add(el);
+                }
             }
+        }
+
+        /// <summary>The hand card element for a card id (tests/CLI), or null.</summary>
+        public VisualElement CardElement(int cardId)
+        {
+            foreach (var el in handCards)
+                if (el.userData is int id && id == cardId) return el;
+            return null;
+        }
+
+        /// <summary>Hand card ids per group, left to right (UX-04 test hook).</summary>
+        public int HandGroupOf(int cardId)
+        {
+            var el = CardElement(cardId);
+            if (el == null) return -1;
+            return el.parent == handTraps ? 0 : el.parent == handChars ? 1 : 2;
         }
 
         /// <summary>UX-07 minimal card: icon, name, cost. Stats and the description are in the long-press detail.</summary>
@@ -504,9 +577,13 @@ namespace HexPortal.Game
         {
             var v = match.View;
             string text = null;
-            if (secondPick.Count > 0) text = secondPick[0] is PlayCardCommand pc && pc.Dest.HasValue ? Strings.PickDestination : Strings.PickDirection;
+            if (secondPick.Count > 0)
+                text = secondPick[0] is MoveAttackCommand ? Strings.PickApproach
+                    : secondPick[0] is PlayCardCommand pc && pc.Dest.HasValue ? Strings.PickDestination : Strings.PickDirection;
+            else if (rangePreview) text = Strings.RangePreview;
             else if (v.Phase == GamePhase.Setup) text = v.SetupStep == SetupStep.Tower ? Strings.PlaceTower : Strings.PlaceUnits;
             else if (v.DrawPending && v.ActivePlayer == v.Viewer) text = Strings.DrawFirst;
+            else if (selectedUnit >= 0) text = Strings.UnitLegend;
             prompt.style.display = text != null ? DisplayStyle.Flex : DisplayStyle.None;
             prompt.text = text ?? "";
             overwatchBtn.style.display = selectedUnit >= 0 && FindOverwatch(selectedUnit) != null ? DisplayStyle.Flex : DisplayStyle.None;
@@ -594,33 +671,75 @@ namespace HexPortal.Game
             selectedUnit = -1;
             selectedCard = -1;
             secondPick.Clear();
+            previewOnly.Clear();
+            rangePreview = false;
+            HideInfo();
+            SyncSelectionMode();
             if (match.HasMatch && !match.HandoffPending && Current == Screen.Board) ShowDefaultHighlights();
         }
+
+        /// <summary>UX-12: stat bars are hidden while a card or unit is selected (or a card is dragged).</summary>
+        void SyncSelectionMode() => units.SetBarsHidden(selectedUnit >= 0 || selectedCard >= 0 || dragging);
 
         void ShowDefaultHighlights()
         {
             board.ClearHighlights();
             foreach (var c in match.Legal)
                 if (c is PlaceTowerCommand t) board.Highlight(t.Cell, Gfx.MoveHl);
-            foreach (var el in hand.Children()) el.RemoveFromClassList("selected");
+            foreach (var el in handCards) el.RemoveFromClassList("selected");
             UpdatePrompt();
         }
 
+        /// <summary>UX-02 and T-05 (v3.2): blue moves, red direct attacks and orange move-attack targets, all from the
+        /// legal list. If only the Energy is missing for a move-attack, its targets (Preview) are shown faint and a tap
+        /// explains why. On the opponent's turn the unit only previews its ranges (UX-10).</summary>
         void SelectUnit(int unitId)
         {
+            var v = match.View;
             selectedUnit = unitId;
             selectedCard = -1;
             secondPick.Clear();
+            previewOnly.Clear();
+            redCells.Clear();
+            rangePreview = IsOpponentTurn(v);
             board.ClearHighlights();
             int n = 0;
-            foreach (var c in match.Legal)
+            bool anyMoveAttack = false;
+            if (rangePreview) ShowRanges(unitId);
+            else
             {
-                if (c is MoveCommand m && m.UnitId == unitId) { board.Highlight(m.Dest, Gfx.MoveHl); n++; }
-                else if (c is AttackCommand a && a.UnitId == unitId) { board.Highlight(a.Target, Gfx.AttackHl); n++; }
-                else if (c is OverwatchCommand o && o.UnitId == unitId) n++;
+                foreach (var c in match.Legal)
+                {
+                    if (c is MoveCommand m && m.UnitId == unitId) { board.Highlight(m.Dest, Gfx.MoveHl); n++; }
+                    else if (c is AttackCommand a && a.UnitId == unitId) { board.Highlight(a.Target, Gfx.AttackHl); redCells.Add(a.Target); n++; }
+                    else if (c is OverwatchCommand o && o.UnitId == unitId) n++;
+                }
+                foreach (var c in match.Legal) // a target that is also a direct attack stays red (1 Energy beats 2)
+                    if (c is MoveAttackCommand ma && ma.UnitId == unitId && !redCells.Contains(ma.Target))
+                    {
+                        board.Highlight(ma.Target, Gfx.MoveAttackHl);
+                        anyMoveAttack = true;
+                        n++;
+                    }
+                if (n > 0 && !anyMoveAttack && v.Energy < Catalog.MoveAttackEnergy)
+                    foreach (var o in Preview.MoveAttackTargets(v, unitId))
+                        if (!redCells.Contains(o.Target)) { board.Highlight(o.Target, Gfx.MoveAttackOffHl); previewOnly.Add(o.Target); }
+                if (n == 0) ShowToast(UnitReason(unitId));
             }
-            if (n == 0) ShowToast(UnitReason(unitId));
+            foreach (var u in v.OwnUnits)
+                if (u.Id == unitId) ShowUnitInfo(u, v);
+            SyncSelectionMode();
             UpdatePrompt();
+        }
+
+        /// <summary>UX-10: the own unit's ranges from Core's Preview (move blue, reach orange, attack-from-here red). No commands.</summary>
+        void ShowRanges(int unitId)
+        {
+            var r = Preview.Ranges(match.View, unitId);
+            if (r == null) return;
+            foreach (var h in r.MoveAttackCells) board.Highlight(h, Gfx.MoveAttackOffHl);
+            foreach (var h in r.MoveCells) board.Highlight(h, Gfx.PreviewMoveHl);
+            foreach (var h in r.AttackCells) board.Highlight(h, Gfx.PreviewAttackHl);
         }
 
         string UnitReason(int unitId)
@@ -641,7 +760,12 @@ namespace HexPortal.Game
             if (v.Phase == GamePhase.Playing && v.ActivePlayer != v.Viewer) return Strings.ReasonOpponentTurn;
             if (v.Phase == GamePhase.Playing && v.DrawPending) return Strings.ReasonDrawFirst;
             foreach (var c in v.Hand)
-                if (c.Id == cardId && v.Phase == GamePhase.Playing && c.Cost > v.Mana) return Strings.ReasonNoMana;
+                if (c.Id == cardId)
+                {
+                    if (v.Phase == GamePhase.Playing && c.Cost > v.Mana) return Strings.ReasonNoMana;
+                    if (v.Phase == GamePhase.Setup && !v.OwnTowerPos.HasValue) return Strings.ReasonPlaceTowerFirst;
+                    if (v.Phase == GamePhase.Setup && c.Cost > v.SetupMana) return Strings.ReasonSetupMana;
+                }
             return Strings.ReasonNoTarget;
         }
 
@@ -650,15 +774,19 @@ namespace HexPortal.Game
             selectedCard = cardId;
             selectedUnit = -1;
             secondPick.Clear();
+            previewOnly.Clear();
+            rangePreview = false;
             board.ClearHighlights();
             if (match.View.Phase == GamePhase.Playing) // C-02, UX-03 (setup uses the home zone, shown by the targets)
                 foreach (var z in match.View.ControlZone) board.Highlight(z, Gfx.ZoneHl);
             foreach (var c in match.Legal)
                 if (CardOf(c) == cardId && CellOf(c, out var h)) board.Highlight(h, Gfx.TargetHl);
-            int i = 0;
-            foreach (var el in hand.Children())
-                el.EnableInClassList("selected", i < match.View.Hand.Count && match.View.Hand[i++].Id == cardId);
+            foreach (var el in handCards)
+                el.EnableInClassList("selected", el.userData is int id && id == cardId);
+            foreach (var c in match.View.Hand)
+                if (c.Id == cardId) ShowCardInfo(c);
             if (!HasCardCommand(cardId)) ShowToast(CardReason(cardId));
+            SyncSelectionMode();
             UpdatePrompt();
         }
 
@@ -679,7 +807,7 @@ namespace HexPortal.Game
         void OnCellTapped(Hex cell)
         {
             if (confirmAction != null) return;
-            if (secondPick.Count > 0)
+            if (secondPick.Count > 0) // card second pick or move-attack approach; a tap anywhere else cancels
             {
                 foreach (var c in secondPick)
                     if (SecondPickCell(c) == cell) { match.Apply(c); return; }
@@ -689,13 +817,52 @@ namespace HexPortal.Game
             if (selectedCard >= 0 && TryCardOnCell(selectedCard, cell)) return;
             foreach (var c in match.Legal)
                 if (c is PlaceTowerCommand t && t.Cell == cell) { match.Apply(c); return; }
-            if (selectedUnit >= 0)
+            if (selectedUnit >= 0 && !rangePreview)
+            {
                 foreach (var c in match.Legal)
                     if ((c is MoveCommand m && m.UnitId == selectedUnit && m.Dest == cell)
                         || (c is AttackCommand a && a.UnitId == selectedUnit && a.Target == cell)) { match.Apply(c); return; }
+                if (TryMoveAttack(selectedUnit, cell)) return;
+                if (previewOnly.Contains(cell)) { ShowToast(Strings.ReasonMoveAttackEnergy); return; }
+            }
             foreach (var u in match.View.OwnUnits)
                 if (u.Pos == cell) { SelectUnit(u.Id); return; }
             ClearSelection();
+            ShowCellInfo(cell); // UX-11: enemy units, ghosts and towers (only what the view holds)
+        }
+
+        /// <summary>T-05 (v3.2): an orange target. One approach cell: act at once. Several: the player picks the approach
+        /// (blue); a tap elsewhere cancels.</summary>
+        bool TryMoveAttack(int unitId, Hex target)
+        {
+            secondPick.Clear();
+            foreach (var c in match.Legal)
+                if (c is MoveAttackCommand ma && ma.UnitId == unitId && ma.Target == target) secondPick.Add(c);
+            if (secondPick.Count == 0) return false;
+            if (secondPick.Count == 1)
+            {
+                var only = secondPick[0];
+                secondPick.Clear();
+                match.Apply(only);
+                return true;
+            }
+            board.ClearHighlights();
+            board.Highlight(target, Gfx.MoveAttackHl);
+            foreach (var c in secondPick) board.Highlight(((MoveAttackCommand)c).Approach, Gfx.MoveHl);
+            UpdatePrompt();
+            return true;
+        }
+
+        /// <summary>Approach cells offered right now (T-05 two-step pick), for tests/CLI.</summary>
+        public int PendingApproachCount
+        {
+            get
+            {
+                int n = 0;
+                foreach (var c in secondPick)
+                    if (c is MoveAttackCommand) n++;
+                return n;
+            }
         }
 
         /// <summary>Plays the card on the cell if legal. Push (C-18) and Teleport (C-15) need a second pick.
@@ -774,6 +941,7 @@ namespace HexPortal.Game
 
         static Hex SecondPickCell(ICommand c)
         {
+            if (c is MoveAttackCommand ma) return ma.Approach;
             var p = (PlayCardCommand)c;
             if (p.Dest.HasValue) return p.Dest.Value;
             return p.Direction >= 0 ? p.Target.Neighbor(p.Direction) : p.Target;
@@ -783,6 +951,7 @@ namespace HexPortal.Game
 
         void OnBoardDown(VisualElement hit, PointerDownEvent e)
         {
+            if (pressCard >= 0) return; // a card is pressed or dragged: board taps and pans wait (UX-03)
             boardPointers++;
             hit.CapturePointer(e.pointerId);
             if (boardPointers > 1) { boardDragged = true; return; } // second finger: a pinch, never a tap
@@ -862,32 +1031,51 @@ namespace HexPortal.Game
         bool TryPickPanel(Vector2 panelPos, out Hex cell) => CameraRig.TryPick(cam, PanelToScreen(panelPos), out cell);
 
         // ---------- Card drag (UX-03) ----------
+        // One card pointer at a time. The pressed pointer is captured by the root, so its move/up/cancel arrive here
+        // wherever the finger goes (board, HUD, off-panel); a second finger never starts, steals or ends the drag.
+        // Every way out (invalid drop, PointerCancel, capture lost, focus loss, screen change, Refresh) returns the
+        // card to the hand. Root cause of the old "stuck" drag: no capture, so over the board the events went to
+        // board-hit (a sibling of the HUD) and the HUD's TrickleDown handlers missed the up.
 
         void OnCardDown(int cardId, PointerDownEvent e)
         {
+            if (pressCard >= 0 || confirmAction != null) return; // second finger, or a dialog is open
+            if (e.pointerType == UnityEngine.UIElements.PointerType.mouse && e.button != 0) return;
             pressCard = cardId;
+            pressPointer = e.pointerId;
             pressPos = e.position;
             dragging = false;
             longPressed = false;
+            root.CapturePointer(e.pointerId);
             longPressJob?.Pause();
             longPressJob = root.schedule.Execute(() =>
             {
                 if (pressCard != cardId || dragging) return;
                 longPressed = true;
-                ShowDetail(cardId);
+                foreach (var c in match.View.Hand)
+                    if (c.Id == cardId) ShowCardInfo(c); // UX-03 long press: card detail in the UX-11 panel
             }).StartingIn((long)LongPressMs);
+            e.StopPropagation();
         }
 
         void OnCardMove(PointerMoveEvent e)
         {
-            if (pressCard < 0 || longPressed) return;
+            if (pressCard < 0 || e.pointerId != pressPointer || longPressed) return;
+            var holder = root.panel?.GetCapturingElement(e.pointerId) as VisualElement; // capture lost to another element: back to the hand
+            if (holder != null && holder != root) { CancelCardPointer(); return; }
             if (!dragging && (((Vector2)e.position) - pressPos).sqrMagnitude > DragThreshold * DragThreshold)
             {
                 dragging = true;
                 SelectCard(pressCard);
                 dragCard.Clear();
                 foreach (var c in match.View.Hand)
-                    if (c.Id == pressCard) { var el = MakeCard(c); el.style.marginLeft = 0; dragCard.Add(el); }
+                    if (c.Id == pressCard)
+                    {
+                        var el = MakeCard(c);
+                        el.style.marginLeft = 0;
+                        el.pickingMode = PickingMode.Ignore; // the ghost card must never take pointer events
+                        dragCard.Add(el);
+                    }
                 dragCard.style.display = DisplayStyle.Flex;
             }
             if (dragging)
@@ -899,38 +1087,156 @@ namespace HexPortal.Game
 
         void OnCardUp(PointerUpEvent e)
         {
-            if (pressCard < 0) return;
+            if (pressCard < 0 || e.pointerId != pressPointer) return;
             int card = pressCard;
-            pressCard = -1;
-            longPressJob?.Pause();
-            dragCard.style.display = DisplayStyle.None;
-            if (longPressed) return;
-            if (dragging)
+            bool wasDragging = dragging, wasLong = longPressed;
+            EndCardPointer();
+            if (wasLong) return;
+            if (wasDragging)
             {
-                dragging = false;
-                if (TryPickPanel(e.position, out var cell)) TryCardOnCell(card, cell);
-                else ClearSelection();
+                if (!(TryPickPanel(e.position, out var cell) && TryCardOnCell(card, cell))) ClearSelection(); // back to the hand
                 return;
             }
             TapCard(card);
         }
 
-        void ShowDetail(int cardId)
+        void OnCardCancel(PointerCancelEvent e)
         {
-            foreach (var c in match.View.Hand)
-                if (c.Id == cardId)
-                {
-                    string text = CardName(c) + "  (" + Strings.Mana + " " + c.Cost + ")\n";
-                    if (c.IsCharacter)
-                    {
-                        var d = Unit.DefOf(c.Character.Class);
-                        text += Strings.BiomeName(c.Character.Biome) + "\n" + Strings.AttackIcon + " " + d.Attack + "   ♥ " + d.Health
-                            + "   ➜ " + d.Move + "   👁 " + d.Sight;
-                    }
-                    else text += Strings.Text(c.Support.Id);
-                    detailText.text = text;
-                    cardDetail.style.display = DisplayStyle.Flex;
-                }
+            if (pressCard >= 0 && e.pointerId == pressPointer) CancelCardPointer();
+        }
+
+        void OnCardCaptureOut(PointerCaptureOutEvent e)
+        {
+            if (pressCard >= 0) CancelCardPointer(); // someone else took the pointer: never leave a card hanging
+        }
+
+        /// <summary>Clears the card pointer state first, then releases the capture (so the capture-out is a no-op).</summary>
+        void EndCardPointer()
+        {
+            int pointer = pressPointer;
+            pressCard = -1;
+            pressPointer = -1;
+            dragging = false;
+            longPressed = false;
+            longPressJob?.Pause();
+            dragCard.style.display = DisplayStyle.None;
+            dragCard.Clear();
+            if (pointer >= 0 && root.HasPointerCapture(pointer)) root.ReleasePointer(pointer);
+        }
+
+        void CancelCardPointer()
+        {
+            bool wasDragging = dragging;
+            EndCardPointer();
+            if (wasDragging) ClearSelection(); // the card returns to the hand
+            else SyncSelectionMode();
+        }
+
+        /// <summary>Drops every pointer gesture (focus loss, pause, screen change, Refresh). Safe to call any time.</summary>
+        public void CancelPointers()
+        {
+            if (pressCard >= 0) CancelCardPointer();
+            boardPointers = 0;
+            boardPointer = -1;
+            pinchActive = false;
+        }
+
+        /// <summary>A card press or drag is in progress (tests/CLI).</summary>
+        public bool CardPointerActive => pressCard >= 0;
+        public bool Dragging => dragging;
+        public bool DragGhostVisible => dragCard.style.display == DisplayStyle.Flex;
+
+        // ---------- UX-11 info panel (left). Only PlayerView data and class/card definitions; enemies show what is visible. ----------
+
+        /// <summary>Text of the open info panel ("" when closed), for tests/CLI.</summary>
+        public string InfoText => infoPanel.style.display == DisplayStyle.Flex ? infoTitle.text + "\n" + infoText.text : "";
+
+        void HideInfo() => infoPanel.style.display = DisplayStyle.None;
+
+        void OpenInfo(string icon, Color iconColor, string title, string body)
+        {
+            infoIcon.text = icon;
+            infoIcon.style.color = iconColor;
+            infoTitle.text = title;
+            infoText.text = body;
+            infoPanel.style.display = DisplayStyle.Flex;
+        }
+
+        void ShowUnitInfo(UnitView u, PlayerView v)
+        {
+            var d = Unit.DefOf(u.Class);
+            bool own = u.Owner == v.Viewer;
+            var s = new System.Text.StringBuilder();
+            s.Append(own ? Strings.InfoMyUnit : Strings.InfoEnemyUnit).Append(" · ").Append(Strings.BiomeName(u.Biome));
+            if (u.IsGhost) s.Append('\n').Append(Strings.InfoGhost);
+            s.Append('\n').Append(Strings.InfoHealth).Append(' ').Append(u.Health).Append('/').Append(d.Health)
+                .Append("   ").Append(Strings.InfoAttack).Append(' ').Append(u.EffectiveAttack);
+            if (u.ChargeBonus > 0) s.Append(Strings.InfoCharge);
+            s.Append('\n').Append(Strings.InfoMove).Append(' ').Append(d.Move);
+            if (own && u.MoveBonus > 0) s.Append(" (+").Append(u.MoveBonus).Append(')');
+            s.Append("   ").Append(Strings.InfoSight).Append(' ').Append(d.Sight);
+            s.Append('\n').Append(Strings.InfoRange).Append(": ").Append(Strings.RangeText(d.Range, d.MinRange, d.MaxRange));
+            if (!u.IsGhost) // V-05: ghosts carry no effects
+            {
+                AppendEffect(s, "Buff", u.BuffId, u.BuffTurnsLeft);
+                AppendEffect(s, "Debuff", u.DebuffId, u.DebuffTurnsLeft);
+                if (u.OnOverwatch) s.Append('\n').Append(Strings.InfoOverwatch);
+            }
+            if (own && u.ActedThisTurn) s.Append('\n').Append(Strings.InfoActed);
+            if (own) s.Append('\n').Append(Strings.InfoActions);
+            s.Append('\n').Append(Strings.InfoCost).Append(' ').Append(Strings.ManaIcon).Append(' ').Append(d.Cost);
+            s.Append('\n').Append(Strings.Ability(u.Class));
+            OpenInfo(Strings.ClassIcon(u.Class), Gfx.BiomeColor(u.Biome), Strings.ClassName(u.Class), s.ToString());
+        }
+
+        static void AppendEffect(System.Text.StringBuilder s, string kind, string id, int turns)
+        {
+            if (id == null) return;
+            s.Append('\n').Append(kind).Append(": ").Append(Strings.Name(id)).Append(" (");
+            if (turns > 0) s.Append(turns).Append(Strings.InfoTurnsLeft); else s.Append(Strings.InfoLasting);
+            s.Append(')');
+        }
+
+        void ShowCardInfo(CardInstance c)
+        {
+            var s = new System.Text.StringBuilder();
+            s.Append(Strings.InfoCost).Append(' ').Append(Strings.ManaIcon).Append(' ').Append(c.Cost);
+            if (c.IsCharacter)
+            {
+                var d = Unit.DefOf(c.Character.Class);
+                s.Append(" · ").Append(Strings.BiomeName(c.Character.Biome));
+                s.Append('\n').Append(Strings.InfoHealth).Append(' ').Append(d.Health).Append("   ").Append(Strings.InfoAttack).Append(' ').Append(d.Attack)
+                    .Append("\n").Append(Strings.InfoMove).Append(' ').Append(d.Move).Append("   ").Append(Strings.InfoSight).Append(' ').Append(d.Sight)
+                    .Append('\n').Append(Strings.InfoRange).Append(": ").Append(Strings.RangeText(d.Range, d.MinRange, d.MaxRange))
+                    .Append('\n').Append(Strings.Ability(c.Character.Class));
+                OpenInfo(CardIcon(c), Gfx.BiomeColor(c.Character.Biome), CardName(c), s.ToString());
+            }
+            else
+            {
+                s.Append('\n').Append(Strings.Text(c.Support.Id));
+                OpenInfo(CardIcon(c), FrameColor(c), CardName(c), s.ToString());
+            }
+        }
+
+        /// <summary>A tap on a non-own cell: enemy unit or ghost, or a tower, as the view holds it.</summary>
+        void ShowCellInfo(Hex cell)
+        {
+            var v = match.View;
+            int i = Board.IndexOf(cell);
+            if (i < 0) return;
+            var c = v.Cells[i];
+            if (c.Unit != null) { ShowUnitInfo(c.Unit, v); return; }
+            if (!c.HasTower) return;
+            bool own = c.TowerOwner == v.Viewer;
+            var t = Catalog.Tower;
+            var s = new System.Text.StringBuilder();
+            if (c.TowerIsGhost) s.Append(Strings.InfoGhost).Append('\n');
+            s.Append(Strings.InfoHealth).Append(' ').Append(c.TowerHealth).Append('/').Append(t.Health)
+                .Append("   ").Append(Strings.InfoAttack).Append(' ').Append(t.Attack)
+                .Append('\n').Append(Strings.InfoRange).Append(": ").Append(Strings.RangeText(RangeKind.Distance, t.MinRange, t.MaxRange))
+                .Append("   ").Append(Strings.InfoSight).Append(' ').Append(t.Sight)
+                .Append('\n').Append(Strings.InfoTowerText);
+            OpenInfo(Strings.TowerIcon, Gfx.OwnerColor(c.TowerOwner), own ? Strings.InfoOwnTower : Strings.InfoEnemyTower, s.ToString());
         }
 
         // ---------- Event feedback: notices and the compact log (filtered events only, UX-10) ----------

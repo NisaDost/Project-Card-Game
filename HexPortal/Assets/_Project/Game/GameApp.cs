@@ -85,6 +85,10 @@ namespace HexPortal.Game
 
         void Start() => StartCoroutine(AiLoop());
 
+        // UX-03: a drag or board gesture never survives losing the app focus (call, notification shade, home button).
+        void OnApplicationFocus(bool focus) { if (!focus) Ui?.CancelPointers(); }
+        void OnApplicationPause(bool paused) { if (paused) Ui?.CancelPointers(); }
+
         void Update()
         {
             Match.Tick(Time.deltaTime);

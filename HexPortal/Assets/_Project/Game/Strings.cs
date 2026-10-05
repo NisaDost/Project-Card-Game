@@ -24,7 +24,7 @@ namespace HexPortal.Game
         public const string ChoosePassive = "1 komutan pasifi seç";
         public const string Confirm = "Onayla";
         public const string PlaceTower = "Kuleni başlangıç bölgene yerleştir (mavi karolar)";
-        public const string PlaceUnits = "Karakter kartına dokun, sonra karoya dokun (en az 3). Tuzak da koyabilirsin.";
+        public const string PlaceUnits = "Kartı sürükle ya da karta, sonra karoya dokun. Kartlar hazırlık Manasından düşer; en az 1 karakter.";
         public const string FinishSetup = "Yerleşimi bitir";
         public const string EndTurn = "Turu Bitir";
         public const string Overwatch = "Nöbet";
@@ -89,8 +89,60 @@ namespace HexPortal.Game
         public const string ReasonSetupNoDraw = "Hazırlıkta kart çekilmez";
         public const string ReasonCannotDraw = "Şu an kart çekilemez";
         public const string ReasonFinishSetup = "Önce kuleyi ve karakterlerini yerleştir";
+        public const string ReasonPlaceTowerFirst = "Önce kuleyi yerleştir";
+        public static readonly string ReasonMinCharacters = "En az " + Catalog.MinPlacedCharacters + " karakter yerleştir";
+        public const string ReasonSetupMana = "Hazırlık Manası yetmiyor";
+        public static readonly string ReasonMoveAttackEnergy = "Enerji yetmiyor (" + Catalog.MoveAttackEnergy + " gerekir)";
         public const string ReasonPickThree = "3 görev seç";
         public const string ReasonNotNow = "Şu an olmaz";
+
+        // ---------- v3c: move-attack (T-05 v3.2), range preview (UX-10), setup budget (S-05), info panel (UX-11) ----------
+        public const string PickApproach = "İlerleme karosunu seç (mavi). Başka yere dokun: vazgeç";
+        public static readonly string UnitLegend = "Mavi hareket · Kırmızı saldırı · Turuncu ilerle-saldır (" + Catalog.MoveAttackEnergy + " Enerji)";
+        public const string RangePreview = "Menzil: mavi hareket · kırmızı saldırı · turuncu ilerle-saldır";
+        public const string SetupMana = "Hazırlık Manası";
+        public const string InfoHealth = "Can";
+        public const string InfoAttack = "Saldırı";
+        public const string InfoMove = "Hareket";
+        public const string InfoSight = "Görüş";
+        public const string InfoRange = "Menzil";
+        public const string InfoCost = "Maliyet";
+        public const string InfoGhost = "Son görülen hal (sis)";
+        public const string InfoActed = "Bu tur aksiyonunu kullandı";
+        public const string InfoOverwatch = "Nöbette";
+        public const string InfoTurnsLeft = " tur kaldı";
+        public const string InfoLasting = "kalıcı";
+        public const string InfoMyUnit = "Senin birimin";
+        public const string InfoEnemyUnit = "Rakip birim";
+        public const string InfoOwnTower = "Kulen";
+        public const string InfoEnemyTower = "Rakip kule";
+        public static readonly string InfoActions = "Hareket, saldırı, nöbet: 1 Enerji\nİlerle-saldır: " + Catalog.MoveAttackEnergy + " Enerji (tek hamle)";
+        public static readonly string InfoCharge = " (+" + Catalog.RiderChargeBonus + " Hücum ile ilerle-saldırda)";
+        public const string InfoTowerText = "Hareket etmez. Rakibin turunda menzilinde duran, sahaya çıkan ya da saldıran tek birime 1 kez ateş eder";
+
+        /// <summary>UX-11 range line from the class data (text only).</summary>
+        public static string RangeText(RangeKind kind, int min, int max)
+        {
+            switch (kind)
+            {
+                case RangeKind.Adjacent: return "Komşu";
+                case RangeKind.StraightLine: return "Düz hatta " + min + "–" + max;
+                default: return "Mesafe " + min + "–" + max;
+            }
+        }
+
+        /// <summary>UX-11 ability line (GDD §3.1 wording).</summary>
+        public static string Ability(UnitClass c)
+        {
+            switch (c)
+            {
+                case UnitClass.Guardian: return "Siper: Komşu dost birimler ve kule saldırıyla hedef alınamaz";
+                case UnitClass.Rider: return "Atik: Birimlerin üstünden geçer. Hücum: İlerle-saldırda +" + Catalog.RiderChargeBonus + " Saldırı";
+                case UnitClass.Archer: return "Uzak atış: Hat üzerindeki hiçbir şey atışı engellemez";
+                case UnitClass.Mage: return "Patlama: Hedefe komşu düşmanlar " + Catalog.MageSplashDamage + " hasar alır";
+                default: return "Şifa: Tur başında komşu dostlar +" + Catalog.HealerHealAmount + " Can";
+            }
+        }
 
         /// <summary>C-05/C-06 hint before a buff/debuff replaces the unit's current one.</summary>
         public static string Replaces(string oldId) => Name(oldId) + " kartının yerini alacak";
@@ -269,11 +321,11 @@ namespace HexPortal.Game
                 case "C-10": return "+2 Saldırı, 2 tur";
                 case "C-11": return "+1 Saldırı, kalıcı";
                 case "C-12": return "Sonraki hasarı engeller";
-                case "C-13": return "+3 Can";
+                case "C-13": return "+5 Can";
                 case "C-14": return "Bu tur +2 Hareket";
                 case "C-15": return "Dost birimi boş karoya taşır";
                 case "C-16": return "−2 Saldırı, 2 tur";
-                case "C-17": return "Tur başında −1 Can, 2 tur";
+                case "C-17": return "Tur başında −2 Can, 2 tur";
                 case "C-18": return "Düz yönde 2 karo iter";
                 case "C-19": return "Hareket edemez, 2 tur";
                 case "C-20": return "Tuzak: 3 hasar";
@@ -281,17 +333,17 @@ namespace HexPortal.Game
                 case "Q-10": return "Aynı rün taşını tut";
                 case "Q-11": return "İki farklı rün taşında birimin olsun";
                 case "Q-12": return "2 düşman birimi yok et";
-                case "Q-13": return "Rakip kuleye toplam 5 hasar ver";
-                case "Q-14": return "8. raunt sonunda kule Canı 7 veya üstü";
+                case "Q-13": return "Rakip kuleye toplam 10 hasar ver";
+                case "Q-14": return "10. raunt sonunda kule Canı 14 veya üstü";
                 case "Q-15": return "3 birimin aynı anda kendi biyomunda";
-                case "Q-16": return "6. raunt sonuna kadar birim kaybetme";
+                case "Q-16": return "8. raunt sonuna kadar birim kaybetme";
                 case "Q-17": return "Tuzağın bir düşmanda tetiklensin";
                 case "Q-18": return "Kaynak karosunu tut";
                 case "Q-19": return "Rakip başlangıç bölgesinde 2 birimin olsun";
-                case "P-01": return "İlk ölen birimin 2 Can ile geri gelir";
+                case "P-01": return "İlk ölen birimin 4 Can ile geri gelir";
                 case "P-02": return "Tuzaklar +1 hasar verir";
                 case "P-03": return "3. rauntta +2 Mana";
-                case "P-04": return "Kulene gelen ilk 3 hasar engellenir";
+                case "P-04": return "Kulene gelen ilk 5 hasar engellenir";
                 case "P-05": return "İlk Pazar alımında +1 kör kart";
                 case "P-06": return "Portal'a giren rakip 3 hasar alır";
                 default: return "";

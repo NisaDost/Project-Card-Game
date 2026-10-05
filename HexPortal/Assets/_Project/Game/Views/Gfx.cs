@@ -26,9 +26,13 @@ namespace HexPortal.Game
         public static readonly Color OwnerB = new Color(0.95f, 0.20f, 0.25f);
         public static readonly Color MoveHl = new Color(0.05f, 0.25f, 1.00f, 0.85f);
         public static readonly Color AttackHl = new Color(1.00f, 0.05f, 0.05f, 0.85f);
+        public static readonly Color MoveAttackHl = new Color(0.85f, 0.30f, 0.00f, 1.00f);  // T-05 v3.2 move-attack target: burnt orange, darker than Desert tiles
+        public static readonly Color MoveAttackOffHl = new Color(0.85f, 0.30f, 0.00f, 0.45f); // reachable but not affordable now
+        public static readonly Color PreviewMoveHl = new Color(0.05f, 0.25f, 1.00f, 0.45f); // UX-10 preview (no command)
+        public static readonly Color PreviewAttackHl = new Color(1.00f, 0.05f, 0.05f, 0.45f);
         public static readonly Color TargetHl = new Color(1.00f, 0.95f, 0.10f, 0.8f);
         public static readonly Color ZoneHl = new Color(0.55f, 0.95f, 1.00f, 0.35f);
-        public static readonly Color EventHl = new Color(1.00f, 0.55f, 0.10f, 0.6f);
+        public static readonly Color EventHl = new Color(1.00f, 1.00f, 1.00f, 0.55f); // white pulse: orange is the move-attack colour
         public static readonly Color FlashHl = new Color(1.00f, 1.00f, 1.00f, 0.8f);
         public static readonly Color ShotHl = new Color(1.00f, 0.80f, 0.10f, 0.9f);
         public static readonly Color TrapHl = new Color(0.80f, 0.30f, 1.00f, 0.9f);

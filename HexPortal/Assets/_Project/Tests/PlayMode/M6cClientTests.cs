@@ -111,7 +111,7 @@ namespace HexPortal.Game.Tests
             CameraRig.Face(cam, PlayerId.A);
             AssertPicksAllCells(cam, 0.6f);
             rig.ZoomBy(10f, new Vector2(Screen.width * 0.5f, Screen.height * 0.5f));
-            Assert.That(rig.Zoom, Is.GreaterThan(1.5f).And.LessThanOrEqualTo(1f / 0.35f + 0.01f), "zoom is clamped");
+            Assert.That(rig.Zoom, Is.GreaterThan(1.5f).And.LessThanOrEqualTo(CameraRig.MaxZoom + 0.01f), "zoom is clamped");
             for (int i = 0; i < 20; i++) rig.Pan(new Vector2(0f, 0f), new Vector2(Screen.width, Screen.height)); // fling far away
             Assert.That(CameraRig.TryPick(cam, new Vector2(Screen.width * 0.5f, Screen.height * 0.5f), out _), Is.True,
                 "pan is clamped: the screen centre stays over the board");

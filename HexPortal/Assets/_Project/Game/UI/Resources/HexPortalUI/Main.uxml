@@ -25,6 +25,7 @@
             <ui:VisualElement class="meter mana-meter" picking-mode="Ignore">
                 <ui:Label name="mana-icon" class="meter-icon mana-icon" />
                 <ui:Label name="mana-text" class="meter-text" />
+                <ui:Label name="mana-caption" class="meter-caption" />
                 <ui:VisualElement name="mana-pips" class="pips" />
             </ui:VisualElement>
             <ui:VisualElement class="meter energy-meter" picking-mode="Ignore">
@@ -54,7 +55,20 @@
 
         <ui:Label name="prompt" class="prompt" picking-mode="Ignore" />
         <ui:Label name="notice" class="notice" picking-mode="Ignore" />
-        <ui:VisualElement name="hand" class="hand" picking-mode="Ignore" />
+        <ui:VisualElement name="hand" class="hand" picking-mode="Ignore">
+            <!-- UX-04 (v3.0): traps left, characters middle, buff/debuff right -->
+            <ui:VisualElement name="hand-traps" class="hand-group traps" picking-mode="Ignore" />
+            <ui:VisualElement name="hand-chars" class="hand-group chars" picking-mode="Ignore" />
+            <ui:VisualElement name="hand-buffs" class="hand-group buffs" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <!-- UX-11 (v3.0): info panel on the left for a tapped unit, tower or card; a tap on it closes it -->
+        <ui:VisualElement name="info-panel" class="info-panel">
+            <ui:VisualElement class="info-head" picking-mode="Ignore">
+                <ui:Label name="info-icon" class="info-icon" picking-mode="Ignore" />
+                <ui:Label name="info-title" class="info-title" picking-mode="Ignore" />
+            </ui:VisualElement>
+            <ui:Label name="info-text" class="info-text" picking-mode="Ignore" />
+        </ui:VisualElement>
         <ui:Label name="toast" class="toast" picking-mode="Ignore" />
         <ui:VisualElement name="drag-card" class="card dragging" picking-mode="Ignore" />
     </ui:VisualElement>
@@ -62,10 +76,6 @@
     <ui:VisualElement name="quest-panel" class="popup">
         <ui:Label name="quest-text" class="popup-text" />
         <ui:Button name="quest-close" class="btn" />
-    </ui:VisualElement>
-    <ui:VisualElement name="card-detail" class="popup">
-        <ui:Label name="detail-text" class="popup-text" />
-        <ui:Button name="detail-close" class="btn" />
     </ui:VisualElement>
     <ui:VisualElement name="confirm-panel" class="popup">
         <ui:Label name="confirm-text" class="popup-text" />

@@ -64,7 +64,8 @@ namespace HexPortal.Game
         readonly List<Floater> floaters = new List<Floater>();
         readonly List<Burst> bursts = new List<Burst>();
         readonly Dictionary<int, Seen> seen = new Dictionary<int, Seen>();
-        VisualElement overlay;
+        VisualElement overlay, tagLayer;
+        bool barsHidden;
         Camera cam;
         BoardView board;
         PlayerView view;
@@ -73,6 +74,16 @@ namespace HexPortal.Game
         public int ShownCount { get; private set; }
         public int FloaterPoolSize => floaters.Count;
         public int BurstPoolSize => bursts.Count;
+        /// <summary>UX-12: true while a card or unit is selected (stat bars hidden).</summary>
+        public bool BarsHidden => barsHidden;
+
+        /// <summary>UX-12 selection mode: hide every stat bar so tiles and highlights read clearly; restore on deselect.</summary>
+        public void SetBarsHidden(bool hidden)
+        {
+            if (hidden == barsHidden) return;
+            barsHidden = hidden;
+            tagLayer.style.display = hidden ? DisplayStyle.None : DisplayStyle.Flex;
+        }
 
         public static UnitsView Create(Transform parent, VisualElement overlay, Camera cam, BoardView board)
         {
@@ -80,6 +91,10 @@ namespace HexPortal.Game
             go.transform.SetParent(parent, false);
             var v = go.AddComponent<UnitsView>();
             v.overlay = overlay;
+            // Stat bars live in their own layer so UX-12 selection mode hides them all with one style change.
+            v.tagLayer = new VisualElement { name = "unit-tags", pickingMode = PickingMode.Ignore };
+            v.tagLayer.AddToClassList("fill");
+            overlay.Add(v.tagLayer);
             v.cam = cam;
             v.board = board;
             return v;
@@ -153,7 +168,7 @@ namespace HexPortal.Game
             SetLook(vis, body, rim, u.IsGhost);
             vis.Watch.SetActive(u.OnOverwatch && !u.IsGhost);
             var def = Unit.DefOf(u.Class);
-            SetTag(vis, u.Health, def.Health, def.Attack, u.IsGhost ? null : u.BuffId, u.BuffTurnsLeft,
+            SetTag(vis, u.Health, def.Health, u.EffectiveAttack, u.IsGhost ? null : u.BuffId, u.BuffTurnsLeft,
                 u.IsGhost ? null : u.DebuffId, u.DebuffTurnsLeft, u.OnOverwatch && !u.IsGhost, rim, u.IsGhost, dim);
         }
 
@@ -273,7 +288,7 @@ namespace HexPortal.Game
             vis.Watching.text = Strings.OverwatchIcon;
             vis.Tag.Add(bar);
             vis.Tag.Add(chips);
-            overlay.Add(vis.Tag);
+            tagLayer.Add(vis.Tag);
         }
 
         static Label Chip(VisualElement row, string cls)
@@ -421,7 +436,7 @@ namespace HexPortal.Game
                     v.T = Mathf.Min(1f, v.T + dt / MoveSeconds);
                     v.Root.transform.localPosition = Vector3.Lerp(v.From, v.To, Mathf.SmoothStep(0f, 1f, v.T));
                 }
-                PlaceLabel(v.Tag, v.Root.transform.position + new Vector3(0f, v.IsTower ? 2.1f : 1.55f, 0f));
+                if (!barsHidden) PlaceLabel(v.Tag, v.Root.transform.position + new Vector3(0f, v.IsTower ? 2.1f : 1.55f, 0f));
             }
             for (int i = 0; i < floaters.Count; i++)
             {

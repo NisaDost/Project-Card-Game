@@ -12,17 +12,19 @@ namespace HexPortal.Game
     {
         const float Pitch = 60f;
         const float Fov = 34f;
-        // Tuned on the 59-cell board (centre-to-centre extent 12 world units): distance 28.5, aim shifted 3.1 toward
-        // the viewer so the hand fan only overlaps the near edge. Both scale with the board extent.
-        const float DistancePerExtent = 28.5f / 12f;
-        const float ShiftPerExtent = 3.1f / 12f;
-        const float MinZoom = 0.35f; // closest distance as a fraction of the default framing
+        // Tuned on the 127-cell board (v3.0, centre-to-centre depth 18 world units): the default distance follows the board
+        // DEPTH because UX-04 fits the board to the screen height; the aim is shifted toward the viewer so the hand fan only
+        // overlaps the near edge. Both scale with the depth, so another board size keeps the framing.
+        const float DistancePerDepth = 40f / 18f;
+        const float ShiftPerDepth = 2.6f / 18f;
+        /// <summary>Closest camera distance in world units (about 6 rows on screen). Fixed, so a bigger board zooms deeper.</summary>
+        const float ClosestDistance = 11f;
         /// <summary>A tap picks the nearest cell centre within this radius (world units; a hex has outer radius 1).</summary>
         public const float PickRadius = 1.2f;
 
         static bool boundsReady;
         static Vector3 boundsMin, boundsMax, boardCentre;
-        static float extent;
+        static float depth, reach;
 
         Camera cam;
         float yaw, distance;
@@ -30,7 +32,10 @@ namespace HexPortal.Game
 
         public static CameraRig Instance { get; private set; }
         public float Zoom => DefaultDistance / distance; // 1 = default framing
-        static float DefaultDistance => extent * DistancePerExtent;
+        /// <summary>The largest Zoom (closest framing).</summary>
+        public static float MaxZoom { get { EnsureBounds(); return DefaultDistance / MinDistance; } }
+        static float DefaultDistance => depth * DistancePerDepth;
+        static float MinDistance => Mathf.Min(ClosestDistance, DefaultDistance);
 
         public static Camera Create()
         {
@@ -74,7 +79,10 @@ namespace HexPortal.Game
                 boundsMax = Vector3.Max(boundsMax, p);
             }
             boardCentre = (boundsMin + boundsMax) * 0.5f;
-            extent = Mathf.Max(boundsMax.x - boundsMin.x, boundsMax.z - boundsMin.z, 1f);
+            depth = Mathf.Max(boundsMax.z - boundsMin.z, 1f);
+            reach = 0f;
+            for (int i = 0; i < cells.Count; i++)
+                reach = Mathf.Max(reach, HexReach(HexLayout.ToWorld(cells[i], BoardView.TileHeight) - boardCentre));
             boundsReady = true;
         }
 
@@ -92,7 +100,7 @@ namespace HexPortal.Game
         {
             EnsureBounds();
             distance = DefaultDistance;
-            target = boardCentre + Quaternion.Euler(0f, yaw, 0f) * new Vector3(0f, 0f, -extent * ShiftPerExtent);
+            target = boardCentre + Quaternion.Euler(0f, yaw, 0f) * new Vector3(0f, 0f, -depth * ShiftPerDepth);
             Apply();
         }
 
@@ -110,7 +118,7 @@ namespace HexPortal.Game
         {
             if (factor <= 0f) return;
             bool hasPivot = PlanePoint(pivotScreen, out var before);
-            distance = Mathf.Clamp(distance / factor, DefaultDistance * MinZoom, DefaultDistance);
+            distance = Mathf.Clamp(distance / factor, MinDistance, DefaultDistance);
             Apply();
             if (hasPivot && PlanePoint(pivotScreen, out var after)) target += before - after;
             Clamp();
@@ -119,10 +127,19 @@ namespace HexPortal.Game
 
         void Clamp()
         {
-            // The aim point stays over the board rectangle (cell centres), so the board can never leave the screen.
-            target.x = Mathf.Clamp(target.x, boundsMin.x, boundsMax.x);
-            target.z = Mathf.Clamp(target.z, boundsMin.z, boundsMax.z);
+            // The aim point stays inside the hexagon spanned by the cell centres (not their bounding rectangle, whose
+            // corners are off a hexagonal board), so the screen centre is always over a cell.
             target.y = boardCentre.y;
+            var off = target - boardCentre;
+            float d = HexReach(off);
+            if (d > reach) target = boardCentre + off * (reach / d);
+        }
+
+        /// <summary>Hex distance (fractional, cube max-norm) of a world offset from the board centre.</summary>
+        static float HexReach(Vector3 off)
+        {
+            var c = HexLayout.FromWorldFractional(off);
+            return Mathf.Max(Mathf.Abs(c.x), Mathf.Abs(c.y), Mathf.Abs(c.x + c.y));
         }
 
         void Apply()

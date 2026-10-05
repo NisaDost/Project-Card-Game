@@ -12,6 +12,13 @@ namespace HexPortal.Game
         public static Vector3 ToWorld(Hex h, float y = 0f) =>
             new Vector3(Size * Sqrt3 * (h.Q + h.R / 2f), y, -Size * 1.5f * h.R);
 
+        /// <summary>Fractional axial (q, r) of a world point on the board plane (inverse of ToWorld, no rounding).</summary>
+        public static Vector2 FromWorldFractional(Vector3 p)
+        {
+            float r = -p.z / (1.5f * Size);
+            return new Vector2(p.x / (Sqrt3 * Size) - r / 2f, r);
+        }
+
         /// <summary>Nearest hex to a world point on the board plane (cube rounding). May be off the board.</summary>
         public static Hex FromWorld(Vector3 p)
         {
