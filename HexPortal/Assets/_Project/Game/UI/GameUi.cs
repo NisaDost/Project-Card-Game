@@ -69,6 +69,11 @@ namespace HexPortal.Game
         IVisualElementScheduledItem longPressJob;
 
         // Board pointer state (tap / pan / pinch / double tap).
+        // UX-10 plan arrows (vs AI, opponent turn): a board press that starts on an own unit draws an arrow instead of panning.
+        readonly PlanArrows plans;
+        bool planning;
+        Hex planFrom;
+        public PlanArrows Plans => plans;
         int boardPointer = -1;
         Vector2 boardPress, boardLast;
         bool boardDragged, boardRightDrag;
@@ -94,6 +99,7 @@ namespace HexPortal.Game
         public GameUi(MatchController match, VisualElement root, BoardView board, UnitsView units, Camera cam)
         {
             this.match = match; this.root = root; this.board = board; this.units = units; this.cam = cam;
+            plans = new PlanArrows(board.transform);
             screenMenu = root.Q("screen-menu"); screenQuests = root.Q("screen-quests"); screenPassive = root.Q("screen-passive");
             screenHandoff = root.Q("screen-handoff"); screenResult = root.Q("screen-result"); hud = root.Q("hud");
             questPanel = root.Q("quest-panel"); infoPanel = root.Q("info-panel"); dragCard = root.Q("drag-card"); confirmPanel = root.Q("confirm-panel");
@@ -249,6 +255,7 @@ namespace HexPortal.Game
             if (!match.HasMatch) { Show(Screen.Menu); return; }
             var v = match.View;
             int keepPreview = rangePreview ? selectedUnit : -1; // UX-10: a range preview survives the opponent's steps
+            if (!PlanningAllowed()) plans.Clear(); // UX-10: arrows are cleared at the start of the player's own turn
             CancelPointers(); // the hand is rebuilt below: a drag in progress returns its card (UX-03)
             ClearSelection();
             if (match.IsOver)
@@ -280,6 +287,25 @@ namespace HexPortal.Game
         }
 
         static bool IsOpponentTurn(PlayerView v) => v.Phase == GamePhase.Playing && v.ActivePlayer != v.Viewer;
+
+        /// <summary>UX-10 plan arrows only exist vs the AI on its turn (in hotseat the waiting player does not hold the device).</summary>
+        bool PlanningAllowed() => match.HasMatch && match.Mode == MatchMode.VsAi && IsOpponentTurn(match.View);
+
+        bool CanPlanFrom(Hex cell)
+        {
+            if (!PlanningAllowed()) return false;
+            foreach (var u in match.View.OwnUnits)
+                if (u.Pos == cell) return true;
+            return false;
+        }
+
+        /// <summary>Draws a plan arrow from an own unit to any board cell (also the gesture's end). Client-only, no command.</summary>
+        public bool DrawPlanArrow(Hex from, Hex to)
+        {
+            if (!CanPlanFrom(from) || from == to || !Board.IsOnBoard(to)) return false;
+            plans.Add(from, to);
+            return true;
+        }
 
         void BuildQuestOptions(PlayerView v)
         {
@@ -807,6 +833,7 @@ namespace HexPortal.Game
         void OnCellTapped(Hex cell)
         {
             if (confirmAction != null) return;
+            if (PlanningAllowed() && plans.RemoveEndingAt(cell)) return; // UX-10: a tap on an arrow head deletes it
             if (secondPick.Count > 0) // card second pick or move-attack approach; a tap anywhere else cancels
             {
                 foreach (var c in secondPick)
@@ -959,6 +986,8 @@ namespace HexPortal.Game
             boardPress = boardLast = e.position;
             boardDragged = false;
             boardRightDrag = e.button == 1;
+            planning = false;
+            if (!boardRightDrag && TryPickPanel(e.position, out var pc) && CanPlanFrom(pc)) { planning = true; planFrom = pc; }
         }
 
         void OnBoardMove(PointerMoveEvent e)
@@ -966,7 +995,7 @@ namespace HexPortal.Game
             if (e.pointerId != boardPointer || boardPointers != 1 || pinchActive) return;
             Vector2 p = e.position;
             if (!boardDragged && (p - boardPress).sqrMagnitude > DragThreshold * DragThreshold) boardDragged = true;
-            if (boardDragged && CameraRig.Instance != null) CameraRig.Instance.Pan(PanelToScreen(boardLast), PanelToScreen(p));
+            if (boardDragged && CameraRig.Instance != null && !planning) CameraRig.Instance.Pan(PanelToScreen(boardLast), PanelToScreen(p));
             boardLast = p;
         }
 
@@ -976,6 +1005,13 @@ namespace HexPortal.Game
             boardPointers = Mathf.Max(0, boardPointers - 1);
             if (e.pointerId != boardPointer) return;
             boardPointer = -1;
+            if (planning && boardDragged && !pinchActive)
+            {
+                planning = false;
+                if (TryPickPanel(e.position, out var end)) DrawPlanArrow(planFrom, end);
+                return;
+            }
+            planning = false;
             if (boardDragged || boardRightDrag || pinchActive) return;
             Vector2 p = e.position;
             float now = Time.unscaledTime;
