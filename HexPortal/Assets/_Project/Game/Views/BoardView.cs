@@ -38,21 +38,27 @@ namespace HexPortal.Game
             {
                 var pos = HexLayout.ToWorld(cells[i]);
                 var tile = Gfx.Hex("Tile " + cells[i], transform, pos, TileRadius, TileHeight, false);
+                tile.GetComponent<MeshFilter>().sharedMesh = LowPoly.Tile; // A-03 bevelled low-poly tile
+                // Subtle deterministic height variation per cell (visual only; units still stand on TileHeight).
+                uint hsh = (uint)(cells[i].Q * 73856093) ^ (uint)(cells[i].R * 19349663);
+                tile.transform.localScale = new Vector3(TileRadius, TileHeight * (0.88f + (hsh % 7) * 0.02f), TileRadius);
                 tiles[i] = tile.GetComponent<Renderer>();
 
                 var cloud = Gfx.Primitive(Gfx.Shape.Sphere, "Cloud", tile.transform.parent, pos + new Vector3(0f, TileHeight + 0.1f, 0f),
-                    new Vector3(1.8f, 0.5f, 1.8f));
+                    new Vector3(1.25f, 0.9f, 1.25f));
+                cloud.GetComponent<MeshFilter>().sharedMesh = LowPoly.Cloud; // UX-09 low-poly fog puffs
+                cloud.transform.localRotation = Quaternion.Euler(0f, (i * 47) % 360, 0f);
                 Gfx.SetColor(cloud.GetComponent<Renderer>(), new Color(0.16f, 0.17f, 0.24f));
                 clouds[i] = cloud;
 
                 var top = pos + new Vector3(0f, TileHeight, 0f);
-                var rune = Gfx.Hex("Rune", transform, top, 0.25f, 0.6f, false);
+                var rune = Prop("Rune", top, LowPoly.Rune, i);
                 Gfx.SetColor(rune.GetComponent<Renderer>(), new Color(0.55f, 0.25f, 0.85f));
-                var well = Gfx.Hex("Wellspring", transform, top, 0.55f, 0.06f, false);
+                var well = Prop("Wellspring", top, LowPoly.Wellspring, i);
                 Gfx.SetColor(well.GetComponent<Renderer>(), new Color(0.1f, 0.85f, 0.95f));
-                var portal = Gfx.Primitive(Gfx.Shape.Cylinder, "Portal", transform, top + new Vector3(0f, 0.04f, 0f), new Vector3(1.3f, 0.04f, 1.3f));
+                var portal = Prop("Portal", top, LowPoly.Portal, 0);
                 Gfx.SetColor(portal.GetComponent<Renderer>(), new Color(0.95f, 0.3f, 0.9f));
-                var rock = Gfx.Hex("Rock", transform, top, 0.75f, 0.9f, false);
+                var rock = Prop("Rock", top, LowPoly.Rock, i);
                 Gfx.SetColor(rock.GetComponent<Renderer>(), new Color(0.35f, 0.33f, 0.32f));
                 markers[i] = new[] { null, rune, well, portal, rock }; // index = (int)Marker
 
@@ -60,6 +66,14 @@ namespace HexPortal.Game
                 highlights[i] = hl.GetComponent<Renderer>();
                 hl.SetActive(false);
             }
+        }
+
+        GameObject Prop(string name, Vector3 at, Mesh mesh, int seed)
+        {
+            var go = Gfx.Hex(name, transform, at, 1f, 1f, false);
+            go.GetComponent<MeshFilter>().sharedMesh = mesh;
+            go.transform.localRotation = Quaternion.Euler(0f, (seed * 61) % 360, 0f);
+            return go;
         }
 
         public void Render(PlayerView view)

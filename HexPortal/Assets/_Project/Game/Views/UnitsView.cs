@@ -330,20 +330,10 @@ namespace HexPortal.Game
         /// <summary>Swaps the body mesh in place (no GameObject churn). kind = UnitClass, or 100 for a tower.</summary>
         static void SetBody(Visual vis, int kind)
         {
-            Gfx.Shape shape; Vector3 scale; float y; var rot = Quaternion.identity;
-            switch (kind)
-            {
-                case (int)UnitClass.Guardian: shape = Gfx.Shape.Cube; scale = new Vector3(0.8f, 0.8f, 0.8f); y = 0.45f; break;
-                case (int)UnitClass.Rider: shape = Gfx.Shape.Capsule; scale = new Vector3(0.55f, 0.6f, 0.9f); y = 0.6f; rot = Quaternion.Euler(90f, 0f, 0f); break;
-                case (int)UnitClass.Archer: shape = Gfx.Shape.Cylinder; scale = new Vector3(0.4f, 0.7f, 0.4f); y = 0.7f; break;
-                case (int)UnitClass.Mage: shape = Gfx.Shape.Capsule; scale = new Vector3(0.5f, 0.75f, 0.5f); y = 0.75f; break;
-                case 100: shape = Gfx.Shape.Cylinder; scale = new Vector3(0.9f, 0.9f, 0.9f); y = 0.9f; break;
-                default: shape = Gfx.Shape.Sphere; scale = new Vector3(0.7f, 0.7f, 0.7f); y = 0.4f; break;
-            }
-            vis.BodyMesh.sharedMesh = Gfx.MeshOf(shape);
-            vis.Body.transform.localPosition = new Vector3(0f, y, 0f);
-            vis.Body.transform.localRotation = rot;
-            vis.Body.transform.localScale = scale;
+            vis.BodyMesh.sharedMesh = LowPoly.Body(kind); // A-01/A-02 shared low-poly mesh per class; biome = colour
+            vis.Body.transform.localPosition = Vector3.zero;
+            vis.Body.transform.localRotation = Quaternion.identity;
+            vis.Body.transform.localScale = kind == 100 ? Vector3.one : new Vector3(1.35f, 1.35f, 1.35f); // readable at the default zoom
             vis.BodyKind = kind;
             vis.IsTower = kind == 100;
         }

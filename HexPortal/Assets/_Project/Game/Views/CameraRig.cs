@@ -59,6 +59,13 @@ namespace HexPortal.Game
             light.intensity = 1.2f;
             light.shadows = LightShadows.Soft;
             light.transform.rotation = Quaternion.Euler(55f, 30f, 0f);
+            light.shadowStrength = 0.6f;
+            light.color = new Color(1f, 0.96f, 0.88f);
+            // A-01 soft look: warm sun + cool trilight ambient so faceted sides stay readable.
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.62f, 0.68f, 0.82f);
+            RenderSettings.ambientEquatorColor = new Color(0.5f, 0.5f, 0.52f);
+            RenderSettings.ambientGroundColor = new Color(0.3f, 0.28f, 0.26f);
             return cam;
         }
 
