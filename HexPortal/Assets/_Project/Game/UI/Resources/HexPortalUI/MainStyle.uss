@@ -153,8 +153,9 @@ Label { color: rgb(245, 245, 250); -unity-font-style: bold; }
 .hand { transition-property: translate, opacity; transition-duration: 0.18s; }
 .hand.selecting { translate: 0 45%; opacity: 0.45; }
 /* UX-08 tutorial: hint bubble under the top strip and a glow on the UI element the step is about. */
-.tutorial-bubble { position: absolute; left: 340px; right: 430px; top: 108px; flex-direction: row; align-items: center;
-    padding: 10px 14px; border-radius: 16px; background-color: rgba(25, 30, 60, 0.92); border-width: 4px;
-    border-color: rgb(255, 220, 90); }
-.tutorial-text { flex-grow: 1; flex-shrink: 1; font-size: 28px; white-space: normal; color: white; }
+.tutorial-bubble { position: absolute; left: 330px; width: 400px; top: 470px; flex-direction: column; align-items: stretch;
+    padding: 10px 14px; border-radius: 16px; background-color: rgba(25, 30, 60, 0.78); border-width: 4px;
+    border-color: rgba(255, 220, 90, 0.9); }
+.tutorial-row { flex-direction: row; justify-content: flex-end; margin-top: 8px; }
+.tutorial-text { font-size: 26px; white-space: normal; color: white; }
 .tutorial-btn { min-width: 140px; min-height: 130px; font-size: 32px; margin-left: 10px; }

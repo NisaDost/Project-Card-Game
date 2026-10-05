@@ -39,6 +39,7 @@ namespace HexPortal.Game.Tests
             Assert.That(t.Text, Is.EqualTo(Strings.TutorialStep1));
             if (capture) yield return Shot(dir, "01_step1.png");
 
+            int fogStart = -1;
             int guard = 0;
             while (t.Step < 3 && guard++ < 400)
             {
@@ -48,12 +49,14 @@ namespace HexPortal.Game.Tests
                 if (cmd == null && t.Step == 1) cmd = legal.FirstOrDefault(c => c is DeployCommand || c is PlayCardCommand);
                 if (cmd == null) cmd = legal.FirstOrDefault(c => c is MoveCommand);
                 if (cmd == null) cmd = legal.First(c => c is EndTurnCommand);
+                if (t.Step == 2 && fogStart < 0) fogStart = m.View.TurnIndex;
                 int before = t.Step;
                 Assert.That(m.Apply(cmd), Is.True);
                 if (cmd is MoveCommand && before == 0) Assert.That(t.Step, Is.EqualTo(1), "a move finishes the Energy step");
                 if ((cmd is DeployCommand || cmd is PlayCardCommand) && before == 1) Assert.That(t.Step, Is.EqualTo(2), "a card finishes the Mana step");
             }
             Assert.That(t.Step, Is.EqualTo(3), "exploring finishes the fog step");
+            Assert.That(m.View.TurnIndex, Is.LessThanOrEqualTo(fogStart + 2), "fog step ends within one full own turn");
             Assert.That(t.Text, Is.EqualTo(Strings.TutorialStep4));
             yield return null;
             if (capture) yield return Shot(dir, "02_step4.png");
@@ -90,6 +93,31 @@ namespace HexPortal.Game.Tests
             Assert.That(app.Ui.Tutorial.Step, Is.EqualTo(1));
             Press(app, "tutorial-exit");
             Assert.That(app.Match.HasMatch, Is.False);
+        }
+
+        /// <summary>The fog step ends after one full own turn even if nothing new was explored.</summary>
+        [UnityTest]
+        public IEnumerator UX08_FogStepEndsAfterOneOwnTurn()
+        {
+            if (GameApp.Instance == null) GameApp.Create();
+            var app = GameApp.Instance;
+            yield return null;
+            var m = app.Match;
+            var t = app.Ui.Tutorial;
+            Press(app, "menu-tutorial");
+            Press(app, "tutorial-skip");
+            Press(app, "tutorial-skip");
+            Assert.That(t.Step, Is.EqualTo(2));
+            int start = m.View.TurnIndex, guard = 0;
+            while (t.Step == 2 && guard++ < 50)
+            {
+                if (m.AiToAct) { m.StepAi(); continue; }
+                var legal = m.Legal;
+                Assert.That(m.Apply(legal.FirstOrDefault(c => c is DrawCommand) ?? legal.First(c => c is EndTurnCommand)), Is.True);
+            }
+            Assert.That(t.Step, Is.EqualTo(3));
+            Assert.That(m.View.TurnIndex, Is.LessThanOrEqualTo(start + 2), "at most one full own turn");
+            Press(app, "tutorial-exit");
         }
 
         [UnityTest, Explicit("Writes screenshots; run on demand")]

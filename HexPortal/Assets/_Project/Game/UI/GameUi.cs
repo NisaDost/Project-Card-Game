@@ -1229,10 +1229,15 @@ namespace HexPortal.Game
         /// <summary>Text of the open info panel ("" when closed), for tests/CLI.</summary>
         public string InfoText => infoPanel.style.display == DisplayStyle.Flex ? infoTitle.text + "\n" + infoText.text : "";
 
-        void HideInfo() => infoPanel.style.display = DisplayStyle.None;
+        void HideInfo()
+        {
+            infoPanel.style.display = DisplayStyle.None;
+            tutorial?.Yield(false);
+        }
 
         void OpenInfo(string icon, Color iconColor, string title, string body)
         {
+            tutorial?.Yield(true);
             infoIcon.text = icon;
             infoIcon.style.color = iconColor;
             infoTitle.text = title;

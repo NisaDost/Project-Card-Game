@@ -22,7 +22,15 @@ namespace HexPortal.Game
         readonly Button skip;
         readonly Action exitToMenu;
         readonly List<VisualElement> glowing = new List<VisualElement>();
-        int exploredAtStep, matchNumber;
+        int exploredAtStep, matchNumber, turnAtStep;
+        bool yielded;
+
+        /// <summary>The info panel uses the same screen area: the bubble hides while it is open.</summary>
+        public void Yield(bool y)
+        {
+            yielded = y;
+            if (Active) bubble.style.display = y ? DisplayStyle.None : DisplayStyle.Flex;
+        }
 
         /// <summary>-1 = not running, 0..3 = step, 4 = finished (bubble shows the end text).</summary>
         public int Step { get; private set; } = -1;
@@ -42,7 +50,10 @@ namespace HexPortal.Game
             skip.AddToClassList("btn"); skip.AddToClassList("tutorial-btn");
             var exit = new Button(Exit) { name = "tutorial-exit", text = Strings.TutorialExit };
             exit.AddToClassList("btn"); exit.AddToClassList("tutorial-btn");
-            bubble.Add(text); bubble.Add(skip); bubble.Add(exit);
+            var row = new VisualElement { pickingMode = PickingMode.Ignore };
+            row.AddToClassList("tutorial-row");
+            row.Add(skip); row.Add(exit);
+            bubble.Add(text); bubble.Add(row);
             bubble.style.display = DisplayStyle.None;
             root.Q("hud").Add(bubble); // lives in the HUD: hidden with it on other screens
             match.EventsApplied += OnEvents;
@@ -107,13 +118,13 @@ namespace HexPortal.Game
 
         void Show()
         {
-            bubble.style.display = DisplayStyle.Flex;
+            bubble.style.display = yielded ? DisplayStyle.None : DisplayStyle.Flex;
             skip.style.display = Step < Steps ? DisplayStyle.Flex : DisplayStyle.None;
             switch (Step)
             {
                 case 0: text.text = Strings.TutorialStep1; Glow(root.Q(className: "energy-meter")); break;
                 case 1: text.text = Strings.TutorialStep2; Glow(root.Q(className: "mana-meter"), root.Q("hand")); break;
-                case 2: text.text = Strings.TutorialStep3; exploredAtStep = Explored(); Glow(root.Q("end-btn")); break;
+                case 2: text.text = Strings.TutorialStep3; exploredAtStep = Explored(); turnAtStep = match.View.TurnIndex; Glow(root.Q("end-btn")); break;
                 case 3: text.text = Strings.TutorialStep4; Glow(root.Q("quest-btn")); break;
                 default: text.text = Strings.TutorialDone; Glow(); break;
             }
@@ -179,7 +190,8 @@ namespace HexPortal.Game
         {
             if (!Active) return;
             if (!match.HasMatch || match.IsOver || match.MatchNumber != matchNumber) { Stop(); return; }
-            if (Step == 2 && Explored() > exploredAtStep) Advance();
+            // Fog step: a newly explored cell, or one full own turn passed (own turn index moved on by 2).
+            if (Step == 2 && (Explored() > exploredAtStep || match.View.TurnIndex >= turnAtStep + 2)) Advance();
         }
 
         static bool IsOwn(PlayerView v, int unitId)
