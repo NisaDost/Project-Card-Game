@@ -17,13 +17,7 @@ namespace HexPortal.Game
         static Mesh hexPrism, cube, sphere, capsule, cylinder;
         static MaterialPropertyBlock block;
 
-        public static readonly Color Forest = new Color(0.30f, 0.70f, 0.30f);
-        public static readonly Color Desert = new Color(0.95f, 0.60f, 0.20f);
-        public static readonly Color Snow = new Color(0.70f, 0.88f, 1.00f);
-        public static readonly Color NoBiome = new Color(0.75f, 0.45f, 0.90f);
         public static readonly Color Unknown = new Color(0.10f, 0.11f, 0.16f);
-        public static readonly Color OwnerA = new Color(0.20f, 0.45f, 1.00f);
-        public static readonly Color OwnerB = new Color(0.95f, 0.20f, 0.25f);
         public static readonly Color MoveHl = new Color(0.05f, 0.25f, 1.00f, 0.85f);
         public static readonly Color AttackHl = new Color(1.00f, 0.05f, 0.05f, 0.85f);
         public static readonly Color MoveAttackHl = new Color(0.85f, 0.30f, 0.00f, 1.00f);  // T-05 v3.2 move-attack target: burnt orange, darker than Desert tiles
@@ -38,10 +32,9 @@ namespace HexPortal.Game
         public static readonly Color TrapHl = new Color(0.80f, 0.30f, 1.00f, 0.9f);
         public static readonly Color DeathHl = new Color(1.00f, 0.10f, 0.10f, 0.9f);
 
-        public static Color BiomeColor(Biome b) =>
-            b == Biome.Forest ? Forest : b == Biome.Desert ? Desert : b == Biome.Snow ? Snow : NoBiome;
-
-        public static Color OwnerColor(PlayerId p) => p == PlayerId.A ? OwnerA : OwnerB;
+        // Biome and owner palettes live in the theme (ArtCatalog); these forward for the views.
+        public static Color BiomeColor(Biome b) => ArtCatalog.BiomeColor(b);
+        public static Color OwnerColor(PlayerId p) => ArtCatalog.OwnerColor(p);
 
         /// <summary>UX-09: Explored = desaturated and darker.</summary>
         public static Color Faded(Color c)

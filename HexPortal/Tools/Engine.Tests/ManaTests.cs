@@ -90,6 +90,25 @@ namespace HexPortal.Tests
             Assert.That(s.GetEnergy(A), Is.EqualTo(Catalog.EnergyPerTurn + 2));
         }
 
+        /// <summary>UX-13: PlayerView carries the own held-marker bonuses (same functions as the turn-start refill),
+        /// and never the opponent's.</summary>
+        [Test]
+        public void UX13_PlayerViewShowsOwnTurnStartBonuses()
+        {
+            var b = new TestBoard().Rune(H(-1, 2)).Wellspring(H(1, -2)).Wellspring(H(2, 0));
+            b.Unit(UnitClass.Guardian, A, H(-1, 2));
+            b.Unit(UnitClass.Guardian, A, H(1, -2));
+            b.Unit(UnitClass.Guardian, B, H(2, 0));
+            var s = b.Build();
+            var va = PlayerView.For(s, A);
+            Assert.That(va.TurnStartEnergyBonus, Is.EqualTo(Catalog.RuneEnergyBonus));
+            Assert.That(va.TurnStartManaBonus, Is.EqualTo(Catalog.WellspringManaBonus), "the enemy's wellspring is not counted");
+            Assert.That(va.TurnStartEnergyBonus, Is.EqualTo(Mana.TurnStartEnergy(s, A) - Catalog.EnergyPerTurn));
+            var vb = PlayerView.For(s, B);
+            Assert.That(vb.TurnStartManaBonus, Is.EqualTo(Catalog.WellspringManaBonus));
+            Assert.That(vb.TurnStartEnergyBonus, Is.EqualTo(0));
+        }
+
         [Test]
         public void B11_EmptyRuneStoneGivesNothing()
         {

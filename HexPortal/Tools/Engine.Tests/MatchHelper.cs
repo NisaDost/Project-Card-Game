@@ -167,7 +167,8 @@ namespace HexPortal.Tests
               .Append(' ').Append(v.OwnTowerRevealedUntilTurn).Append('\n');
             sb.Append("enemyTower=").Append(v.EnemyTowerPos).Append(' ').Append(v.EnemyTowerHealth).Append(' ').Append(v.EnemyTowerShotAvailable).Append('\n');
             sb.Append("hand=").Append(string.Join(",", v.Hand.Select(c => c.Id + ":" + c.DefId))).Append('\n');
-            sb.Append("mana=").Append(v.Mana).Append(" energy=").Append(v.Energy).Append(" pending=").Append(v.DrawPending)
+            sb.Append("mana=").Append(v.Mana).Append(" energy=").Append(v.Energy)
+              .Append(" manaBonus=").Append(v.TurnStartManaBonus).Append(" energyBonus=").Append(v.TurnStartEnergyBonus).Append(" pending=").Append(v.DrawPending)
               .Append(" prepick=").Append(v.PrePickSlot).Append('/').Append(v.PrePickCardId).Append('\n');
             sb.Append("setup=").Append(v.SetupStep).Append(" oppFinished=").Append(v.OpponentSetupFinished).Append('\n');
             sb.Append("quests=").Append(string.Join(",", v.QuestOffer)).Append(" chosen=").Append(string.Join(",", v.QuestChoices)).Append('\n');

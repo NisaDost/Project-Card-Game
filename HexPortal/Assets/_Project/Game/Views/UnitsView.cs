@@ -241,13 +241,13 @@ namespace HexPortal.Game
             {
                 vis.ShownBuff = buff; vis.ShownBuffTurns = buffTurns;
                 vis.Buff.style.display = buff == null ? DisplayStyle.None : DisplayStyle.Flex;
-                if (buff != null) vis.Buff.text = Strings.EffectIcon(buff) + (buffTurns > 0 ? buffTurns.ToString() : "");
+                if (buff != null) vis.Buff.text = ArtCatalog.EffectIcon(buff) + (buffTurns > 0 ? buffTurns.ToString() : "");
             }
             if (debuff != vis.ShownDebuff || debuffTurns != vis.ShownDebuffTurns)
             {
                 vis.ShownDebuff = debuff; vis.ShownDebuffTurns = debuffTurns;
                 vis.Debuff.style.display = debuff == null ? DisplayStyle.None : DisplayStyle.Flex;
-                if (debuff != null) vis.Debuff.text = Strings.EffectIcon(debuff) + (debuffTurns > 0 ? debuffTurns.ToString() : "");
+                if (debuff != null) vis.Debuff.text = ArtCatalog.EffectIcon(debuff) + (debuffTurns > 0 ? debuffTurns.ToString() : "");
             }
             vis.Watching.style.display = watch ? DisplayStyle.Flex : DisplayStyle.None;
             vis.Tag.style.borderBottomColor = owner;
@@ -340,10 +340,12 @@ namespace HexPortal.Game
         /// <summary>Swaps the body mesh in place (no GameObject churn). kind = UnitClass, or 100 for a tower.</summary>
         static void SetBody(Visual vis, int kind)
         {
-            vis.BodyMesh.sharedMesh = LowPoly.Body(kind); // A-01/A-02 shared low-poly mesh per class; biome = colour
+            // A-01/A-02: the model and its scale come from the theme (ArtCatalog), keyed by the class; biome = colour.
+            var art = kind == 100 ? ArtCatalog.Tower : ArtCatalog.Unit((UnitClass)kind);
+            vis.BodyMesh.sharedMesh = kind == 100 ? ArtCatalog.TowerMesh : ArtCatalog.UnitMesh((UnitClass)kind);
             vis.Body.transform.localPosition = Vector3.zero;
             vis.Body.transform.localRotation = Quaternion.identity;
-            vis.Body.transform.localScale = kind == 100 ? Vector3.one : new Vector3(1.35f, 1.35f, 1.35f); // readable at the default zoom
+            vis.Body.transform.localScale = Vector3.one * art.ModelScale;
             vis.BodyKind = kind;
             vis.IsTower = kind == 100;
         }

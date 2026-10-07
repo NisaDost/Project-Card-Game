@@ -131,6 +131,10 @@ namespace HexPortal.Core
         public IReadOnlyList<CardInstance> Hand { get; private set; }
         public int Mana { get; private set; }
         public int Energy { get; private set; }
+        /// <summary>UX-13: own Mana / Energy bonus from held Wellsprings (T-03) and Rune Stones (B-11) for the current
+        /// positions; the client shows it at turn start. Own player only.</summary>
+        public int TurnStartManaBonus { get; private set; }
+        public int TurnStartEnergyBonus { get; private set; }
         /// <summary>S-05 (v3.0): the own setup budget left (the opponent's is hidden).</summary>
         public int SetupMana { get; private set; }
         public bool DrawPending { get; private set; }
@@ -279,7 +283,8 @@ namespace HexPortal.Core
                 OwnTowerPos = ownTower.IsPlaced ? ownTower.Pos : (Hex?)null, OwnTowerHealth = ownTower.Health,
                 OwnTowerShotAvailable = s.IsTowerShotAvailable(p), OwnTowerRevealedUntilTurn = ownTower.RevealedUntilTurn,
                 EnemyTowerPos = enemyTowerPos, EnemyTowerHealth = enemyTower.Health, EnemyTowerShotAvailable = s.IsTowerShotAvailable(o),
-                Hand = new List<CardInstance>(s.GetHand(p)), Mana = s.GetMana(p), Energy = s.GetEnergy(p), SetupMana = s.GetSetupMana(p),
+                Hand = new List<CardInstance>(s.GetHand(p)), Mana = s.GetMana(p), Energy = s.GetEnergy(p),
+                TurnStartManaBonus = HexPortal.Core.Mana.WellspringBonus(s, p), TurnStartEnergyBonus = HexPortal.Core.Mana.RuneBonus(s, p), SetupMana = s.GetSetupMana(p),
                 DrawPending = s.IsDrawPending(p), PrePickSlot = s.GetPrePickSlot(p), PrePickCardId = s.GetPrePickCardId(p),
                 SetupStep = Setup.StepOf(s, p), OpponentSetupFinished = s.IsSetupFinished(o),
                 QuestOffer = questOffer, QuestChoices = questChoices, PassiveOffer = passiveOffer,

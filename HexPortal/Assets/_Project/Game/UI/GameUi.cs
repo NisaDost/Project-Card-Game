@@ -196,18 +196,10 @@ namespace HexPortal.Game
         public bool Paused => match.Paused;
         public static bool VibrationOn => PlayerPrefs.GetInt(VibrationPref, 1) == 1;
 
-        /// <summary>UX-13: "+n Enerji" / "+n Mana" from held rune stones / wellsprings, shown with the turn notice.
-        /// Energy: the refilled Energy above the base refill (read from the view, no rule copy). Mana: own units on
-        /// visible wellspring cells times the Catalog bonus (the view has no per-source Mana breakdown).</summary>
+        /// <summary>UX-13: "+n Enerji" / "+n Mana" from held rune stones / wellsprings (PlayerView bonuses), with the turn notice.</summary>
         void TurnStartNotice(PlayerView v)
         {
-            int energy = v.Energy - Catalog.EnergyPerTurn, wells = 0;
-            foreach (var u in v.OwnUnits)
-            {
-                int i = Board.IndexOf(u.Pos);
-                if (i >= 0 && v.Cells[i].TerrainKnown && v.Cells[i].Tile.Marker == Marker.Wellspring) wells++;
-            }
-            int mana = wells * Catalog.WellspringManaBonus;
+            int energy = v.TurnStartEnergyBonus, mana = v.TurnStartManaBonus; // from Core (PlayerView), no rule copy
             if (energy <= 0 && mana <= 0) return;
             string text = Strings.YourTurn;
             if (energy > 0) text += " · " + Strings.EnergyBonus(energy);
@@ -457,7 +449,7 @@ namespace HexPortal.Game
             foreach (var id in v.QuestOffer)
             {
                 var qid = id;
-                var b = new Button { text = Strings.Name(qid) + "\n" + Strings.Text(qid), userData = qid };
+                var b = new Button { text = ArtCatalog.Name(qid) + "\n" + ArtCatalog.Text(qid), userData = qid };
                 b.AddToClassList("btn"); b.AddToClassList("option");
                 b.clicked += () =>
                 {
@@ -503,7 +495,7 @@ namespace HexPortal.Game
             foreach (var id in v.PassiveOffer)
             {
                 var pid = id;
-                var b = new Button { text = Strings.Name(pid) + "\n" + Strings.Text(pid) };
+                var b = new Button { text = ArtCatalog.Name(pid) + "\n" + ArtCatalog.Text(pid) };
                 b.AddToClassList("btn"); b.AddToClassList("option");
                 b.clicked += () => match.Apply(new ChoosePassiveCommand(match.Viewer, pid));
                 passiveOptions.Add(b);
@@ -516,16 +508,16 @@ namespace HexPortal.Game
         {
             bool setup = v.Phase == GamePhase.Setup;
             bool myTurn = !setup && v.ActivePlayer == v.Viewer;
-            ownTower.text = Strings.TowerIcon + " " + v.OwnTowerHealth;
+            ownTower.text = ArtCatalog.Tower.Icon + " " + v.OwnTowerHealth;
             roundLabel.text = setup ? Strings.Setup : Strings.RoundShort + v.Round;
-            oppTower.text = Strings.TowerIcon + " " + v.EnemyTowerHealth;
+            oppTower.text = ArtCatalog.Tower.Icon + " " + v.EnemyTowerHealth;
             oppHand.text = Strings.HandIcon + " " + v.OpponentHandCount;
             oppQuests.text = Strings.QuestDone + v.OpponentCompletedQuests.Count + " " + Strings.QuestFail + v.OpponentFailedQuests.Count; // Q-03, Q-04, V-09
             turnBanner.text = setup ? Strings.Setup + " · " + Strings.ManaIcon + " " + v.SetupMana + "/" + Catalog.SetupMana : myTurn ? Strings.YourTurn : Strings.OpponentTurn;
             turnBanner.EnableInClassList("mine", myTurn);
             turnBanner.EnableInClassList("theirs", !setup && !myTurn);
             eventBanner.style.display = v.AnnouncedEvent != null ? DisplayStyle.Flex : DisplayStyle.None;
-            if (v.AnnouncedEvent != null) eventBanner.text = Strings.EventIcon + " " + Strings.Name(v.AnnouncedEvent) + " · " + Strings.RoundShort + v.AnnouncedEventRound;
+            if (v.AnnouncedEvent != null) eventBanner.text = Strings.EventIcon + " " + ArtCatalog.Name(v.AnnouncedEvent) + " · " + Strings.RoundShort + v.AnnouncedEventRound;
 
             // S-05 (v3.0): during setup the Mana meter shows the setup budget left.
             manaText.text = setup ? v.SetupMana + "/" + Catalog.SetupMana : v.Mana.ToString();
@@ -558,22 +550,22 @@ namespace HexPortal.Game
             q.Append(Strings.Quests).Append(":\n");
             foreach (var qp in v.QuestProgress)
             {
-                q.Append("• ").Append(Strings.Name(qp.Id)).Append(" — ").Append(Strings.Text(qp.Id)).Append(" [");
+                q.Append("• ").Append(ArtCatalog.Name(qp.Id)).Append(" — ").Append(ArtCatalog.Text(qp.Id)).Append(" [");
                 // PM: the counter only for Active quests; Completed/Failed show the status alone.
                 if (qp.Status == QuestStatus.Active) q.Append(qp.Current).Append('/').Append(qp.Target);
                 else q.Append(Strings.Status(qp.Status));
                 q.Append("]\n");
             }
-            q.Append('\n').Append(Strings.Passive).Append(v.PassiveChoice == null ? "-" : Strings.Name(v.PassiveChoice) + " — " + Strings.Text(v.PassiveChoice));
+            q.Append('\n').Append(Strings.Passive).Append(v.PassiveChoice == null ? "-" : ArtCatalog.Name(v.PassiveChoice) + " — " + ArtCatalog.Text(v.PassiveChoice));
             q.Append("\n\n").Append(Strings.Player(v.Viewer.Opponent())).Append(": ").Append(Strings.Tower).Append(' ').Append(v.EnemyTowerHealth)
                 .Append(" · ").Append(Strings.Hand).Append(' ').Append(v.OpponentHandCount);
-            if (v.OpponentPassive != null) q.Append('\n').Append(Strings.OppPassive).Append(Strings.Name(v.OpponentPassive));
+            if (v.OpponentPassive != null) q.Append('\n').Append(Strings.OppPassive).Append(ArtCatalog.Name(v.OpponentPassive));
             q.Append('\n').Append(Strings.OppQuests).Append(v.OpponentCompletedQuests.Count);
-            foreach (var id in v.OpponentCompletedQuests) q.Append(' ').Append(Strings.Name(id));
+            foreach (var id in v.OpponentCompletedQuests) q.Append(' ').Append(ArtCatalog.Name(id));
             q.Append('\n').Append(Strings.OppFailed).Append(v.OpponentFailedQuests.Count); // Q-04, V-09
-            foreach (var id in v.OpponentFailedQuests) q.Append(' ').Append(Strings.Name(id));
+            foreach (var id in v.OpponentFailedQuests) q.Append(' ').Append(ArtCatalog.Name(id));
             if (v.AnnouncedEvent != null)
-                q.Append("\n\n").Append(Strings.Event).Append(Strings.Name(v.AnnouncedEvent)).Append(" (").Append(Strings.Round).Append(v.AnnouncedEventRound).Append(')');
+                q.Append("\n\n").Append(Strings.Event).Append(ArtCatalog.Name(v.AnnouncedEvent)).Append(" (").Append(Strings.Round).Append(v.AnnouncedEventRound).Append(')');
             questText.text = q.ToString();
 
             BuildHand(v);
@@ -645,10 +637,10 @@ namespace HexPortal.Game
         }
 
         static string CardName(CardInstance c) =>
-            c.IsCharacter ? Strings.ClassName(c.Character.Class) : Strings.Name(c.Support.Id);
+            c.IsCharacter ? ArtCatalog.UnitName(c.Character.Class) : ArtCatalog.Name(c.Support.Id);
 
         static string CardIcon(CardInstance c) =>
-            c.IsCharacter ? Strings.ClassIcon(c.Character.Class) : Strings.CardIcon(c.Support.Category);
+            c.IsCharacter ? ArtCatalog.UnitIcon(c.Character.Class) : ArtCatalog.CardIcon(c.Support.Category);
 
         /// <summary>S-05/S-06 (v3.0): why "Finish setup" is off (text only; the legal list decides).</summary>
         static string SetupFinishReason(PlayerView v)
@@ -1415,11 +1407,11 @@ namespace HexPortal.Game
             var d = Unit.DefOf(u.Class);
             bool own = u.Owner == v.Viewer;
             var s = new System.Text.StringBuilder();
-            s.Append(own ? Strings.InfoMyUnit : Strings.InfoEnemyUnit).Append(" · ").Append(Strings.BiomeName(u.Biome));
+            s.Append(own ? Strings.InfoMyUnit : Strings.InfoEnemyUnit).Append(" · ").Append(ArtCatalog.BiomeName(u.Biome));
             if (u.IsGhost) s.Append('\n').Append(Strings.InfoGhost);
             s.Append('\n').Append(Strings.InfoHealth).Append(' ').Append(u.Health).Append('/').Append(d.Health)
                 .Append("   ").Append(Strings.InfoAttack).Append(' ').Append(u.EffectiveAttack);
-            if (u.ChargeBonus > 0) s.Append(Strings.InfoCharge);
+            if (u.ChargeBonus > 0) s.Append(ArtCatalog.ChargeNote);
             s.Append('\n').Append(Strings.InfoMove).Append(' ').Append(d.Move);
             if (own && u.MoveBonus > 0) s.Append(" (+").Append(u.MoveBonus).Append(')');
             s.Append("   ").Append(Strings.InfoSight).Append(' ').Append(d.Sight);
@@ -1433,14 +1425,14 @@ namespace HexPortal.Game
             if (own && u.ActedThisTurn) s.Append('\n').Append(Strings.InfoActed);
             if (own) s.Append('\n').Append(Strings.InfoActions);
             s.Append('\n').Append(Strings.InfoCost).Append(' ').Append(Strings.ManaIcon).Append(' ').Append(d.Cost);
-            s.Append('\n').Append(Strings.Ability(u.Class));
-            OpenInfo(Strings.ClassIcon(u.Class), Gfx.BiomeColor(u.Biome), Strings.ClassName(u.Class), s.ToString());
+            s.Append('\n').Append(ArtCatalog.Ability(u.Class));
+            OpenInfo(ArtCatalog.UnitIcon(u.Class), Gfx.BiomeColor(u.Biome), ArtCatalog.UnitName(u.Class), s.ToString());
         }
 
         static void AppendEffect(System.Text.StringBuilder s, string kind, string id, int turns)
         {
             if (id == null) return;
-            s.Append('\n').Append(kind).Append(": ").Append(Strings.Name(id)).Append(" (");
+            s.Append('\n').Append(kind).Append(": ").Append(ArtCatalog.Name(id)).Append(" (");
             if (turns > 0) s.Append(turns).Append(Strings.InfoTurnsLeft); else s.Append(Strings.InfoLasting);
             s.Append(')');
         }
@@ -1452,16 +1444,16 @@ namespace HexPortal.Game
             if (c.IsCharacter)
             {
                 var d = Unit.DefOf(c.Character.Class);
-                s.Append(" · ").Append(Strings.BiomeName(c.Character.Biome));
+                s.Append(" · ").Append(ArtCatalog.BiomeName(c.Character.Biome));
                 s.Append('\n').Append(Strings.InfoHealth).Append(' ').Append(d.Health).Append("   ").Append(Strings.InfoAttack).Append(' ').Append(d.Attack)
                     .Append("\n").Append(Strings.InfoMove).Append(' ').Append(d.Move).Append("   ").Append(Strings.InfoSight).Append(' ').Append(d.Sight)
                     .Append('\n').Append(Strings.InfoRange).Append(": ").Append(Strings.RangeText(d.Range, d.MinRange, d.MaxRange))
-                    .Append('\n').Append(Strings.Ability(c.Character.Class));
+                    .Append('\n').Append(ArtCatalog.Ability(c.Character.Class));
                 OpenInfo(CardIcon(c), Gfx.BiomeColor(c.Character.Biome), CardName(c), s.ToString());
             }
             else
             {
-                s.Append('\n').Append(Strings.Text(c.Support.Id));
+                s.Append('\n').Append(ArtCatalog.Text(c.Support.Id));
                 OpenInfo(CardIcon(c), FrameColor(c), CardName(c), s.ToString());
             }
         }
@@ -1483,8 +1475,8 @@ namespace HexPortal.Game
                 .Append("   ").Append(Strings.InfoAttack).Append(' ').Append(t.Attack)
                 .Append('\n').Append(Strings.InfoRange).Append(": ").Append(Strings.RangeText(RangeKind.Distance, t.MinRange, t.MaxRange))
                 .Append("   ").Append(Strings.InfoSight).Append(' ').Append(t.Sight)
-                .Append('\n').Append(Strings.InfoTowerText);
-            OpenInfo(Strings.TowerIcon, Gfx.OwnerColor(c.TowerOwner), own ? Strings.InfoOwnTower : Strings.InfoEnemyTower, s.ToString());
+                .Append('\n').Append(ArtCatalog.Tower.Ability);
+            OpenInfo(ArtCatalog.Tower.Icon, Gfx.OwnerColor(c.TowerOwner), own ? Strings.InfoOwnTower : Strings.InfoEnemyTower, s.ToString());
         }
 
         // ---------- Event feedback: notices and the compact log (filtered events only, UX-10) ----------
@@ -1527,7 +1519,7 @@ namespace HexPortal.Game
 
         string UnitName(int unitId, PlayerView v)
         {
-            if (units.TryGetSeen(unitId, out var s)) return Strings.UnitRef(s.Class, s.Owner == v.Viewer);
+            if (units.TryGetSeen(unitId, out var s)) return ArtCatalog.UnitRef(s.Class, s.Owner == v.Viewer);
             return Strings.SomeUnit;
         }
 
@@ -1548,14 +1540,14 @@ namespace HexPortal.Game
                 case UnitDied u:
                 {
                     bool own = u.Owner == v.Viewer;
-                    string text = (units.TryGetSeen(u.UnitId, out var s) ? Strings.UnitRef(s.Class, own) : Strings.SomeUnit) + Strings.Died;
+                    string text = (units.TryGetSeen(u.UnitId, out var s) ? ArtCatalog.UnitRef(s.Class, own) : Strings.SomeUnit) + Strings.Died;
                     noticeText = text;
                     bad = own;
                     return text;
                 }
                 case UnitHealed h: return UnitName(h.UnitId, v) + " +" + h.Amount;
-                case ShieldBlocked sb2: return UnitName(sb2.UnitId, v) + Strings.ShieldUsed;
-                case TowerDamageBlocked tb: return (tb.Owner == v.Viewer ? Strings.OwnTowerRef : Strings.EnemyTowerRef) + Strings.WallUsed;
+                case ShieldBlocked sb2: return UnitName(sb2.UnitId, v) + ": " + ArtCatalog.Name("C-12") + Strings.BlockedDamage; // C-12 Shield
+                case TowerDamageBlocked tb: return (tb.Owner == v.Viewer ? Strings.OwnTowerRef : Strings.EnemyTowerRef) + ": " + ArtCatalog.Name("P-04") + Strings.BlockedDamage; // P-04 Thick Wall
                 case TrapTriggered tr: noticeText = Strings.TrapOn; bad = tr.Owner != v.Viewer; return Strings.TrapOn;
                 case TowerShot ts: noticeText = Strings.TowerFired; bad = ts.Owner != v.Viewer; return Strings.TowerFired;
                 case OverwatchFired of:
@@ -1565,20 +1557,20 @@ namespace HexPortal.Game
                     bad = !mine;
                     return Strings.OverwatchFiredText;
                 }
-                case CardPlayed cp: return (cp.Player == v.Viewer ? Strings.YouPlayed : Strings.OppPlayed) + Strings.Name(cp.DefId);
+                case CardPlayed cp: return (cp.Player == v.Viewer ? Strings.YouPlayed : Strings.OppPlayed) + ArtCatalog.Name(cp.DefId);
                 case UnitDeployed ud: return v.Phase == GamePhase.Playing ? UnitName(ud.UnitId, v) + Strings.Deployed : null;
-                case UnitRevived ur: return Strings.UnitRef(ur.Class, ur.Owner == v.Viewer) + Strings.Revived;
+                case UnitRevived ur: return ArtCatalog.UnitRef(ur.Class, ur.Owner == v.Viewer) + Strings.Revived;
                 case QuestCompleted qc:
                 {
                     bool mine = qc.Player == v.Viewer;
-                    noticeText = (mine ? Strings.QuestDoneText : Strings.OppQuestDoneText) + Strings.Name(qc.QuestId);
+                    noticeText = (mine ? Strings.QuestDoneText : Strings.OppQuestDoneText) + ArtCatalog.Name(qc.QuestId);
                     bad = !mine;
                     return noticeText;
                 }
                 case QuestFailed qf:
-                    return (qf.Player == v.Viewer ? Strings.QuestFailText : Strings.OppQuestFailText) + Strings.Name(qf.QuestId);
-                case PassiveRevealed pr: return Strings.PassiveOpened + Strings.Name(pr.PassiveId);
-                case MapEventResolved me: noticeText = Strings.EventHappened + Strings.Name(me.DefId); return noticeText;
+                    return (qf.Player == v.Viewer ? Strings.QuestFailText : Strings.OppQuestFailText) + ArtCatalog.Name(qf.QuestId);
+                case PassiveRevealed pr: return Strings.PassiveOpened + ArtCatalog.Name(pr.PassiveId);
+                case MapEventResolved me: noticeText = Strings.EventHappened + ArtCatalog.Name(me.DefId); return noticeText;
                 case TurnStarted t:
                 {
                     bool mine = t.Player == v.Viewer;

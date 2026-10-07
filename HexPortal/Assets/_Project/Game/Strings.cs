@@ -83,7 +83,6 @@ namespace HexPortal.Game
         // ---------- M6c: compact HUD, icons, reasons, notices, event log ----------
         public const string AttackIcon = "⚔";
         public const string OverwatchIcon = "◉";
-        public const string TowerIcon = "♜";
         public const string HandIcon = "▯";
         public const string QuestDone = "✓";
         public const string QuestFail = "✗";
@@ -141,8 +140,6 @@ namespace HexPortal.Game
         public const string InfoOwnTower = "Kulen";
         public const string InfoEnemyTower = "Rakip kule";
         public static readonly string InfoActions = "Hareket, saldırı, nöbet: 1 Enerji\nİlerle-saldır: " + Catalog.MoveAttackEnergy + " Enerji (tek hamle)";
-        public static readonly string InfoCharge = " (+" + Catalog.RiderChargeBonus + " Hücum ile ilerle-saldırda)";
-        public const string InfoTowerText = "Hareket etmez. Rakibin turunda menzilinde duran, sahaya çıkan ya da saldıran tek birime 1 kez ateş eder";
 
         /// <summary>UX-13 compact range chip under the Health bar (icon + numbers from the class data).</summary>
         public static string RangeChip(RangeKind kind, int min, int max)
@@ -162,84 +159,16 @@ namespace HexPortal.Game
             }
         }
 
-        /// <summary>UX-11 ability line (GDD §3.1 wording).</summary>
-        public static string Ability(UnitClass c)
-        {
-            switch (c)
-            {
-                case UnitClass.Guardian: return "Siper: Komşu dost birimler ve kule saldırıyla hedef alınamaz";
-                case UnitClass.Rider: return "Atik: Birimlerin üstünden geçer. Hücum: İlerle-saldırda +" + Catalog.RiderChargeBonus + " Saldırı";
-                case UnitClass.Archer: return "Uzak atış: Hat üzerindeki hiçbir şey atışı engellemez";
-                case UnitClass.Mage: return "Patlama: Hedefe komşu düşmanlar " + Catalog.MageSplashDamage + " hasar alır";
-                default: return "Şifa: Tur başında komşu dostlar +" + Catalog.HealerHealAmount + " Can";
-            }
-        }
-
         /// <summary>C-05/C-06 hint before a buff/debuff replaces the unit's current one.</summary>
-        public static string Replaces(string oldId) => Name(oldId) + " kartının yerini alacak";
+        public static string Replaces(string oldId) => ArtCatalog.Name(oldId) + " kartının yerini alacak";
 
-        /// <summary>Short symbol for a buff/debuff on a unit tag (no text on the board).</summary>
-        public static string EffectIcon(string id)
-        {
-            switch (id)
-            {
-                case "C-10": return "⚔+";
-                case "C-11": return "⚔+";
-                case "C-12": return "◈";
-                case "C-16": return "⚔−";
-                case "C-17": return "☠";
-                case "C-19": return "⚓";
-                default: return "★";
-            }
-        }
-
-        /// <summary>Small card icon (UX-07: icon, name, cost).</summary>
-        public static string CardIcon(CardCategory c)
-        {
-            switch (c)
-            {
-                case CardCategory.Power: return "⚔";
-                case CardCategory.Protection: return "◈";
-                case CardCategory.Movement: return "➜";
-                case CardCategory.Curse: return "☠";
-                case CardCategory.Control: return "⚓";
-                default: return "✱";
-            }
-        }
-
-        public static string ClassIcon(UnitClass c)
-        {
-            switch (c)
-            {
-                case UnitClass.Guardian: return "■";
-                case UnitClass.Rider: return "➜";
-                case UnitClass.Archer: return "➶";
-                case UnitClass.Mage: return "✦";
-                default: return "✚";
-            }
-        }
-
-        /// <summary>"Okçun" (own) / "Rakip Okçu" (enemy) for notices and the event log.</summary>
-        public static string UnitRef(UnitClass c, bool own)
-        {
-            if (!own) return "Rakip " + ClassName(c);
-            switch (c)
-            {
-                case UnitClass.Guardian: return "Muhafızın";
-                case UnitClass.Rider: return "Süvarin";
-                case UnitClass.Archer: return "Okçun";
-                case UnitClass.Mage: return "Büyücün";
-                default: return "Şifacın";
-            }
-        }
-
+        public const string EnemyPrefix = "Rakip ";
         public const string SomeUnit = "Bir birim";
         public const string OwnTowerRef = "Kulen";
         public const string EnemyTowerRef = "Rakip kule";
         public const string Died = " öldü";
         public const string Deployed = " sahaya çıktı";
-        public const string ShieldUsed = ": Kalkan hasarı engelledi";
-        public const string WallUsed = ": Kalın Duvar hasarı engelledi";
+        public const string BlockedDamage = " hasarı engelledi";
         public const string TrapOn = "Tuzak tetiklendi";
         public const string TowerFired = "Kule ateş etti";
         public const string OverwatchFiredText = "Nöbet ateşi";
@@ -268,118 +197,6 @@ namespace HexPortal.Game
         }
 
         public static string Player(PlayerId p) => p == PlayerId.A ? PlayerA : PlayerB;
-
-        public static string ClassName(UnitClass c)
-        {
-            switch (c)
-            {
-                case UnitClass.Guardian: return "Muhafız";
-                case UnitClass.Rider: return "Süvari";
-                case UnitClass.Archer: return "Okçu";
-                case UnitClass.Mage: return "Büyücü";
-                default: return "Şifacı";
-            }
-        }
-
-        public static string ClassLetter(UnitClass c)
-        {
-            switch (c)
-            {
-                case UnitClass.Guardian: return "M";
-                case UnitClass.Rider: return "S";
-                case UnitClass.Archer: return "O";
-                case UnitClass.Mage: return "B";
-                default: return "Ş";
-            }
-        }
-
-        public static string BiomeName(Biome b)
-        {
-            switch (b)
-            {
-                case Biome.Forest: return "Orman";
-                case Biome.Desert: return "Çöl";
-                case Biome.Snow: return "Kar";
-                default: return "";
-            }
-        }
-
-        /// <summary>Display names by GDD id (§4, §8, §9, §10).</summary>
-        public static string Name(string id)
-        {
-            switch (id)
-            {
-                case "C-10": return "Öfke";
-                case "C-11": return "Dev Gücü";
-                case "C-12": return "Kalkan";
-                case "C-13": return "Şifa İksiri";
-                case "C-14": return "Rüzgâr Adımı";
-                case "C-15": return "Işınlanma";
-                case "C-16": return "Zayıflık";
-                case "C-17": return "Zehir";
-                case "C-18": return "İtme";
-                case "C-19": return "Kök Salma";
-                case "C-20": return "Diken Tuzağı";
-                case "C-21": return "Ayna Tuzağı";
-                case "Q-10": return "Rün Bekçisi";
-                case "Q-11": return "Çift Rün";
-                case "Q-12": return "Avcı";
-                case "Q-13": return "Kuşatma";
-                case "Q-14": return "Sağlam Kale";
-                case "Q-15": return "Biyom Ustası";
-                case "Q-16": return "Kayıpsız";
-                case "Q-17": return "Tuzakçı";
-                case "Q-18": return "Kaynak Lordu";
-                case "Q-19": return "Derin Akın";
-                case "P-01": return "Son Nefes";
-                case "P-02": return "Tuzak Ustası";
-                case "P-03": return "Hızlı Başlangıç";
-                case "P-04": return "Kalın Duvar";
-                case "P-05": return "Pazarcı";
-                case "P-06": return "Portal Bekçisi";
-                case "E-10": return "Deprem";
-                case "E-11": return "Biyom Kayması";
-                case "E-12": return "Rün Yağmuru";
-                default: return id ?? "";
-            }
-        }
-
-        /// <summary>One-line card/quest/passive texts (UX-07), copied from the GDD wording.</summary>
-        public static string Text(string id)
-        {
-            switch (id)
-            {
-                case "C-10": return "+2 Saldırı, 2 tur";
-                case "C-11": return "+1 Saldırı, kalıcı";
-                case "C-12": return "Sonraki hasarı engeller";
-                case "C-13": return "+5 Can";
-                case "C-14": return "Bu tur +2 Hareket";
-                case "C-15": return "Dost birimi boş karoya taşır";
-                case "C-16": return "−2 Saldırı, 2 tur";
-                case "C-17": return "Tur başında −2 Can, 2 tur";
-                case "C-18": return "Düz yönde 2 karo iter";
-                case "C-19": return "Hareket edemez, 2 tur";
-                case "C-20": return "Tuzak: 3 hasar";
-                case "C-21": return "Tuzak: başlangıca ışınlar";
-                case "Q-10": return "Aynı rün taşını tut";
-                case "Q-11": return "İki farklı rün taşında birimin olsun";
-                case "Q-12": return "2 düşman birimi yok et";
-                case "Q-13": return "Rakip kuleye toplam 10 hasar ver";
-                case "Q-14": return "10. raunt sonunda kule Canı 14 veya üstü";
-                case "Q-15": return "3 birimin aynı anda kendi biyomunda";
-                case "Q-16": return "8. raunt sonuna kadar birim kaybetme";
-                case "Q-17": return "Tuzağın bir düşmanda tetiklensin";
-                case "Q-18": return "Kaynak karosunu tut";
-                case "Q-19": return "Rakip başlangıç bölgesinde 2 birimin olsun";
-                case "P-01": return "İlk ölen birimin 4 Can ile geri gelir";
-                case "P-02": return "Tuzaklar +1 hasar verir";
-                case "P-03": return "3. rauntta +2 Mana";
-                case "P-04": return "Kulene gelen ilk 5 hasar engellenir";
-                case "P-05": return "İlk Pazar alımında +1 kör kart";
-                case "P-06": return "Portal'a giren rakip 3 hasar alır";
-                default: return "";
-            }
-        }
 
         public static string Reason(GameResult r)
         {

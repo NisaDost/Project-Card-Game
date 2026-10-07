@@ -12,8 +12,7 @@ namespace HexPortal.Core
         {
             int mana = Math.Min(state.Round, Catalog.ManaCap);
             if (p == PlayerId.B && state.Round == 1) mana += Catalog.ManaFirstRoundBonusB;
-            foreach (var u in state.Units)
-                if (u.Owner == p && state.Map.Get(u.Pos).Marker == Marker.Wellspring) mana += Catalog.WellspringManaBonus;
+            mana += WellspringBonus(state, p);
             // P-03 (Quick Start) is added by Turn.StartTurn (it reveals the passive).
             return mana;
         }
@@ -22,10 +21,21 @@ namespace HexPortal.Core
         /// Energy stays a separate resource from Mana.</summary>
         public static int TurnStartEnergy(GameState state, PlayerId p)
         {
-            int energy = Catalog.EnergyPerTurn;
+            return Catalog.EnergyPerTurn + RuneBonus(state, p);
+        }
+
+        /// <summary>T-03: +1 Mana per Wellspring holding an own unit (each separately).</summary>
+        public static int WellspringBonus(GameState state, PlayerId p) => HeldBonus(state, p, Marker.Wellspring, Catalog.WellspringManaBonus);
+
+        /// <summary>B-11 (v3.3): +1 Energy per Rune Stone holding an own unit (each separately).</summary>
+        public static int RuneBonus(GameState state, PlayerId p) => HeldBonus(state, p, Marker.RuneStone, Catalog.RuneEnergyBonus);
+
+        static int HeldBonus(GameState state, PlayerId p, Marker marker, int perCell)
+        {
+            int n = 0;
             foreach (var u in state.Units)
-                if (u.Owner == p && state.Map.Get(u.Pos).Marker == Marker.RuneStone) energy += Catalog.RuneEnergyBonus;
-            return energy;
+                if (u.Owner == p && state.Map.Get(u.Pos).Marker == marker) n += perCell;
+            return n;
         }
 
         internal static void Spend(GameState state, PlayerId p, int cost) => state.SetMana(p, state.GetMana(p) - cost);

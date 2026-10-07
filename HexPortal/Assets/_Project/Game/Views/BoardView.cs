@@ -13,9 +13,11 @@ namespace HexPortal.Game
         readonly Renderer[] tiles = new Renderer[Board.Cells.Count];
         readonly GameObject[] clouds = new GameObject[Board.Cells.Count];
         readonly GameObject[][] markers = new GameObject[Board.Cells.Count][];
+        static readonly Marker[] MarkerKinds = (Marker[])System.Enum.GetValues(typeof(Marker));
         readonly GameObject[] traps = new GameObject[Board.Cells.Count];
-        static readonly Color RuneColor = new Color(0.55f, 0.25f, 0.85f), WellColor = new Color(0.1f, 0.85f, 0.95f);
-        static readonly Color HeldGlow = new Color(1f, 0.85f, 0.3f);
+        static Color RuneColor => ArtCatalog.MarkerOf(Marker.RuneStone).Color;
+        static Color WellColor => ArtCatalog.MarkerOf(Marker.Wellspring).Color;
+        static Color HeldGlow => ArtCatalog.HeldGlow;
         int portalIndex = -1;
         bool portalOpen;
         Color portalColor;
@@ -59,22 +61,24 @@ namespace HexPortal.Game
                     new Vector3(1.25f, 0.9f, 1.25f));
                 cloud.GetComponent<MeshFilter>().sharedMesh = LowPoly.Cloud; // UX-09 low-poly fog puffs
                 cloud.transform.localRotation = Quaternion.Euler(0f, (i * 47) % 360, 0f);
-                Gfx.SetColor(cloud.GetComponent<Renderer>(), new Color(0.16f, 0.17f, 0.24f));
+                Gfx.SetColor(cloud.GetComponent<Renderer>(), ArtCatalog.FogColor);
                 clouds[i] = cloud;
 
                 var top = pos + new Vector3(0f, TileHeight, 0f);
-                var rune = Prop("Rune", top, LowPoly.Rune, i);
-                Gfx.SetColor(rune.GetComponent<Renderer>(), RuneColor);
-                var well = Prop("Wellspring", top, LowPoly.Wellspring, i);
-                Gfx.SetColor(well.GetComponent<Renderer>(), WellColor);
-                var portal = Prop("Portal", top, LowPoly.Portal, 0);
-                Gfx.SetColor(portal.GetComponent<Renderer>(), new Color(0.95f, 0.3f, 0.9f));
-                var rock = Prop("Rock", top, LowPoly.Rock, i);
-                Gfx.SetColor(rock.GetComponent<Renderer>(), new Color(0.35f, 0.33f, 0.32f));
-                markers[i] = new[] { null, rune, well, portal, rock }; // index = (int)Marker
+                // A-03 marker props from the theme (ArtCatalog), one per marker kind; index = (int)Marker.
+                var props = new GameObject[MarkerKinds.Length];
+                for (int k = 0; k < MarkerKinds.Length; k++)
+                {
+                    var art = ArtCatalog.MarkerOf(MarkerKinds[k]);
+                    if (art.Mesh == null) continue;
+                    var prop = Prop(MarkerKinds[k].ToString(), top, art.Mesh(), MarkerKinds[k] == Marker.Portal ? 0 : i);
+                    Gfx.SetColor(prop.GetComponent<Renderer>(), art.Color);
+                    props[k] = prop;
+                }
+                markers[i] = props;
                 if (cells[i].Q == 0 && cells[i].R == 0) portalIndex = i;
                 var trap = Prop("OwnTrap", top, LowPoly.Trap, i);
-                Gfx.SetColor(trap.GetComponent<Renderer>(), new Color(0.8f, 0.3f, 1f));
+                Gfx.SetColor(trap.GetComponent<Renderer>(), ArtCatalog.OwnTrapColor);
                 trap.SetActive(false);
                 traps[i] = trap;
 
@@ -177,7 +181,7 @@ namespace HexPortal.Game
             portalColor = c;
             if (portalIndex < 0) return;
             var p = markers[portalIndex][(int)Marker.Portal];
-            if (!open) { p.transform.localScale = Vector3.one; Gfx.SetColor(p.GetComponent<Renderer>(), new Color(0.95f, 0.3f, 0.9f)); }
+            if (!open) { p.transform.localScale = Vector3.one; Gfx.SetColor(p.GetComponent<Renderer>(), ArtCatalog.MarkerOf(Marker.Portal).Color); }
         }
 
         void Update()

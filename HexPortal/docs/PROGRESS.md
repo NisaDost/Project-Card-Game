@@ -37,6 +37,8 @@ Milestone definitions and "done" criteria: GDD §17.
 - After PlayMode test runs: revert `runInBackground` in ProjectSettings.asset and delete leftover `Assets/InitTestScene*.unity` files.
 - Never add packages (e.g. com.unity.purchasing came in on 2026-10-04 from the Editor, not from us; the user had it removed). Check `git diff -- Packages` before every commit.
 
+**Theme / art (M8 prep):** every visible item comes from `Assets/_Project/Game/Theme/ArtCatalog.cs`, keyed by Core code names (UnitClass, card/quest/passive/event ids, Biome, Marker). To restyle a character change only its `Units` entry: Name, OwnRef (possessive for notices), letter, Icon, Ability text, Model recipe (in `GrayboxModels.cs`, later a prefab) and ModelScale; numbers always come from Catalog. Biome colours: `Biomes`; marker colours/props: `Markers`; card/quest/passive/event names and texts: `Items`; future sounds: `EventSounds`. Rules and Core names never change. `ArtCatalogTests` checks every key has an entry. `Strings.cs` holds UI chrome only.
+
 **Open notes:**
 - U-28 "görüşünde" is implemented as the owner's Visible set (V-11). With the current Catalog every unit's range is within its own Sight, so both readings behave the same. No GDD change for now; revisit if Sight or range values change.
 - The main scene is `Assets/Scenes/Main.unity` (not under `_Project/`); it stays there.
