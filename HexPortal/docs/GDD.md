@@ -1,6 +1,6 @@
 # HexPortal — Oyun Tasarım Dokümanı (GDD)
 
-> Sürüm: 3.2 · Tarih: 2026-10-02 · Durum: Prototip (Faz 1) kapsamı onaylandı
+> Sürüm: 3.3 · Tarih: 2026-10-07 · Durum: Prototip (Faz 1) kapsamı onaylandı
 > "HexPortal" çalışma adıdır, sonra değişebilir.
 
 Bu doküman oyunun **tek doğruluk kaynağıdır**. Her kuralın kalıcı bir kimliği vardır (ör. `U-04`). Kod, testler ve commit mesajları bu kimliklere referans verir. Kimlikler **asla yeniden numaralandırılmaz**. Bir kural kalkarsa "KALDIRILDI" diye işaretlenir, yeni kural yeni numara alır. Değişiklikler en alttaki **Değişiklik Günlüğü**'ne yazılır.
@@ -52,9 +52,9 @@ Kodda **yalnızca İngilizce adlar** kullanılır.
 
 ## 2. Tahta (B)
 
-- **B-01** Tahta **altıgen şeklindedir**: merkezden **yarıçapı 6** olan altıgen, toplam **127 karo** (v3.0, eski 9 sıralı 59 karoluk tahtanın yerine). 13 sıra vardır; sıra uzunlukları üstten alta **7, 8, 9, 10, 11, 12, 13, 12, 11, 10, 9, 8, 7**. Karolar sivri tepeli (pointy-top) altıgendir. Koordinat detayı için `hex-grid` skill'ine bakın.
+- **B-01** Tahta **altıgen şeklindedir**: merkezden **yarıçapı 7** olan altıgen, en fazla **169 karo** (v3.3; harita şablonu bazı karoları boşluk ya da kaya yapabilir, B-25). 15 sıra vardır; sıra uzunlukları üstten alta **8, 9, …, 15, …, 9, 8**. Karolar sivri tepeli (pointy-top) altıgendir. Koordinat detayı için `hex-grid` skill'ine bakın.
 - **B-02** Merkez karo (7. sıra, 7. karo; axial (0,0)) **Portal**'dır.
-- **B-03** Alttaki 2 sıra (12–13) **Oyuncu A**'nın, üstteki 2 sıra (1–2) **Oyuncu B**'nin başlangıç bölgesidir (her biri 7+8 = **15 karo**). Başlangıç bölgesinden Portal'a en kısa mesafe 5'tir.
+- **B-03** Alttaki 2 sıra (12–13) **Oyuncu A**'nın, üstteki 2 sıra (1–2) **Oyuncu B**'nin başlangıç bölgesidir (her biri 8+9 = **17 karo**). Başlangıç bölgesinden Portal'a en kısa mesafe 6'dır.
 - **B-04** Tahta, merkeze göre **180° dönme simetrisine** sahiptir. Her karonun bir "eş karosu" vardır ve eş karolar her zaman aynı türdedir.
 - **B-05** Her oyuncu tahtayı **kendi bölgesi altta** olacak şekilde görür. Oyuncu B'nin ekranında görünüm 180° döndürülür, kurallar değişmez.
 - **B-06 Oyuncu yarıları:** Portal dışındaki 126 karo iki yarıya bölünür. **B'nin yarısı** B-21'deki "üst yarı"dır (63 karo). **A'nın yarısı** bunun eşidir (63 karo). Portal hiçbir yarıya ait değildir.
@@ -64,7 +64,7 @@ Kodda **yalnızca İngilizce adlar** kullanılır.
 | ID | Tür | Etki |
 |---|---|---|
 | **B-10** | Orman / Çöl / Kar | Kendi biyomunda saldıran birim +1 Saldırı alır (bkz. U-20) |
-| **B-11** | Rün Taşı | Görev hedefi. Üzerindeki biyom geçerliliğini korur |
+| **B-11** | Rün Taşı | Görev hedefi. Tur başında üzerinde kendi birimin varsa **+1 Enerji** (her rün taşı için ayrı; bkz. T-05). Üzerindeki biyom geçerliliğini korur |
 | **B-12** | Kaynak | Tur başında üzerinde kendi birimin varsa +1 Mana (bkz. T-03) |
 | **B-13** | Portal | Kazanma karosu. Biyomu yoktur. Her zaman iki oyuncuya görünür (V-06) |
 | **B-14** | Kaya | Geçilmez, üzerine birim konamaz. Sadece harita olaylarıyla oluşur |
@@ -80,6 +80,7 @@ Rün Taşı ve Kaynak, biyomun üstünde duran bir **işarettir**. Karonun biyom
   2. **Yayılma:** Tüm karolar dolana kadar her adımda, boş komşusu olan biyomlar arasından **o an en az karoya sahip olan** seçilir (eşitlikte rastgele). Bu biyom, kendisine komşu boş karolardan rastgele birine yayılır.
   3. Amaç: Her bölgede her biyomdan birkaç karo bulunması ve B-24'teki yeniden üretimin nadir olması.
 - **B-23** Özel karolar (her yarıda): **2 Rün Taşı** ve **1 Kaynak**, 3–5. sıralarda (axial r ∈ {−4, −3, −2}, 30 karo; eşleri 9–11. sıralarda). Başlangıç bölgesinde özel karo olmaz. İki rün taşı birbirine komşu olmaz. **Kaynak hiçbir Rün Taşı'na komşu olmaz** (hedefler tek bir noktada toplanmasın).
+- **B-25 Harita havuzu (v3.3):** Her maçta, tohuma göre **harita havuzundan rastgele bir şablon** seçilir. Şablon, tahtanın şeklini (kenarlarda boşluk/girinti), sabit kaya ve göl gibi geçilmez alanları ve özel karo bantlarını belirler. Biyomlar ve özel karolar şablon üzerinde B-21…B-23'e göre üretilir. Her şablon 180° simetriktir (B-04), Portal merkezdedir, başlangıç bölgeleri tam ve Portal'a ulaşılabilirdir. İlk sürümde **4 şablon** vardır (ör. düz altıgen, ortası kayalık, kenarları girintili, iki koridorlu). Sayılar (biyom alt sınırı, çekirdek) şablonun oynanabilir karo sayısına göre oranlanır.
 - **B-24** Üretilen harita doğrulanır: Simetri tam olmalı, sayılar B-22 ve B-23'e uymalı. Uymazsa **aynı tohumun rastgele sayı akışına devam edilerek** yeniden üretilir (2. deneme, 3. deneme…). Böylece farklı tohumlar asla aynı haritayı vermez. Harita, istenen tohumu ve deneme sayısını saklar.
 
 ---
@@ -219,7 +220,7 @@ Kopya toplamı: 6 sıradan × 4 + 4 nadir × 2 + 2 epik × 1 = **34 kart**.
   2. Tur başı etkileri uygulanır: Şifa (U-05), Zehir (C-17), Son Nefes (P-01).
   3. Kazanma kontrolü yapılır (W-01).
   4. Kart çekilir: Oyuncu Pazar'dan 1 kart alır **veya** 1 kör kart çeker (D-07 geçerli). Seçim rakibin turunda önceden yapıldıysa (T-11) o uygulanır. Çekim **zorunludur** ve turun diğer işlemlerinden önce yapılır. El doluysa ya da çekilecek kart yoksa atlanır. A da 1. rauntta çeker.
-- **T-05 Enerji ve aksiyon:** Tur başında Enerji **3**'e doldurulur (Catalog'da `EnergyPerTurn`). Harcanmayan Enerji aktarılmaz. Tahtadaki her birim kendi turunda şunlardan **birini** yapar, her biri **1 Enerji**: **hareket** (U-07), **saldırı** veya **nöbet** (U-28). **İlerle-saldır (v3.2):** Dördüncü bir aksiyon türüdür ve **tek hamlede** yapılır, **2 Enerji** harcar. Birim, **başlangıç konumundan** Hareket değeri içinde ulaşabileceği bir karoya ilerler ve oradan saldırı menzilindeki bir hedefe hemen saldırır. Hedef, bu ilerleme + menzil ile ulaşılabilir olmalıdır. Hareket ile saldırı **ayrı hamleler olarak birleştirilemez**: Hareket eden birim o tur artık saldıramaz, saldıran birim hareket edemez. Oyuncu hedefi seçer; birden fazla uygun ilerleme karosu varsa karoyu da seçer. Hedefin geçerliliği **komut anında**, oyuncunun o anki görünür bilgisiyle kilitlenir (V-11). İlerleme sırasında yeni görünen bir Muhafız saldırıyı iptal etmez; saldırıyı yalnızca birimin ölmesi, başka bir karoya taşınması ya da hedefin ölmesi iptal eder. Nöbet her zaman tek başına bir aksiyondur.
+- **T-05 Enerji ve aksiyon:** Tur başında Enerji **3**'e doldurulur (Catalog'da `EnergyPerTurn`). Üzerinde kendi birimi olan her Rün Taşı için **+1 Enerji** eklenir (B-11). Harcanmayan Enerji aktarılmaz. Tahtadaki her birim kendi turunda şunlardan **birini** yapar, her biri **1 Enerji**: **hareket** (U-07), **saldırı** veya **nöbet** (U-28). **İlerle-saldır (v3.2):** Dördüncü bir aksiyon türüdür ve **tek hamlede** yapılır, **2 Enerji** harcar. Birim, **başlangıç konumundan** Hareket değeri içinde ulaşabileceği bir karoya ilerler ve oradan saldırı menzilindeki bir hedefe hemen saldırır. Hedef, bu ilerleme + menzil ile ulaşılabilir olmalıdır. Hareket ile saldırı **ayrı hamleler olarak birleştirilemez**: Hareket eden birim o tur artık saldıramaz, saldıran birim hareket edemez. Oyuncu hedefi seçer; birden fazla uygun ilerleme karosu varsa karoyu da seçer. Hedefin geçerliliği **komut anında**, oyuncunun o anki görünür bilgisiyle kilitlenir (V-11). İlerleme sırasında yeni görünen bir Muhafız saldırıyı iptal etmez; saldırıyı yalnızca birimin ölmesi, başka bir karoya taşınması ya da hedefin ölmesi iptal eder. Nöbet her zaman tek başına bir aksiyondur.
 - **T-06 Kart oynama:** Mana yettiği sürece turda istenen sayıda kart oynanabilir (C-01, C-02). Kart oynamak Enerji harcamaz.
 - **T-07 Karakter çıkarma:** Eldeki bir karakter, kartın **Maliyeti** (§3.1) kadar Mana ödenerek tahtaya çıkarılır. Enerji ve aksiyon harcamaz. Kontrol Alanında (C-02) Portal hariç boş bir karoya konur. Çıktığı tur aksiyon yapamaz.
 - **T-08 Tur sonu:** Süreli etkilerin sayacı azalır (C-04). Görevler kontrol edilir (Q-02). Sıra rakibe geçer. Rakibin nöbetleri (U-28) bu turun sonunda biter.
@@ -341,6 +342,9 @@ Amaç: Turunu bitiren oyuncu boş beklemesin. Rakibin turu hem izlenecek hem de 
 - **UX-02** Birime dokununca gidilebilecek karolar (mavi), saldırılabilecek hedefler (kırmızı) ve bir **"Nöbet"** butonu gösterilir. Aksiyonunu kullanmış birim soluk görünür.
 - **UX-03** Kart, hedefin üzerine **sürüklenerek** ya da önce karta, sonra hedefe dokunarak oynanır. Sürükleme sırasında Kontrol Alanı (C-02) ve geçerli hedefler vurgulanır. Sürükleme hiçbir durumda elde takılı kalmaz: Bırakılan yer geçersizse kart ele geri döner.
 - **UX-11 Bilgi paneli (v3.0):** Tahtadaki bir birime ya da eldeki bir karta dokununca ekranın **sol tarafında** bir panel açılır: önizleme ikonu, isim, Can, Saldırı (etkin değer), Hareket, Görüş, menzil, taşıdığı buff/debuff ve kalan turları, Maliyet, yetenek ve kart açıklaması. Rakip birimde yalnızca görünür bilgi gösterilir (V-05).
+- **UX-13 (v3.3):** Birim stat bloğunda Can çubuğunun altında **Saldırı (etkin) ve saldırı menzili** kompakt ikonlarla gösterilir. Rün Taşı veya Kaynak üzerinde duran birimde karo parlar ve birimin altında küçük bir işaret görünür; o karonun bonusu (+1 Enerji / +1 Mana) tur başında bildirimle gösterilir.
+- **UX-14 (v3.3):** Oyuncunun kendi tuzakları kendi ekranında tahtada görünür (rakibe gizli, C-33). Portal bir oyuncu için açıldığında belirgin bir görsel efekt ve bildirim gösterilir (her iki oyuncuya, W-01 kamuya açık).
+- **UX-15 (v3.3):** Oyun içinde **duraklat menüsü**: Devam, Ayarlar (süre, ses, titreşim), Ana menüye dön (maçtan çıkış onayı). Android geri tuşu duraklat menüsünü açar.
 - **UX-12 Seçim modu (v3.0):** Bir kart ya da birim seçilince yerleştirme/hareket modu açılır. Bu modda tahtadaki birimlerin üstündeki stat çubukları **gizlenir**, karolar ve vurgular net görünür. Seçimden çıkınca stat çubukları geri gelir. Stat çubukları kompakt tutulur.
 - **UX-04** Ekran düzeni (yatay):
   - **Orta:** Tahta. Kendi bölgen altta (B-05), hafif eğik 3D kamera. Tahta ekran yüksekliğine sığacak şekilde ölçeklenir.
@@ -429,3 +433,4 @@ Detaylar `CLAUDE.md` ve `.claude/rules/` altındadır.
 | 3.0 | 2026-10-02 | **Kullanıcının ilk cihaz testinden sonraki kararlar.** **Tahta:** Altıgen şekilli, yarıçap 6, 127 karo, başlangıç bölgeleri 15 karo, Portal'a uzaklık ≥5 (B-01…B-03, B-06, B-21…B-23; biyom alt sınırı 18, çekirdek 5–7). Amaç: Portal'a ulaşmak zorlaşsın. **Aksiyon:** Hareket eden birim aynı turda +1 Enerji ile saldırabilir (T-05); Süvari Hücum'u buna bağlandı (U-02). **Hazırlık:** Ücretsiz yerleşim kalktı; 8 Mana'lık hazırlık bütçesi, en az 1 karakter (S-05, S-06). **Arayüz:** El üç grup (tuzak / karakter / buff-debuff), sol bilgi paneli (UX-11), seçim modunda stat çubukları gizlenir ve kompakt (UX-12), sürükle-bırak hiç takılmaz (UX-03), yakınlaştırma (UX-04) |
 | 3.1 | 2026-10-02 | **Hasar/Can oranı ve maç uzunluğu (kullanıcı geri bildirimi):** Yeni U-30 dayanıklılık ilkesi. Canlar yaklaşık iki katına: Muhafız 12, Süvari 8, Okçu 6, Büyücü 6, Şifacı 7, Kule 20 (Saldırı 3). Şifa +2, Şifa İksiri +5, Zehir −2/tur. Bağlı sayılar: Q-13 10 hasar, Q-14 10. raunt / Can ≥ 14, Q-16 8. raunt, P-01 4 Can, P-04 5 hasar. Raunt sınırı 15 → 20 (W-03). Olaylar baş ve son rauntlar dışında eşit aralıkla (4, 7, 10, 13, 16) (E-01, E-02). Sayılar ilk tahmindir, Sim ile ölçülecek |
 | 3.2 | 2026-10-02 | **İlerle-saldır tek hamle (kullanıcı kararı):** v3.0'daki "hareket et, sonra ayrı hamleyle saldır" kaldırıldı. Yerine tek hamlelik ilerle-saldır aksiyonu (2 Enerji) geldi: Hedef, başlangıç konumundan Hareket + menzil içinde olmalı. Hareket eden birim o tur saldıramaz (T-05). Süvari Hücum'u ilerle-saldır'a bağlandı (U-02) |
+| 3.3 | 2026-10-07 | **İkinci cihaz testinden sonra (kullanıcı):** Rün Taşı tur başında +1 Enerji verir (B-11, T-05); Kaynak'ın +1 Mana'sı aynen. Tahta yarıçap 7'ye büyüdü (≤169 karo, başlangıç bölgesi 17, Portal'a ≥6) (B-01, B-03). Yeni B-25 harita havuzu: Her maçta 4 şablondan biri rastgele. Arayüz: Saldırı ve menzil stat bloğunda, özel karo üstünde efekt (UX-13); kendi tuzakların görünür, Portal açılış efekti (UX-14); duraklat menüsü ve geri tuşu (UX-15) |
