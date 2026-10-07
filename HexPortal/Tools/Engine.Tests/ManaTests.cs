@@ -75,6 +75,30 @@ namespace HexPortal.Tests
         }
 
         [Test]
+        public void B11_T05_EachHeldRuneStoneGivesOneEnergy()
+        {
+            var b = new TestBoard().Rune(H(-1, 2)).Rune(H(1, -2)).Rune(H(2, 0));
+            b.Unit(UnitClass.Guardian, A, H(-1, 2));
+            b.Unit(UnitClass.Guardian, A, H(1, -2));
+            b.Unit(UnitClass.Guardian, B, H(2, 0)); // the enemy's rune gives A nothing
+            var s = b.Build();
+            Assert.That(Mana.TurnStartEnergy(s, A), Is.EqualTo(Catalog.EnergyPerTurn + 2 * Catalog.RuneEnergyBonus));
+
+            Engine.Apply(s, new EndTurnCommand(A));
+            Assert.That(s.GetEnergy(B), Is.EqualTo(Catalog.EnergyPerTurn + Catalog.RuneEnergyBonus));
+            Engine.Apply(s, new EndTurnCommand(B));
+            Assert.That(s.GetEnergy(A), Is.EqualTo(Catalog.EnergyPerTurn + 2));
+        }
+
+        [Test]
+        public void B11_EmptyRuneStoneGivesNothing()
+        {
+            var b = new TestBoard().Rune(H(-1, 2));
+            b.Unit(UnitClass.Guardian, A, H(-1, 1));
+            Assert.That(Mana.TurnStartEnergy(b.Build(), A), Is.EqualTo(Catalog.EnergyPerTurn));
+        }
+
+        [Test]
         public void T06_PlayCardsWhileManaLasts_NoEnergy()
         {
             var b = new TestBoard().Mana(A, 3);

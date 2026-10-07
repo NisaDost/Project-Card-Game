@@ -18,6 +18,16 @@ namespace HexPortal.Core
             return mana;
         }
 
+        /// <summary>T-05 Energy refill plus B-11 (v3.3): +1 per Rune Stone holding an own unit (each rune separately).
+        /// Energy stays a separate resource from Mana.</summary>
+        public static int TurnStartEnergy(GameState state, PlayerId p)
+        {
+            int energy = Catalog.EnergyPerTurn;
+            foreach (var u in state.Units)
+                if (u.Owner == p && state.Map.Get(u.Pos).Marker == Marker.RuneStone) energy += Catalog.RuneEnergyBonus;
+            return energy;
+        }
+
         internal static void Spend(GameState state, PlayerId p, int cost) => state.SetMana(p, state.GetMana(p) - cost);
     }
 }

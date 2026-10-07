@@ -59,7 +59,7 @@ namespace HexPortal.Core
             var p = state.ActivePlayer;
             int quickStart = Passives.QuickStartMana(state, p);
             state.SetMana(p, Mana.TurnStartMana(state, p) + quickStart);
-            state.SetEnergy(p, Catalog.EnergyPerTurn);
+            state.SetEnergy(p, Mana.TurnStartEnergy(state, p)); // T-05 + B-11 rune bonus
             state.SetTowerShotAvailable(p.Opponent(), true); // U-27: once per opponent turn
             foreach (var u in state.Units)
                 if (u.Owner == p) u.ActedThisTurn = false;

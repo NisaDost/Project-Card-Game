@@ -130,7 +130,7 @@ namespace HexPortal.Tests
                 var rng = new Rng(seed);
                 var s = NewGame(seed);
                 int steps = 0, games = 1, attacks = 0;
-                while (steps < 250)
+                while (steps < 400)
                 {
                     if (s.IsOver) // a W-03 draw has no winner
                     {
@@ -185,7 +185,9 @@ namespace HexPortal.Tests
                 if (u.Buff != null) Assert.That(u.Buff.Def.Pool, Is.EqualTo(SupportPool.Buff));
                 if (u.Debuff != null) Assert.That(u.Debuff.Def.Pool, Is.EqualTo(SupportPool.DebuffTrap));
             }
-            Assert.That(s.GetEnergy(s.ActivePlayer), Is.InRange(0, Catalog.EnergyPerTurn));
+            // T-05 + B-11: at most the base Energy plus one per rune stone on the board.
+            int runes = Board.Cells.Count(h => s.Map.Get(h).Marker == Marker.RuneStone);
+            Assert.That(s.GetEnergy(s.ActivePlayer), Is.InRange(0, Catalog.EnergyPerTurn + runes * Catalog.RuneEnergyBonus));
 
             // Cards: every instance is in exactly one place; Mana never negative; C-31 trap limit.
             var ids = new HashSet<int>();

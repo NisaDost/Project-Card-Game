@@ -95,6 +95,7 @@ namespace HexPortal.Core.Data
         public const int ManaCap = 6;                // T-01: Mana = min(round, ManaCap)
         public const int ManaFirstRoundBonusB = 1;   // T-02
         public const int WellspringManaBonus = 1;    // T-03, may exceed ManaCap
+        public const int RuneEnergyBonus = 1;        // B-11 / T-05 (v3.3), per held rune stone
 
         // ---------- Turn: Energy (T-05) ----------
         public const int EnergyPerTurn = 3;          // T-05
