@@ -40,7 +40,8 @@ namespace HexPortal.Game
             public bool Dying => DieT < 1f;
             // Overlay tag (UX "stat bars"): big Health bar + number, small Attack chip, buff/debuff/overwatch chips.
             public VisualElement Tag, HpFill;
-            public Label Hp, Atk, Buff, Debuff, Watching;
+            public Label Hp, Atk, Range, Buff, Debuff, Watching;
+            public int ShownRangeClass = -1;
             public int ShownHp = -1, ShownMax = -1, ShownAtk = -1, ShownBuffTurns = -1, ShownDebuffTurns = -1;
             public string ShownBuff, ShownDebuff;
         }
@@ -195,6 +196,12 @@ namespace HexPortal.Game
             SetLook(vis, body, rim, u.IsGhost);
             vis.Watch.SetActive(u.OnOverwatch && !u.IsGhost);
             var def = Unit.DefOf(u.Class);
+            if (vis.ShownRangeClass != (int)u.Class) // UX-13: compact range chip, rebuilt only when the class changes
+            {
+                vis.ShownRangeClass = (int)u.Class;
+                vis.Range.text = Strings.RangeChip(def.Range, def.MinRange, def.MaxRange);
+            }
+            vis.Range.style.display = DisplayStyle.Flex;
             SetTag(vis, u.Health, def.Health, u.EffectiveAttack, u.IsGhost ? null : u.BuffId, u.BuffTurnsLeft,
                 u.IsGhost ? null : u.DebuffId, u.DebuffTurnsLeft, u.OnOverwatch && !u.IsGhost, rim, u.IsGhost, dim);
         }
@@ -205,6 +212,8 @@ namespace HexPortal.Game
             if (!vis.IsTower) { SetBody(vis, 100); vis.IsTower = true; }
             Place(vis, c.Cell);
             SetLook(vis, Color.Lerp(Gfx.OwnerColor(c.TowerOwner), Color.white, 0.35f), Gfx.OwnerColor(c.TowerOwner), c.TowerIsGhost);
+            vis.Range.style.display = DisplayStyle.None;
+            vis.ShownRangeClass = -1;
             vis.Watch.SetActive(false);
             SetTag(vis, c.TowerHealth, Mathf.Max(c.TowerHealth, Catalog.Tower.Health), -1, null, 0, null, 0, false,
                 Gfx.OwnerColor(c.TowerOwner), c.TowerIsGhost, false);
@@ -309,6 +318,7 @@ namespace HexPortal.Game
             var chips = new VisualElement { pickingMode = PickingMode.Ignore };
             chips.AddToClassList("chips");
             vis.Atk = Chip(chips, "chip-atk");
+            vis.Range = Chip(chips, "chip-range");
             vis.Buff = Chip(chips, "chip-buff");
             vis.Debuff = Chip(chips, "chip-debuff");
             vis.Watching = Chip(chips, "chip-watch");

@@ -159,3 +159,8 @@ Label { color: rgb(245, 245, 250); -unity-font-style: bold; }
 .tutorial-row { flex-direction: row; justify-content: flex-end; margin-top: 8px; }
 .tutorial-text { font-size: 26px; white-space: normal; color: white; }
 .tutorial-btn { min-width: 140px; min-height: 130px; font-size: 32px; margin-left: 10px; }
+.chip-range { background-color: rgb(40, 90, 170); }
+/* UX-15 pause menu */
+.btn.pause { width: 130px; height: 130px; font-size: 52px; margin-left: auto; padding: 0; }
+.pause-panel { top: 3%; left: 30%; right: 30%; }
+.pause-panel .btn { min-height: 130px; margin: 6px 0; font-size: 40px; }

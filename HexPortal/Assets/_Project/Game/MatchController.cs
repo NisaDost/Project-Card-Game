@@ -33,6 +33,10 @@ namespace HexPortal.Game
         /// <summary>UX-08 tutorial: the AI only draws and ends its turns in play (setup is normal).</summary>
         public bool PassiveAi { get; private set; }
         public bool TimerEnabled { get; private set; }
+        /// <summary>UX-15 pause menu: the clock and the AI wait (no state change).</summary>
+        public bool Paused { get; set; }
+        /// <summary>UX-15 settings: turn the T-09 clock on or off for the running match.</summary>
+        public void SetTimer(bool on) => TimerEnabled = on;
         public bool HasMatch => state != null;
         /// <summary>Who holds the device: hotseat = the player setting up / the active player; vs AI = the human.</summary>
         public PlayerId Viewer { get; private set; }
@@ -77,6 +81,7 @@ namespace HexPortal.Game
         void Start(ulong seed, bool timer, MatchMode mode)
         {
             PassiveAi = false;
+            Paused = false;
             state = Match.Create(seed);
             MatchNumber++;
             Mode = mode;
@@ -91,6 +96,7 @@ namespace HexPortal.Game
         public void Close()
         {
             state = null;
+            Paused = false;
             view = null;
             legal = new List<ICommand>();
             HandoffPending = false;
@@ -194,7 +200,7 @@ namespace HexPortal.Game
         /// <summary>T-09 / S-06 clock. Call once per frame with the frame time.</summary>
         public void Tick(float dt)
         {
-            if (!TimerEnabled || state == null || HandoffPending || state.IsOver) return;
+            if (!TimerEnabled || Paused || state == null || HandoffPending || state.IsOver) return;
             if (state.Phase == GamePhase.Setup)
             {
                 if (state.IsSetupFinished(Viewer)) return;

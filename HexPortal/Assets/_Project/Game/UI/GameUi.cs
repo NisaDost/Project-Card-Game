@@ -140,6 +140,7 @@ namespace HexPortal.Game
 
             root.Q<Label>("menu-title").text = Strings.Title;
             tutorial = new Tutorial(match, root, match.Close);
+            WirePause();
             var tut = root.Q<Button>("menu-tutorial"); tut.text = Strings.Tutorial;
             tut.clicked += StartTutorial;
             var hot = root.Q<Button>("menu-hotseat"); hot.text = Strings.Hotseat; hot.clicked += StartHotseat;
@@ -184,6 +185,105 @@ namespace HexPortal.Game
             facing = null;
             ClearLog();
             match.NewMatch(seed, timerOn);
+        }
+
+        // ---------- UX-13 turn-start bonus notice, UX-14 Portal opened, UX-15 pause menu ----------
+
+        readonly bool[] portalNoticed = new bool[2];
+        VisualElement pausePanel;
+        Button pauseTimer, pauseVibration;
+        const string VibrationPref = "hexportal.vibration";
+        public bool Paused => match.Paused;
+        public static bool VibrationOn => PlayerPrefs.GetInt(VibrationPref, 1) == 1;
+
+        /// <summary>UX-13: "+n Enerji" / "+n Mana" from held rune stones / wellsprings, shown with the turn notice.
+        /// Energy: the refilled Energy above the base refill (read from the view, no rule copy). Mana: own units on
+        /// visible wellspring cells times the Catalog bonus (the view has no per-source Mana breakdown).</summary>
+        void TurnStartNotice(PlayerView v)
+        {
+            int energy = v.Energy - Catalog.EnergyPerTurn, wells = 0;
+            foreach (var u in v.OwnUnits)
+            {
+                int i = Board.IndexOf(u.Pos);
+                if (i >= 0 && v.Cells[i].TerrainKnown && v.Cells[i].Tile.Marker == Marker.Wellspring) wells++;
+            }
+            int mana = wells * Catalog.WellspringManaBonus;
+            if (energy <= 0 && mana <= 0) return;
+            string text = Strings.YourTurn;
+            if (energy > 0) text += " · " + Strings.EnergyBonus(energy);
+            if (mana > 0) text += " · " + Strings.ManaBonus(mana);
+            ShowNotice(text, false);
+        }
+
+        /// <summary>UX-14: the Portal opens for a player who completed the W-01 number of quests (public, Q-03).</summary>
+        void CheckPortal(PlayerView v)
+        {
+            if (v.Phase != GamePhase.Playing) return;
+            int own = 0;
+            foreach (var s in v.QuestStatuses) if (s == QuestStatus.Completed) own++;
+            int opp = v.OpponentCompletedQuests.Count;
+            var o = v.Viewer.Opponent();
+            if (own >= Catalog.PortalQuestsRequired && !portalNoticed[(int)v.Viewer])
+            {
+                portalNoticed[(int)v.Viewer] = true;
+                board.SetPortalOpen(true, Gfx.OwnerColor(v.Viewer));
+                ShowNotice(Strings.PortalOpenedYou, false);
+            }
+            if (opp >= Catalog.PortalQuestsRequired && !portalNoticed[(int)o])
+            {
+                portalNoticed[(int)o] = true;
+                board.SetPortalOpen(true, Gfx.OwnerColor(o));
+                ShowNotice(Strings.PortalOpenedOpp, true);
+            }
+        }
+
+        void WirePause()
+        {
+            pausePanel = root.Q("pause-panel");
+            root.Q<Label>("pause-title").text = Strings.PauseTitle;
+            var pb = root.Q<Button>("pause-btn"); pb.text = Strings.PauseIcon; pb.clicked += OpenPause;
+            var resume = root.Q<Button>("pause-resume"); resume.text = Strings.Resume; resume.clicked += ClosePause;
+            pauseTimer = root.Q<Button>("pause-timer");
+            pauseTimer.clicked += () => { match.SetTimer(!match.TimerEnabled); SyncPauseTexts(); };
+            pauseVibration = root.Q<Button>("pause-vibration");
+            pauseVibration.clicked += () => { PlayerPrefs.SetInt(VibrationPref, VibrationOn ? 0 : 1); SyncPauseTexts(); };
+            var sound = root.Q<Button>("pause-sound"); sound.text = Strings.SettingSoundSoon; sound.SetEnabled(false); // audio comes later
+            var menu = root.Q<Button>("pause-menu"); menu.text = Strings.BackToMenu;
+            menu.clicked += () => AskConfirm(Strings.LeaveMatchConfirm, () => { ClosePause(); tutorial.Stop(); match.Close(); });
+        }
+
+        void SyncPauseTexts()
+        {
+            pauseTimer.text = match.TimerEnabled ? Strings.SettingTimerOn : Strings.SettingTimerOff;
+            pauseVibration.text = VibrationOn ? Strings.SettingVibrationOn : Strings.SettingVibrationOff;
+        }
+
+        /// <summary>UX-15: pause menu (also the Android back button). The clock and the AI wait.</summary>
+        public void OpenPause()
+        {
+            if (!match.HasMatch) return;
+            ResetInput();
+            match.Paused = true;
+            SyncPauseTexts();
+            pausePanel.style.display = DisplayStyle.Flex;
+        }
+
+        public void ClosePause()
+        {
+            match.Paused = false;
+            pausePanel.style.display = DisplayStyle.None;
+        }
+
+        /// <summary>Short vibration when an own unit or the own tower is hit (UX-15 setting).</summary>
+        void VibrateOnOwnDamage(DamageDealt d, PlayerView v)
+        {
+            if (!VibrationOn || d.Amount <= 0) return;
+            bool own = d.TargetUnitId == DamageDealt.Tower ? d.SourcePlayer != v.Viewer : false;
+            if (!own) foreach (var u in v.OwnUnits) if (u.Id == d.TargetUnitId) { own = true; break; }
+            if (!own) return;
+#if UNITY_ANDROID && !UNITY_EDITOR
+            Handheld.Vibrate();
+#endif
         }
 
         Tutorial tutorial;
@@ -262,6 +362,7 @@ namespace HexPortal.Game
             if (!boardOn) units.Hide();
             if (s != Screen.Board)
             {
+                if (pausePanel != null) { pausePanel.style.display = DisplayStyle.None; match.Paused = false; }
                 questPanel.style.display = DisplayStyle.None;
                 HideInfo();
                 CancelPointers();
@@ -292,11 +393,13 @@ namespace HexPortal.Game
                 Show(Screen.Handoff);
                 return;
             }
-            if (shownMatch != match.MatchNumber) { shownMatch = match.MatchNumber; facing = null; framedTurn = -1; ClearLog(); }
+            if (shownMatch != match.MatchNumber) { shownMatch = match.MatchNumber; facing = null; framedTurn = -1; portalNoticed[0] = portalNoticed[1] = false; board.SetPortalOpen(false, Color.clear); ClearLog(); }
             bool faced = facing != v.Viewer;
             if (faced) { CameraRig.Face(cam, v.Viewer); facing = v.Viewer; }
             bool myTurnStart = v.Phase == GamePhase.Playing && v.ActivePlayer == v.Viewer && v.TurnIndex != framedTurn;
             if (faced || myTurnStart) FrameOwn(v, myTurnStart);
+            if (myTurnStart) TurnStartNotice(v);
+            CheckPortal(v);
             board.Render(v);
             units.Render(v);
             if (v.Phase == GamePhase.Setup && v.SetupStep == SetupStep.Quests) { BuildQuestOptions(v); Show(Screen.Quests); return; }
@@ -504,6 +607,9 @@ namespace HexPortal.Game
             float now = Time.unscaledTime;
             if (toastUntil > 0f && now > toastUntil) { toastUntil = 0f; toast.style.display = DisplayStyle.None; }
             if (noticeUntil > 0f && now > noticeUntil) { noticeUntil = 0f; notice.style.display = DisplayStyle.None; }
+            // UX-15: the Android back button arrives as Escape.
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null && kb.escapeKey.wasPressedThisFrame && Current == Screen.Board && match.HasMatch) { if (Paused) ClosePause(); else OpenPause(); }
             TickPinch();
             TickClock();
         }
@@ -878,6 +984,7 @@ namespace HexPortal.Game
         void OnCellTapped(Hex cell)
         {
             if (confirmAction != null) return;
+            if (match.Paused) return;
             if (PlanningAllowed() && plans.RemoveEndingAt(cell)) return; // UX-10: a tap on an arrow head deletes it
             if (secondPick.Count > 0) // card second pick or move-attack approach; a tap anywhere else cancels
             {
@@ -1120,7 +1227,7 @@ namespace HexPortal.Game
 
         void OnCardDown(int cardId, PointerDownEvent e)
         {
-            if (pressCard >= 0 || confirmAction != null) return; // second finger, or a dialog is open
+            if (pressCard >= 0 || confirmAction != null || match.Paused) return; // second finger, a dialog or the pause menu
             if (e.pointerType == UnityEngine.UIElements.PointerType.mouse && e.button != 0) return;
             pressCard = cardId;
             pressPointer = e.pointerId;
@@ -1249,6 +1356,7 @@ namespace HexPortal.Game
             get
             {
                 if (!match.HasMatch || match.HandoffPending || match.IsOver || Current != Screen.Board) return InputMode.Locked;
+                if (match.Paused) return InputMode.Locked;
                 if (confirmAction != null) return InputMode.Confirm;
                 if (dragging) return InputMode.Dragging;
                 if (secondPick.Count > 0) return InputMode.ApproachChoice;
@@ -1396,6 +1504,7 @@ namespace HexPortal.Game
             bool changed = false, batchBad = false;
             foreach (var e in events)
             {
+                if (e is DamageDealt dd) VibrateOnOwnDamage(dd, v);
                 string line = Describe(e, v, out string noticeText, out bool bad);
                 if (line != null)
                 {

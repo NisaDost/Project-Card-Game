@@ -36,6 +36,7 @@
             <ui:VisualElement class="timer-row" picking-mode="Ignore">
                 <ui:Label name="timer" class="timer" />
                 <ui:Label name="timer-bank" class="timer bank" />
+                <ui:Button name="pause-btn" class="btn pause" />
             </ui:VisualElement>
             <ui:Button name="quest-btn" class="btn quest" />
             <ui:Label name="event-log" class="event-log" picking-mode="Ignore" />
@@ -76,6 +77,14 @@
     <ui:VisualElement name="quest-panel" class="popup">
         <ui:Label name="quest-text" class="popup-text" />
         <ui:Button name="quest-close" class="btn" />
+    </ui:VisualElement>
+    <ui:VisualElement name="pause-panel" class="popup pause-panel">
+        <ui:Label name="pause-title" class="screen-title" />
+        <ui:Button name="pause-resume" class="btn big" />
+        <ui:Button name="pause-timer" class="btn big" />
+        <ui:Button name="pause-vibration" class="btn big" />
+        <ui:Button name="pause-sound" class="btn big" />
+        <ui:Button name="pause-menu" class="btn big" />
     </ui:VisualElement>
     <ui:VisualElement name="confirm-panel" class="popup">
         <ui:Label name="confirm-text" class="popup-text" />

@@ -13,6 +13,17 @@ namespace HexPortal.Game
         readonly Renderer[] tiles = new Renderer[Board.Cells.Count];
         readonly GameObject[] clouds = new GameObject[Board.Cells.Count];
         readonly GameObject[][] markers = new GameObject[Board.Cells.Count][];
+        readonly GameObject[] traps = new GameObject[Board.Cells.Count];
+        static readonly Color RuneColor = new Color(0.55f, 0.25f, 0.85f), WellColor = new Color(0.1f, 0.85f, 0.95f);
+        static readonly Color HeldGlow = new Color(1f, 0.85f, 0.3f);
+        int portalIndex = -1;
+        bool portalOpen;
+        Color portalColor;
+        /// <summary>UX-13: cells whose rune/wellspring holds an own unit (glowing), for tests.</summary>
+        public int HeldCount { get; private set; }
+        /// <summary>UX-14: own traps drawn (never the opponent's: PlayerView only lists own traps).</summary>
+        public int TrapsShown { get; private set; }
+        public bool PortalOpenShown => portalOpen;
         readonly Renderer[] highlights = new Renderer[Board.Cells.Count];
         readonly Color[] highlightColor = new Color[Board.Cells.Count];
         readonly bool[] eventCell = new bool[Board.Cells.Count];
@@ -53,14 +64,19 @@ namespace HexPortal.Game
 
                 var top = pos + new Vector3(0f, TileHeight, 0f);
                 var rune = Prop("Rune", top, LowPoly.Rune, i);
-                Gfx.SetColor(rune.GetComponent<Renderer>(), new Color(0.55f, 0.25f, 0.85f));
+                Gfx.SetColor(rune.GetComponent<Renderer>(), RuneColor);
                 var well = Prop("Wellspring", top, LowPoly.Wellspring, i);
-                Gfx.SetColor(well.GetComponent<Renderer>(), new Color(0.1f, 0.85f, 0.95f));
+                Gfx.SetColor(well.GetComponent<Renderer>(), WellColor);
                 var portal = Prop("Portal", top, LowPoly.Portal, 0);
                 Gfx.SetColor(portal.GetComponent<Renderer>(), new Color(0.95f, 0.3f, 0.9f));
                 var rock = Prop("Rock", top, LowPoly.Rock, i);
                 Gfx.SetColor(rock.GetComponent<Renderer>(), new Color(0.35f, 0.33f, 0.32f));
                 markers[i] = new[] { null, rune, well, portal, rock }; // index = (int)Marker
+                if (cells[i].Q == 0 && cells[i].R == 0) portalIndex = i;
+                var trap = Prop("OwnTrap", top, LowPoly.Trap, i);
+                Gfx.SetColor(trap.GetComponent<Renderer>(), new Color(0.8f, 0.3f, 1f));
+                trap.SetActive(false);
+                traps[i] = trap;
 
                 var hl = Gfx.Hex("Highlight", transform, pos + new Vector3(0f, TileHeight + 0.01f, 0f), 0.7f, 0.08f, true);
                 highlights[i] = hl.GetComponent<Renderer>();
@@ -78,6 +94,7 @@ namespace HexPortal.Game
 
         public void Render(PlayerView view)
         {
+            int heldCount = 0;
             for (int i = 0; i < view.Cells.Count; i++)
             {
                 var c = view.Cells[i];
@@ -88,7 +105,21 @@ namespace HexPortal.Game
                 clouds[i].SetActive(c.Visibility == CellVisibility.Hidden);
                 var m = known ? c.Tile.Marker : Marker.None;
                 for (int k = 1; k < markers[i].Length; k++) markers[i][k].SetActive((int)m == k);
+                // UX-13: a rune stone or wellspring held by an own unit glows (tile and marker).
+                bool held = (m == Marker.RuneStone || m == Marker.Wellspring) && c.Unit != null && !c.Unit.IsGhost && c.Unit.Owner == view.Viewer;
+                if (held) { Gfx.SetColor(tiles[i], Color.Lerp(color, HeldGlow, 0.5f)); heldCount++; }
+                if (m == Marker.RuneStone) Gfx.SetColor(markers[i][(int)Marker.RuneStone].GetComponent<Renderer>(), held ? HeldGlow : RuneColor);
+                if (m == Marker.Wellspring) Gfx.SetColor(markers[i][(int)Marker.Wellspring].GetComponent<Renderer>(), held ? HeldGlow : WellColor);
+                traps[i].SetActive(false);
             }
+            HeldCount = heldCount;
+            int trapsShown = 0;
+            foreach (var t in view.OwnTraps) // UX-14, C-33: own traps only
+            {
+                int i = Board.IndexOf(t.Pos);
+                if (i >= 0) { traps[i].SetActive(true); trapsShown++; }
+            }
+            TrapsShown = trapsShown;
             System.Array.Clear(eventCell, 0, eventCell.Length);
             anyEvent = false;
             if (view.AnnouncedEvent != null)
@@ -138,8 +169,27 @@ namespace HexPortal.Game
             }
         }
 
+        /// <summary>UX-14: the Portal opened for a player (W-01 is public): the portal ring glows and pulses in that
+        /// player's colour. Purely visual.</summary>
+        public void SetPortalOpen(bool open, Color c)
+        {
+            portalOpen = open;
+            portalColor = c;
+            if (portalIndex < 0) return;
+            var p = markers[portalIndex][(int)Marker.Portal];
+            if (!open) { p.transform.localScale = Vector3.one; Gfx.SetColor(p.GetComponent<Renderer>(), new Color(0.95f, 0.3f, 0.9f)); }
+        }
+
         void Update()
         {
+            if (portalOpen && portalIndex >= 0)
+            {
+                var p = markers[portalIndex][(int)Marker.Portal];
+                float k = 0.5f + 0.5f * Mathf.Sin(Time.time * 4f);
+                float s = 1.15f + 0.15f * k;
+                p.transform.localScale = new Vector3(s, s, s);
+                Gfx.SetColor(p.GetComponent<Renderer>(), Color.Lerp(portalColor, Color.white, 0.5f * k));
+            }
             // UX-06 pulse for announced event cells, and short flashes for traps/shots. No allocations.
             if (!anyEvent && !flashing) return; // nothing pulsing or flashing
             bool stillFlashing = false;

@@ -8,6 +8,21 @@ namespace HexPortal.Game
     {
         public const string Title = "HexPortal";
         public const string Hotseat = "Aynı cihazda 2 kişi";
+        // UX-13…UX-15 (v3.3)
+        public const string PauseIcon = "II";
+        public const string PauseTitle = "Duraklatıldı";
+        public const string Resume = "Devam";
+        public const string SettingTimerOn = "Süre: Açık";
+        public const string SettingTimerOff = "Süre: Kapalı";
+        public const string SettingVibrationOn = "Titreşim: Açık";
+        public const string SettingVibrationOff = "Titreşim: Kapalı";
+        public const string SettingSoundSoon = "Ses: yakında";
+        public const string BackToMenu = "Ana menüye dön";
+        public const string LeaveMatchConfirm = "Maçtan çıkılsın mı? Bu maç kaybolur.";
+        public const string PortalOpenedYou = "Portal senin için açıldı!";
+        public const string PortalOpenedOpp = "Portal rakip için açıldı!";
+        public static string EnergyBonus(int n) => "+" + n + " Enerji";
+        public static string ManaBonus(int n) => "+" + n + " Mana";
         // UX-08 tutorial
         public const string Tutorial = "Öğretici";
         public const string TutorialSkip = "Atla";
@@ -128,6 +143,13 @@ namespace HexPortal.Game
         public static readonly string InfoActions = "Hareket, saldırı, nöbet: 1 Enerji\nİlerle-saldır: " + Catalog.MoveAttackEnergy + " Enerji (tek hamle)";
         public static readonly string InfoCharge = " (+" + Catalog.RiderChargeBonus + " Hücum ile ilerle-saldırda)";
         public const string InfoTowerText = "Hareket etmez. Rakibin turunda menzilinde duran, sahaya çıkan ya da saldıran tek birime 1 kez ateş eder";
+
+        /// <summary>UX-13 compact range chip under the Health bar (icon + numbers from the class data).</summary>
+        public static string RangeChip(RangeKind kind, int min, int max)
+        {
+            string n = min == max ? max.ToString() : min + "-" + max;
+            return "➶" + n; // glyph known to be in the UI font; the kind (line / distance) is in the UX-11 panel
+        }
 
         /// <summary>UX-11 range line from the class data (text only).</summary>
         public static string RangeText(RangeKind kind, int min, int max)

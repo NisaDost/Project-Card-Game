@@ -101,10 +101,10 @@ namespace HexPortal.Game
             var wait = new WaitForSeconds(AiStepSeconds);
             while (true)
             {
-                if (Match.AiToAct)
+                if (Match.AiToAct && !Match.Paused)
                 {
                     yield return wait;
-                    if (Match.AiToAct) Match.StepAi();
+                    if (Match.AiToAct && !Match.Paused) Match.StepAi();
                 }
                 else yield return null;
             }

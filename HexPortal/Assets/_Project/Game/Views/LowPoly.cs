@@ -114,6 +114,7 @@ namespace HexPortal.Game
         public static Mesh Wellspring => Cached(203, MakeWell);
         public static Mesh Portal => Cached(204, MakePortal);
         public static Mesh Rock => Cached(205, MakeRock);
+        public static Mesh Trap => Cached(206, MakeTrap);
 
         static Mesh MakeBody(int kind)
         {
@@ -241,6 +242,20 @@ namespace HexPortal.Game
                 b.Box(p, new Vector3(0.36f, 0.1f, 0.12f), Quaternion.Euler(0f, 0f, Mathf.Rad2Deg * a0 + 90f));
             }
             return b.Build("Portal");
+        }
+
+        /// <summary>UX-14 own trap: a flat plate with small spikes.</summary>
+        static Mesh MakeTrap()
+        {
+            var b = new Builder();
+            b.Prism(6, 0.45f, 0.42f, 0f, 0.05f, Vector3.zero, 30f);
+            for (int i = 0; i < 6; i++)
+            {
+                float a = Mathf.Deg2Rad * (60f * i);
+                b.Prism(4, 0.07f, 0f, 0.05f, 0.3f, new Vector3(Mathf.Cos(a) * 0.25f, 0f, Mathf.Sin(a) * 0.25f), 45f);
+            }
+            b.Prism(4, 0.08f, 0f, 0.05f, 0.36f, Vector3.zero, 45f);
+            return b.Build("Trap");
         }
 
         static Mesh MakeRock()
