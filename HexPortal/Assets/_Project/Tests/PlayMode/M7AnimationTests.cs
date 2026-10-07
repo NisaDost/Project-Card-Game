@@ -23,6 +23,7 @@ namespace HexPortal.Game.Tests
             yield return null;
             var m = app.Match;
             var units = app.Units;
+            int poolBefore = units.PoolSize;
             int errorsBefore = app.LoggedErrors;
             int fixedObjects = ObjectCount() - units.PoolSize * UnitsView.ObjectsPerPiece - units.BurstPoolSize;
             m.NewAiMatch(123, PlayerId.A, AiLevel.Normal, timer: false);
@@ -46,7 +47,7 @@ namespace HexPortal.Game.Tests
             }
             Assert.That(m.IsOver, Is.True);
             yield return new WaitForSeconds(0.6f); // every tween ends on its own
-            Assert.That(units.PoolSize, Is.LessThanOrEqualTo(maxShown + 4));
+            Assert.That(units.PoolSize, Is.LessThanOrEqualTo(Mathf.Max(maxShown, poolBefore) + 4), "earlier tests may have grown the pool");
             Assert.That(units.FxPoolSize, Is.LessThanOrEqualTo(12));
             Assert.That(app.LoggedErrors, Is.EqualTo(errorsBefore));
             LogAssert.NoUnexpectedReceived();

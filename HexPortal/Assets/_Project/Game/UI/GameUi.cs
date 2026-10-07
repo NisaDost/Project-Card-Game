@@ -107,7 +107,9 @@ namespace HexPortal.Game
             hand = root.Q("hand"); handTraps = root.Q("hand-traps"); handChars = root.Q("hand-chars"); handBuffs = root.Q("hand-buffs");
             manaCaption = root.Q<Label>("mana-caption");
             infoIcon = root.Q<Label>("info-icon"); infoTitle = root.Q<Label>("info-title"); infoText = root.Q<Label>("info-text");
-            infoPanel.RegisterCallback<PointerUpEvent>(_ => HideInfo()); questOptions = root.Q("quest-options"); passiveOptions = root.Q("passive-options");
+            // UX-11 panel is display-only: it overlaps the left board cells, so it must never take taps meant for them
+            // (it used to close on tap, which swallowed the first tap on a target under it). It closes on deselect.
+            infoPanel.Query<VisualElement>().ForEach(x => x.pickingMode = PickingMode.Ignore); questOptions = root.Q("quest-options"); passiveOptions = root.Q("passive-options");
             manaPips = root.Q("mana-pips"); energyPips = root.Q("energy-pips"); oppInfo = root.Q("opp-info");
             ownTower = root.Q<Label>("own-tower"); roundLabel = root.Q<Label>("round");
             oppTower = root.Q<Label>("opp-tower"); oppHand = root.Q<Label>("opp-hand"); oppQuests = root.Q<Label>("opp-quests");
@@ -164,6 +166,8 @@ namespace HexPortal.Game
             hit.RegisterCallback<WheelEvent>(OnWheel);
             // Card drag (UX-03): the pressed pointer is captured by the root, so its move/up/cancel reach these handlers
             // wherever the finger goes (board, HUD, off-panel). TrickleDown also sees them if the capture was refused.
+            // Runs before any handler, also while the root holds a capture from a press whose up was lost.
+            root.RegisterCallback<PointerDownEvent>(e => HealStalePointers(e.pointerId), TrickleDown.TrickleDown);
             root.RegisterCallback<PointerMoveEvent>(OnCardMove, TrickleDown.TrickleDown);
             root.RegisterCallback<PointerUpEvent>(OnCardUp, TrickleDown.TrickleDown);
             root.RegisterCallback<PointerCancelEvent>(OnCardCancel, TrickleDown.TrickleDown);
@@ -273,8 +277,7 @@ namespace HexPortal.Game
             var v = match.View;
             int keepPreview = rangePreview ? selectedUnit : -1; // UX-10: a range preview survives the opponent's steps
             if (!PlanningAllowed()) plans.Clear(); // UX-10: arrows are cleared at the start of the player's own turn
-            CancelPointers(); // the hand is rebuilt below: a drag in progress returns its card (UX-03)
-            ClearSelection();
+            ResetInput(); // after every applied command, turn change or view change: Idle (the hand is rebuilt below; UX-03)
             if (match.IsOver)
             {
                 var r = v.Result;
@@ -712,19 +715,19 @@ namespace HexPortal.Game
         void OnDrawSlot(int slot)
         {
             foreach (var c in match.Legal)
-                if ((c is DrawCommand d && d.Slot == slot) || (c is PrePickCommand p && p.Slot == slot)) { match.Apply(c); return; }
+                if ((c is DrawCommand d && d.Slot == slot) || (c is PrePickCommand p && p.Slot == slot)) { ApplyCmd(c); return; }
         }
 
         void OnEnd()
         {
             var cmd = (ICommand)Find<FinishSetupCommand>() ?? Find<EndTurnCommand>();
-            if (cmd != null) match.Apply(cmd);
+            if (cmd != null) ApplyCmd(cmd);
         }
 
         void OnOverwatch()
         {
             var o = FindOverwatch(selectedUnit);
-            if (o != null) match.Apply(o);
+            if (o != null) ApplyCmd(o);
         }
 
         // ---------- Selection and highlights ----------
@@ -879,18 +882,18 @@ namespace HexPortal.Game
             if (secondPick.Count > 0) // card second pick or move-attack approach; a tap anywhere else cancels
             {
                 foreach (var c in secondPick)
-                    if (SecondPickCell(c) == cell) { match.Apply(c); return; }
+                    if (SecondPickCell(c) == cell) { ApplyCmd(c); return; }
                 ClearSelection();
                 return;
             }
             if (selectedCard >= 0 && TryCardOnCell(selectedCard, cell)) return;
             foreach (var c in match.Legal)
-                if (c is PlaceTowerCommand t && t.Cell == cell) { match.Apply(c); return; }
+                if (c is PlaceTowerCommand t && t.Cell == cell) { ApplyCmd(c); return; }
             if (selectedUnit >= 0 && !rangePreview)
             {
                 foreach (var c in match.Legal)
                     if ((c is MoveCommand m && m.UnitId == selectedUnit && m.Dest == cell)
-                        || (c is AttackCommand a && a.UnitId == selectedUnit && a.Target == cell)) { match.Apply(c); return; }
+                        || (c is AttackCommand a && a.UnitId == selectedUnit && a.Target == cell)) { ApplyCmd(c); return; }
                 if (TryMoveAttack(selectedUnit, cell)) return;
                 if (previewOnly.Contains(cell)) { ShowToast(Strings.ReasonMoveAttackEnergy); return; }
             }
@@ -912,7 +915,7 @@ namespace HexPortal.Game
             {
                 var only = secondPick[0];
                 secondPick.Clear();
-                match.Apply(only);
+                ApplyCmd(only);
                 return true;
             }
             board.ClearHighlights();
@@ -954,7 +957,7 @@ namespace HexPortal.Game
 
         void PlayOptions(List<ICommand> options, Hex cell)
         {
-            if (options.Count == 1) { match.Apply(options[0]); return; }
+            if (options.Count == 1) { ApplyCmd(options[0]); return; }
             secondPick.Clear();
             board.ClearHighlights();
             board.Highlight(cell, Gfx.TargetHl);
@@ -963,7 +966,7 @@ namespace HexPortal.Game
                 var h = SecondPickCell(c);
                 if (Board.IsOnBoard(h)) { secondPick.Add(c); board.Highlight(h, Gfx.MoveHl); }
             }
-            if (secondPick.Count == 0) match.Apply(options[0]);
+            if (secondPick.Count == 0) ApplyCmd(options[0]);
             UpdatePrompt();
         }
 
@@ -1217,6 +1220,60 @@ namespace HexPortal.Game
             boardPointers = 0;
             boardPointer = -1;
             pinchActive = false;
+        }
+
+        /// <summary>A new press arrives. Gesture state that waits for an earlier PointerUp is stale when that up was lost
+        /// (finger lifted outside the panel, an unrouted second-finger up, mouse released outside the Game view): the
+        /// same pointer pressing again, or no other finger actually on the screen, proves the earlier press ended.
+        /// Without this, a lost up left boardPointers &gt; 0 (every tap read as a pinch) or pressCard set (board and hand
+        /// ignored) until the next Refresh, i.e. until Turu Bitir.</summary>
+        void HealStalePointers(int pointerId)
+        {
+            // UI Toolkit reuses pointer ids (mouse: one id; touch: one id per finger slot), so the same id pressing again
+            // means its previous press is over. Other ids are real extra fingers and are left alone.
+            if (pressCard >= 0 && pressPointer == pointerId) CancelCardPointer();
+            if (boardPointers > 0 && boardPointer == pointerId)
+            {
+                boardPointers = 0;
+                boardPointer = -1;
+                pinchActive = false;
+                planning = false;
+            }
+        }
+
+        /// <summary>Client input state, derived from the gesture/selection fields (one source of truth).</summary>
+        public enum InputMode { Locked, Idle, UnitSelected, CardSelected, ApproachChoice, Dragging, Confirm }
+
+        public InputMode Mode
+        {
+            get
+            {
+                if (!match.HasMatch || match.HandoffPending || match.IsOver || Current != Screen.Board) return InputMode.Locked;
+                if (confirmAction != null) return InputMode.Confirm;
+                if (dragging) return InputMode.Dragging;
+                if (secondPick.Count > 0) return InputMode.ApproachChoice;
+                if (selectedCard >= 0) return InputMode.CardSelected;
+                if (selectedUnit >= 0) return InputMode.UnitSelected;
+                return InputMode.Idle;
+            }
+        }
+
+        /// <summary>Back to Idle: drops gestures, the confirm dialog, second picks and the selection.</summary>
+        void ResetInput()
+        {
+            CancelPointers();
+            planning = false;
+            if (confirmAction != null) { confirmAction = null; confirmPanel.style.display = DisplayStyle.None; }
+            ClearSelection();
+        }
+
+        /// <summary>Every command from the board/hand goes through here: whatever the result, input returns to Idle
+        /// (a rejected command used to leave a half-finished selection behind).</summary>
+        bool ApplyCmd(ICommand c)
+        {
+            bool ok = match.Apply(c);
+            if (!ok) ResetInput();
+            return ok;
         }
 
         /// <summary>A card press or drag is in progress (tests/CLI).</summary>
