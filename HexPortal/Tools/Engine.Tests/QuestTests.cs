@@ -27,8 +27,8 @@ namespace HexPortal.Tests
         public void Q02_QuestsAreCheckedAtTheEndOfTheOwnersTurn()
         {
             var b = new TestBoard().Round(3).Active(B).Quests(A, "Q-19");
-            b.Unit(UnitClass.Archer, A, H(0, -5)); // B's home zone (r ≤ -5)
-            b.Unit(UnitClass.Archer, A, H(-1, -5));
+            b.Unit(UnitClass.Archer, A, H(0, -6)); // B's home zone (r ≤ -6)
+            b.Unit(UnitClass.Archer, A, H(-1, -6));
             var s = b.Build();
             var ev = End(s); // B's turn end: A's quests are not checked
             Assert.That(Completed(ev, A), Is.Empty);
@@ -42,8 +42,8 @@ namespace HexPortal.Tests
         public void Q01_Q03_QuestsAreHiddenUntilCompleted_ThenPublicAndPermanent()
         {
             var b = new TestBoard().Round(3).Quests(A, "Q-19", "Q-11", "Q-15");
-            int u1 = b.Unit(UnitClass.Archer, A, H(0, -5)); // B's home zone (r ≤ -5)
-            b.Unit(UnitClass.Archer, A, H(-1, -5));
+            int u1 = b.Unit(UnitClass.Archer, A, H(0, -6)); // B's home zone (r ≤ -6)
+            b.Unit(UnitClass.Archer, A, H(-1, -6));
             var s = b.Build();
             var viewB = PlayerView.For(s, B);
             Assert.That(viewB.OpponentCompletedQuests, Is.Empty);
@@ -316,8 +316,8 @@ namespace HexPortal.Tests
         public void T08_TimersCountDownBeforeQuestsAreChecked()
         {
             var b = new TestBoard().Round(3).Quests(A, "Q-19");
-            int x = b.Unit(UnitClass.Archer, A, H(0, -5)); // B's home zone (r ≤ -5)
-            b.Unit(UnitClass.Archer, A, H(-1, -5));
+            int x = b.Unit(UnitClass.Archer, A, H(0, -6)); // B's home zone (r ≤ -6)
+            b.Unit(UnitClass.Archer, A, H(-1, -6));
             b.Effect(x, "C-10", 1); // expires at this turn end (C-04)
             var s = b.Build();
             var ev = End(s);
@@ -365,12 +365,12 @@ namespace HexPortal.Tests
         public void Q19_TwoUnitsInTheEnemyHomeZone_OneIsNotEnough()
         {
             var b = new TestBoard().Round(3).Quests(A, "Q-19");
-            b.Unit(UnitClass.Archer, A, H(0, -5));              // B's home zone (r ≤ -5)
+            b.Unit(UnitClass.Archer, A, H(0, -6));              // B's home zone (r ≤ -6)
             int second = b.Unit(UnitClass.Archer, A, H(0, -4)); // just outside it
             var s = b.Build();
             Assert.That(Completed(End(s), A), Is.Empty);
             End(s);
-            Engine.Apply(s, new MoveCommand(A, second, H(1, -5)));
+            Engine.Apply(s, new MoveCommand(A, second, H(1, -6)));
             Assert.That(Completed(End(s), A), Is.EqualTo(new[] { "Q-19" }));
         }
     }

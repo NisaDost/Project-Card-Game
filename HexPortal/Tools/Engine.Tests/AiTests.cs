@@ -442,7 +442,7 @@ namespace HexPortal.Tests
                 foreach (var p in Players)
                 {
                     var tower = s.GetTower(p).Pos;
-                    Assert.That(tower.R, Is.EqualTo(p == A ? 6 : -6), "back row");
+                    Assert.That(tower.R, Is.EqualTo(p == A ? Catalog.BoardRadius : -Catalog.BoardRadius), "back row");
                     Assert.That(Math.Abs(2 * tower.Q + tower.R), Is.LessThanOrEqualTo(2), "back-row centre (3 cells)");
                     var own = s.Units.Where(u => u.Owner == p).ToList();
                     // S-05 (v3.0), PM S3: a combination within the 8 setup Mana, at least one character.

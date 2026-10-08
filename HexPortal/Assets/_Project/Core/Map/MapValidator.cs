@@ -3,7 +3,9 @@ using HexPortal.Core.Data;
 
 namespace HexPortal.Core
 {
-    /// <summary>B-24: checks symmetry (B-04), tile kinds (B-13, B-14), biome counts (B-22) and special tiles (B-23).</summary>
+    /// <summary>B-24: checks symmetry (B-04), tile kinds (B-13, B-14), the template (B-25), biome counts (B-22, B-25),
+    /// special tiles (B-23, B-25) and reachability (B-25: complete, connected home zones; the Portal reachable from every
+    /// home cell).</summary>
     public static class MapValidator
     {
         static readonly Biome[] Biomes = { Biome.Forest, Biome.Desert, Biome.Snow };
@@ -12,6 +14,11 @@ namespace HexPortal.Core
         public static List<string> Validate(GameMap map)
         {
             var errors = new List<string>();
+            var template = Catalog.MapTemplates[map.TemplateId];
+            var templateRock = new HashSet<Hex>();
+            var templateVoid = new HashSet<Hex>();
+            foreach (var h in template.UpperRocks) { templateRock.Add(h); templateRock.Add(h.Mirror()); }
+            foreach (var h in template.UpperVoids) { templateVoid.Add(h); templateVoid.Add(h.Mirror()); }
 
             foreach (var h in Board.Cells)
             {
@@ -27,24 +34,32 @@ namespace HexPortal.Core
 
             var runes = new List<Hex>();
             var specials = new List<Hex>();
+            int playableUpper = 0;
             foreach (var h in Board.Cells)
             {
                 if (h == Board.Portal) continue;
                 var t = map.Get(h);
+                bool isRock = t.Marker == Marker.Rock, isVoid = t.Marker == Marker.Void;
                 if (t.Marker == Marker.Portal) errors.Add("Portal: extra Portal at " + h);
-                if (t.Marker == Marker.Rock) errors.Add("Rock: " + h + " (only map events create rock)");
-                if (t.Biome == Biome.None) errors.Add("No biome: " + h);
+                if (isRock && !templateRock.Contains(h)) errors.Add("Rock: " + h + " (only map events and the template create rock)");
+                if (!isRock && templateRock.Contains(h)) errors.Add("Template: " + h + " must be rock, is " + t);
+                if (isVoid != templateVoid.Contains(h)) errors.Add("Template: " + h + (isVoid ? " is Void outside the template" : " must be Void, is " + t));
+                if (isRock && templateRock.Contains(h) && t.Biome != Biome.None) errors.Add("Template: rock " + h + " has a biome");
+                if (!isRock && !isVoid && t.Biome == Biome.None) errors.Add("No biome: " + h);
+                if (isVoid && t.Biome != Biome.None) errors.Add("Template: Void " + h + " has a biome");
+                if (Board.IsInUpperHalf(h) && !isRock && !isVoid) playableUpper++;
                 if (t.Marker == Marker.RuneStone) runes.Add(h);
                 if (t.Marker == Marker.RuneStone || t.Marker == Marker.Wellspring) specials.Add(h);
             }
 
+            int minPerBiome = Catalog.MinCellsPerBiome(playableUpper);
             foreach (var b in Biomes)
             {
                 int n = 0;
                 foreach (var h in Board.Cells)
                     if (Board.IsInUpperHalf(h) && map.Get(h).Biome == b) n++;
-                if (n < Catalog.MinCellsPerBiome)
-                    errors.Add("Biome count: " + b + " has " + n + " cells in the upper half (min " + Catalog.MinCellsPerBiome + ")");
+                if (n < minPerBiome)
+                    errors.Add("Biome count: " + b + " has " + n + " cells in the upper half (min " + minPerBiome + ")");
             }
 
             foreach (var p in new[] { PlayerId.A, PlayerId.B })
@@ -86,7 +101,32 @@ namespace HexPortal.Core
                         errors.Add("Wellspring next to rune: " + h + " and " + r);
             }
 
+            AddReachabilityErrors(map, errors);
             return errors;
+        }
+
+        // B-25: the home zones are connected and the Portal is reachable from every home cell (BFS without units over passable
+        // cells). Rock or Void in a home zone is already reported by "Rock:" / "Template:" (template cells are never home cells).
+
+        static void AddReachabilityErrors(GameMap map, List<string> errors)
+        {
+            var fromPortal = new HashSet<Hex>(HexSearch.Reachable(Board.Portal, int.MaxValue, map.IsPassable, _ => true));
+            foreach (var p in new[] { PlayerId.A, PlayerId.B })
+            {
+                Hex? first = null;
+                int count = 0;
+                foreach (var h in Board.Cells)
+                {
+                    if (!Board.IsHomeZone(h, p) || !map.IsPassable(h)) continue;
+                    count++;
+                    if (!first.HasValue) first = h;
+                    if (!fromPortal.Contains(h)) errors.Add("Reachability: Portal unreachable from " + h);
+                }
+                if (!first.HasValue) { errors.Add("Reachability: home zone of " + p + " has no passable cell"); continue; }
+                var inside = HexSearch.Reachable(first.Value, int.MaxValue,
+                    h => Board.IsHomeZone(h, p) && map.IsPassable(h), _ => true);
+                if (inside.Count + 1 != count) errors.Add("Reachability: home zone of " + p + " is not connected");
+            }
         }
     }
 }

@@ -68,6 +68,13 @@ namespace HexPortal.Tests
             return this;
         }
 
+        /// <summary>B-25: a Void cell (not part of the playable board).</summary>
+        public TestBoard Void(Hex h)
+        {
+            map.Set(h, new Tile(Core.Data.Biome.None, Marker.Void));
+            return this;
+        }
+
         public TestBoard Wellspring(Hex h)
         {
             map.Set(h, new Tile(map.Get(h).Biome, Marker.Wellspring));

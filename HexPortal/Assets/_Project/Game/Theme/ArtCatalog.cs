@@ -119,6 +119,7 @@ namespace HexPortal.Game
             [Marker.Wellspring] = new MarkerArt { Color = new Color(0.1f, 0.85f, 0.95f), Mesh = () => LowPoly.Wellspring },
             [Marker.Portal] = new MarkerArt { Color = new Color(0.95f, 0.3f, 0.9f), Mesh = () => LowPoly.Portal },
             [Marker.Rock] = new MarkerArt { Color = new Color(0.35f, 0.33f, 0.32f), Mesh = () => LowPoly.Rock },
+            [Marker.Void] = new MarkerArt { Color = Color.clear, Mesh = null }, // B-25: never drawn
         };
         public static readonly Color FogColor = new Color(0.16f, 0.17f, 0.24f); // UX-09 Hidden cloud
         public static readonly Color OwnTrapColor = new Color(0.8f, 0.3f, 1f);

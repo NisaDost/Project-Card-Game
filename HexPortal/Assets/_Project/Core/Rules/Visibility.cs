@@ -7,16 +7,16 @@ namespace HexPortal.Core
     /// memory with last-seen snapshots (V-01, V-03, V-04, V-10). PlayerView reads the memory.</summary>
     public static class Visibility
     {
-        /// <summary>V-02: cells within Sight of any own unit or the own (placed) tower (nothing blocks sight),
+        /// <summary>V-02, B-25: playable (never Void) cells within Sight of any own unit or the own (placed) tower (nothing blocks sight),
         /// plus the Portal (V-06), plus the cells of enemy units and the enemy tower revealed by an attack (V-08).</summary>
         public static HashSet<Hex> VisibleCells(GameState state, PlayerId player)
         {
             var visible = new HashSet<Hex> { Board.Portal };
             var tower = state.GetTower(player);
-            if (tower.IsPlaced) AddWithin(visible, tower.Pos, Catalog.Tower.Sight);
+            if (tower.IsPlaced) AddWithin(visible, tower.Pos, Catalog.Tower.Sight, state.Map);
             foreach (var u in state.Units)
             {
-                if (u.Owner == player) AddWithin(visible, u.Pos, u.Def.Sight);
+                if (u.Owner == player) AddWithin(visible, u.Pos, u.Def.Sight, state.Map);
                 else if (IsRevealed(state, u)) visible.Add(u.Pos);
             }
             var enemyTower = state.GetTower(player.Opponent());
@@ -27,7 +27,7 @@ namespace HexPortal.Core
         /// <summary>V-08: the unit attacked recently and is Visible to its opponent wherever it is.</summary>
         public static bool IsRevealed(GameState state, Unit unit) => unit.RevealedUntilTurn >= state.TurnIndex;
 
-        static void AddWithin(HashSet<Hex> set, Hex center, int sight) => Board.AddWithin(set, center, sight);
+        static void AddWithin(HashSet<Hex> set, Hex center, int sight, GameMap map) => Board.AddWithin(set, center, sight, map);
 
         /// <summary>V-08 (v2.8 V1): an attacker becomes Visible to the opponent until the end of the opponent's next turn;
         /// an attack made during the opponent's turn (overwatch, tower shot) until the end of that turn. Call before the
@@ -51,7 +51,8 @@ namespace HexPortal.Core
         static int RevealEnd(GameState state, PlayerId attacker) =>
             attacker == state.ActivePlayer ? state.TurnIndex + 1 : state.TurnIndex;
 
-        /// <summary>V-04: each player starts with the own half (B-06) Explored with its current terrain, the Portal
+        /// <summary>V-04: each player starts with the own half (B-06) Explored, plus (PM, v3.3) the template's permanent terrain
+        /// (B-25: Void and template rock) on the whole board; later E-10 rock follows the normal fog rules (E-05). Explored with its current terrain, the Portal
         /// Visible (V-06), everything else Hidden.</summary>
         internal static void InitMemory(GameState state)
         {
@@ -62,10 +63,22 @@ namespace HexPortal.Core
                 {
                     var terrain = new LastSeen(state.Map.Get(h));
                     if (h == Board.Portal) mem.Set(h, CellVisibility.Visible, terrain);
-                    else if (Board.IsInHalf(h, p)) mem.Set(h, CellVisibility.Explored, terrain);
+                    else if ((Board.IsInHalf(h, p) && state.Map.IsPlayable(h)) || IsTemplateTerrain(state.Map, h)) mem.Set(h, CellVisibility.Explored, terrain);
                     else mem.Set(h, CellVisibility.Hidden, default(LastSeen));
                 }
             }
+        }
+
+        /// <summary>B-25: a cell the map's template made Void or permanent rock (public at match start, V-04 exception).</summary>
+        static bool IsTemplateTerrain(GameMap map, Hex h)
+        {
+            var m = map.Get(h).Marker;
+            if (m == Marker.Void) return true;
+            if (m != Marker.Rock) return false;
+            var def = Catalog.MapTemplates[map.TemplateId];
+            var upper = Board.IsInUpperHalf(h) ? h : h.Mirror();
+            foreach (var c in def.UpperRocks) if (c == upper) return true;
+            return false;
         }
 
         /// <summary>InitMemory, then UpdateMemory: the memory of a scenario that starts as placed (TestBoard).</summary>

@@ -386,6 +386,7 @@ namespace HexPortal.Game
                 return;
             }
             if (shownMatch != match.MatchNumber) { shownMatch = match.MatchNumber; facing = null; framedTurn = -1; portalNoticed[0] = portalNoticed[1] = false; board.SetPortalOpen(false, Color.clear); ClearLog(); }
+            CameraRig.SetPlayable(v.TemplateId, v.PlayableCells); // B-25: frame, clamp and pick on the template's cells
             bool faced = facing != v.Viewer;
             if (faced) { CameraRig.Face(cam, v.Viewer); facing = v.Viewer; }
             bool myTurnStart = v.Phase == GamePhase.Playing && v.ActivePlayer == v.Viewer && v.TurnIndex != framedTurn;

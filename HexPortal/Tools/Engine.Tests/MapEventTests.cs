@@ -130,6 +130,7 @@ namespace HexPortal.Tests
         public void E03_E10_E11_E12_EveryTypeHasTerrainEligibleTargets_OnGeneratedMaps_Seeds1To1000()
         {
             var min = Catalog.MapEvents.ToDictionary(e => e.Id, e => int.MaxValue);
+            var minT = new Dictionary<string, int>(); // "template/type" (B-25)
             for (ulong seed = 1; seed <= 1000; seed++)
             {
                 var s = new TestBoard(MapGenerator.Generate(seed)).Build();
@@ -137,12 +138,15 @@ namespace HexPortal.Tests
                 {
                     var cand = MapEvents.Candidates(s, def);
                     min[def.Id] = System.Math.Min(min[def.Id], cand.Count);
+                    string key = s.Map.TemplateId + "/" + def.Id;
+                    minT[key] = System.Math.Min(minT.TryGetValue(key, out int v) ? v : int.MaxValue, cand.Count);
                     foreach (var c in cand)
                     {
                         Assert.That(Board.IsInUpperHalf(c), Is.True); // one representative per mirror pair
                         if (def.Id == "E-11")
                         {
                             Assert.That(Hex.Distance(c, Board.Portal), Is.GreaterThanOrEqualTo(Catalog.BiomeShiftMinPortalDistance));
+                            Assert.That(MapEvents.ClusterCells(s, c).All(h => s.Map.IsPlayable(h) && s.Map.Get(h).Biome != Biome.None), Is.True, "B-25 at " + c);
                             var cells = Cluster(c);
                             int n = cells.Length / 2;
                             Assert.That(cells.Take(n).Intersect(cells.Skip(n)), Is.Empty, "cluster overlaps its mirror at " + c);
@@ -157,7 +161,10 @@ namespace HexPortal.Tests
             }
             TestContext.Out.WriteLine("[stats] min terrain-eligible targets (mirror pairs) over seeds 1..1000: "
                 + string.Join(", ", min.Select(kv => kv.Key + "=" + kv.Value)));
+            TestContext.Out.WriteLine("[stats] per template: " + string.Join(", ", minT.OrderBy(kv => kv.Key).Select(kv => kv.Key + "=" + kv.Value)));
             foreach (var kv in min) Assert.That(kv.Value, Is.GreaterThan(0), kv.Key);
+            // v3.3 (B-25): every template keeps a wide choice of targets (v3.0 measured 45/54/45 on the 127-cell board).
+            foreach (var kv in minT) Assert.That(kv.Value, Is.GreaterThanOrEqualTo(30), kv.Key);
         }
 
         [Test]

@@ -100,6 +100,23 @@ namespace HexPortal.Sim
                 ["A win rate 95% CI"] = WilsonCi(winsA, n),
             };
 
+            // ---- Per map template (B-25) ----
+            var templates = new SortedDictionary<string, object>();
+            foreach (var t in Catalog.MapTemplates)
+            {
+                var tg = games.Where(g => g.TemplateId == t.Id).ToList();
+                var rounds = tg.Select(g => g.Rounds).OrderBy(x => x).ToList();
+                templates[t.Id + " " + t.Name] = new SortedDictionary<string, object>
+                {
+                    ["games"] = tg.Count,
+                    ["A win rate"] = Rate(tg.Count(g => g.Winner == "A"), tg.Count),
+                    ["draw rate"] = Rate(tg.Count(g => g.Winner == null), tg.Count),
+                    ["W-01 share"] = Rate(tg.Count(g => g.ResultKey == "W-01"), tg.Count),
+                    ["median round"] = rounds.Count == 0 ? 0 : rounds[rounds.Count / 2],
+                };
+            }
+            root["templates"] = templates;
+
             // ---- Units and durability (U-30) ----
             var hitsByClass = new SortedDictionary<string, object>();
             foreach (var cls in games.SelectMany(g => g.HitsToKill.Keys).Distinct().OrderBy(k => k, StringComparer.Ordinal))

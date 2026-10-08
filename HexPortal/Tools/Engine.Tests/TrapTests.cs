@@ -174,14 +174,14 @@ namespace HexPortal.Tests
                 Hex Run()
                 {
                     var b = new TestBoard(seed: seed).Active(B);
-                    b.Unit(UnitClass.Archer, B, H(-1, -5)); // B's home zone (r ≤ -5), occupied
+                    b.Unit(UnitClass.Archer, B, H(-1, -6)); // B's home zone (r ≤ -6), occupied
                     int g = b.Unit(UnitClass.Guardian, B, H(1, 0));
                     b.Trap(A, "C-21", H(1, 1));
                     var s = b.Build();
                     var ev = Engine.Apply(s, new MoveCommand(B, g, H(1, 1)));
                     var u = s.GetUnit(g);
                     Assert.That(Board.IsHomeZone(u.Pos, B), Is.True);
-                    Assert.That(u.Pos, Is.Not.EqualTo(H(-1, -5)).And.Not.EqualTo(s.GetTower(B).Pos));
+                    Assert.That(u.Pos, Is.Not.EqualTo(H(-1, -6)).And.Not.EqualTo(s.GetTower(B).Pos));
                     Assert.That(u.Health, Is.EqualTo(Hp(UnitClass.Guardian)));
                     var t = ev.OfType<UnitTeleported>().Single();
                     Assert.That((t.From, t.To), Is.EqualTo((H(1, 1), u.Pos)));
@@ -205,7 +205,7 @@ namespace HexPortal.Tests
         [Test]
         public void C21_MirrorCanChainIntoAnotherTrap()
         {
-            var keep = H(0, 5); // the only free cell of A's home zone (r ≥ 5)
+            var keep = H(0, 6); // the only free cell of A's home zone (r ≥ 6)
             var b = FillHomeA(new TestBoard(), keep);
             int g = b.Unit(UnitClass.Guardian, A, H(0, 1));
             b.Trap(B, "C-21", H(1, 1));
@@ -219,16 +219,16 @@ namespace HexPortal.Tests
         }
 
         // U-29 (v2.7): once the Mirror Trap moves the unit to another cell, its arrival triggers no shots at all.
-        static void AssertMirrorMoveDrawsNoOverwatch(Hex keep, Hex mageCell)
+        static void AssertMirrorMoveDrawsNoOverwatch(Hex keep, Hex mageCell, Hex start, Hex trap)
         {
             var b = FillHomeA(new TestBoard(), keep);
-            int g = b.Unit(UnitClass.Guardian, A, H(0, 1));
+            int g = b.Unit(UnitClass.Guardian, A, start);
             int ow = b.Unit(UnitClass.Mage, B, mageCell);
             b.U(ow).OnOverwatch = true;
-            b.Trap(B, "C-21", H(1, 1));
+            b.Trap(B, "C-21", trap);
             var s = b.Build();
             Assert.That(Hex.Distance(mageCell, keep), Is.InRange(1, 2), "the new cell is in the Mage's range");
-            var ev = Engine.Apply(s, new MoveCommand(A, g, H(1, 1)));
+            var ev = Engine.Apply(s, new MoveCommand(A, g, trap));
             Assert.That(s.GetUnit(g).Pos, Is.EqualTo(keep));
             Assert.That(ev.OfType<OverwatchFired>(), Is.Empty);
             Assert.That(s.GetUnit(ow).OnOverwatch, Is.True);
@@ -239,14 +239,15 @@ namespace HexPortal.Tests
         public void U29_MirrorMovesUnitIntoOverwatchRange_NoShot()
         {
             Assert.That(Hex.Distance(H(-2, 4), H(1, 1)), Is.GreaterThan(2)); // the trap cell is out of range
-            AssertMirrorMoveDrawsNoOverwatch(H(-2, 5), H(-2, 4));
+            AssertMirrorMoveDrawsNoOverwatch(H(-2, 6), H(-2, 4), H(0, 1), H(1, 1));
         }
 
         [Test]
         public void U29_MirrorMovesUnitBetweenTwoInRangeCells_NoShot()
         {
-            Assert.That(Hex.Distance(H(0, 3), H(1, 1)), Is.InRange(1, 2)); // the trap cell is in range too
-            AssertMirrorMoveDrawsNoOverwatch(H(-1, 5), H(0, 3));
+            // v3.3: A's home zone is r >= 6, so the trap moves next to it to keep both cells within the Mage's range.
+            Assert.That(Hex.Distance(H(-1, 4), H(0, 5)), Is.InRange(1, 2)); // the trap cell is in range too
+            AssertMirrorMoveDrawsNoOverwatch(H(-1, 6), H(-1, 4), H(0, 4), H(0, 5));
         }
 
         [Test]
@@ -362,7 +363,7 @@ namespace HexPortal.Tests
         [Test]
         public void T05_C21_MoveAttack_MirrorOnTheApproach_AttackCancelled()
         {
-            var keep = H(0, 5);
+            var keep = H(0, 6);
             var b = FillHomeA(new TestBoard(), keep);
             int g = b.Unit(UnitClass.Guardian, A, H(0, 1));
             int target = b.Unit(UnitClass.Archer, B, H(2, 0));

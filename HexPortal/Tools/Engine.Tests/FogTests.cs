@@ -11,6 +11,12 @@ namespace HexPortal.Tests
     {
         static Hex H(int q, int r) => new Hex(q, r);
 
+        static bool IsTemplate(GameMap m, Hex h)
+        {
+            var def = Catalog.MapTemplates[m.TemplateId];
+            return def.UpperRocks.Concat(def.UpperVoids).Any(c => c == h || c.Mirror() == h);
+        }
+
         [Test]
         public void V04_OpeningOwnHalfExplored_OpponentHalfHidden_PortalVisible()
         {
@@ -24,6 +30,7 @@ namespace HexPortal.Tests
                     var v = fog.Get(h);
                     if (visible.Contains(h)) Assert.That(v, Is.EqualTo(CellVisibility.Visible), h.ToString());
                     else if (Board.IsInHalf(h, p)) Assert.That(v, Is.EqualTo(CellVisibility.Explored), h.ToString());
+                    else if (IsTemplate(s.Map, h)) Assert.That(v, Is.EqualTo(CellVisibility.Explored), "V-04 exception (PM, v3.3) " + h);
                     else Assert.That(v, Is.EqualTo(CellVisibility.Hidden), h.ToString());
                 }
                 Assert.That(fog.Get(Board.Portal), Is.EqualTo(CellVisibility.Visible));

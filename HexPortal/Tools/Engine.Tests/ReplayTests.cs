@@ -130,7 +130,8 @@ namespace HexPortal.Tests
                 var rng = new Rng(seed);
                 var s = NewGame(seed);
                 int steps = 0, games = 1, attacks = 0;
-                while (steps < 400)
+                // v3.3: the larger board (radius 7, templates) needs more random steps before the first attack on some seeds.
+                while (steps < 400 || (attacks == 0 && steps < 1200))
                 {
                     if (s.IsOver) // a W-03 draw has no winner
                     {

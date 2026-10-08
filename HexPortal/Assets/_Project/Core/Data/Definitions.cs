@@ -155,3 +155,29 @@ namespace HexPortal.Core.Data
         }
     }
 }
+
+namespace HexPortal.Core.Data
+{
+    /// <summary>B-25 (v3.3): one map template. Rock and Void cells of the upper half (B-21); the lower half mirrors them.
+    /// Template rocks are permanent Rock (B-14); Void cells are not part of the playable board.</summary>
+    public sealed class MapTemplateDef
+    {
+        public readonly int Id;
+        public readonly string Name;
+        public readonly System.Collections.Generic.IReadOnlyList<Hex> UpperRocks;
+        public readonly System.Collections.Generic.IReadOnlyList<Hex> UpperVoids;
+
+        /// <summary>Cells as flat axial pairs (q0, r0, q1, r1, ...).</summary>
+        public MapTemplateDef(int id, string name, int[] rocks, int[] voids)
+        {
+            Id = id; Name = name; UpperRocks = ToHexes(rocks); UpperVoids = ToHexes(voids);
+        }
+
+        static Hex[] ToHexes(int[] qr)
+        {
+            var list = new Hex[qr.Length / 2];
+            for (int i = 0; i < list.Length; i++) list[i] = new Hex(qr[2 * i], qr[2 * i + 1]);
+            return list;
+        }
+    }
+}

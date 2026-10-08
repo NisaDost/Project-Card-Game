@@ -6,7 +6,7 @@ namespace HexPortal.Game
     /// <summary>
     /// Slightly tilted perspective camera that fits the board (UX-04), with zoom and pan clamped to the board.
     /// B's view is the same camera rotated 180° around the board centre (B-05); the data is never mirrored.
-    /// Framing, clamping and picking derive from the world positions of Board.Cells, so they follow any board size.
+    /// Framing, clamping and picking derive from the world positions of the playable cells (B-25), so they follow any board size or template.
     /// </summary>
     public sealed class CameraRig : MonoBehaviour
     {
@@ -74,10 +74,26 @@ namespace HexPortal.Game
             if (Instance == this) Instance = null;
         }
 
+        /// <summary>B-25: the cells used for framing, clamping and picking (the template's playable cells). Defaults to the
+        /// whole board until a match sets them.</summary>
+        static System.Collections.Generic.IReadOnlyList<Hex> playable = Board.Cells;
+        static int playableTemplate = -1;
+
+        /// <summary>Sets the playable cells of the current map (PlayerView.PlayableCells). Recomputes bounds only when the
+        /// template changes (a template fixes its Void cells, B-25).</summary>
+        public static void SetPlayable(int templateId, System.Collections.Generic.IReadOnlyList<Hex> cells)
+        {
+            if (cells == null || cells.Count == 0 || templateId == playableTemplate) return;
+            playableTemplate = templateId;
+            playable = cells;
+            boundsReady = false;
+            EnsureBounds();
+        }
+
         static void EnsureBounds()
         {
             if (boundsReady) return;
-            var cells = Board.Cells;
+            var cells = playable;
             boundsMin = boundsMax = HexLayout.ToWorld(cells[0], BoardView.TileHeight);
             for (int i = 1; i < cells.Count; i++)
             {
@@ -203,7 +219,7 @@ namespace HexPortal.Game
             var plane = new Plane(Vector3.up, new Vector3(0f, BoardView.TileHeight, 0f));
             if (!plane.Raycast(ray, out float d)) return false;
             var p = ray.GetPoint(d);
-            var cells = Board.Cells;
+            var cells = playable; // B-25: Void cells are never picked
             float best = PickRadius * PickRadius;
             bool found = false;
             for (int i = 0; i < cells.Count; i++)

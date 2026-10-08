@@ -2,8 +2,9 @@ using HexPortal.Core.Data;
 
 namespace HexPortal.Core
 {
-    /// <summary>§2.1: a marker sits on top of the biome; the biome is kept. Rock is only created by map events (B-14).</summary>
-    public enum Marker { None, RuneStone, Wellspring, Portal, Rock }
+    /// <summary>§2.1: a marker sits on top of the biome; the biome is kept. Rock comes from map events (B-14) or a template
+    /// (B-25, no biome). Void (B-25): a cell the template leaves out; not part of the playable board, no biome.</summary>
+    public enum Marker { None, RuneStone, Wellspring, Portal, Rock, Void }
 
     public readonly struct Tile
     {

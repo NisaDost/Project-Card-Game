@@ -455,7 +455,7 @@ namespace HexPortal.Tests
             Assert.That(Pushed(b => b.Unit(UnitClass.Healer, A, H(3, 0)), H(1, 0)), Is.EqualTo(H(2, 0)));
             Assert.That(Pushed(b => b.Tower(B, H(3, 0)), H(1, 0)), Is.EqualTo(H(2, 0)));
             Assert.That(Pushed(b => b.Rock(H(3, 0)), H(1, 0)), Is.EqualTo(H(2, 0)));
-            Assert.That(Pushed(b => { }, H(5, 0)), Is.EqualTo(H(6, 0))); // (7,0) is off the board
+            Assert.That(Pushed(b => { }, H(6, 0)), Is.EqualTo(H(7, 0))); // (8,0) is off the board (radius 7)
         }
 
         [Test]

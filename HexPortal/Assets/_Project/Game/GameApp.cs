@@ -67,16 +67,28 @@ namespace HexPortal.Game
         {
             errorLabel = root.Q<Label>("err-counter");
             if (errorLabel == null || !Debug.isDebugBuild) return; // Release builds: no overlay, no log hook
-            errorLabel.text = Strings.ErrorCounter + "0";
+            UpdateErrorLabel();
             errorLabel.style.display = DisplayStyle.Flex;
             Application.logMessageReceived += OnLog;
+            Match.Changed += OnMatchChanged;
         }
+
+        int shownTemplate = -2;
+        void OnMatchChanged()
+        {
+            int t = Match.View != null ? Match.View.TemplateId : -1;
+            if (t != shownTemplate) { shownTemplate = t; UpdateErrorLabel(); }
+        }
+
+        /// <summary>Debug overlay: error count and the B-25 map template of the current match.</summary>
+        void UpdateErrorLabel() =>
+            errorLabel.text = Strings.ErrorCounter + LoggedErrors + (shownTemplate >= 0 ? "  T" + shownTemplate : "");
 
         void OnLog(string message, string stack, LogType type)
         {
             if (type != LogType.Error && type != LogType.Exception && type != LogType.Assert) return;
             LoggedErrors++;
-            errorLabel.text = Strings.ErrorCounter + LoggedErrors;
+            UpdateErrorLabel();
             errorLabel.AddToClassList("has-errors");
         }
 

@@ -4,7 +4,8 @@ using HexPortal.Core.Data;
 
 namespace HexPortal.Core
 {
-    /// <summary>The fixed 127-cell hexagonal board of radius 6 (B-01…B-06, B-21; v3.0). Data is never transformed per
+    /// <summary>The fixed 169-cell hexagonal board of radius 7 (B-01…B-06, B-21; v3.3). A map template may mark cells Void (B-25,
+    /// GameMap.IsPlayable). Data is never transformed per
     /// player (B-05).</summary>
     public static class Board
     {
@@ -45,6 +46,17 @@ namespace HexPortal.Core
                 }
         }
 
+        /// <summary>AddWithin restricted to the map's playable cells (B-25: Void never counts for sight or the Control Zone).</summary>
+        public static void AddWithin(HashSet<Hex> set, Hex center, int radius, GameMap map)
+        {
+            for (int dr = -radius; dr <= radius; dr++)
+                for (int dq = Math.Max(-radius, -radius - dr); dq <= Math.Min(radius, radius - dr); dq++)
+                {
+                    var c = new Hex(center.Q + dq, center.R + dr);
+                    if (map.IsPlayable(c)) set.Add(c);
+                }
+        }
+
         /// <summary>The on-board cells within <paramref name="radius"/> of center, as a list in Board.Cells order.</summary>
         public static List<Hex> CellsWithin(Hex center, int radius)
         {
@@ -64,7 +76,7 @@ namespace HexPortal.Core
         /// <summary>1-based position within the GDD row, left to right (increasing q).</summary>
         public static int GddCol(Hex h) => h.Q - Math.Max(-Catalog.BoardRadius, -Catalog.BoardRadius - h.R) + 1;
 
-        /// <summary>B-03: B = the top HomeZoneRows rows (r ≤ -5), A = the bottom HomeZoneRows rows (r ≥ 5).</summary>
+        /// <summary>B-03: B = the top HomeZoneRows rows (r ≤ -6), A = the bottom HomeZoneRows rows (r ≥ 6).</summary>
         public static bool IsHomeZone(Hex h, PlayerId player)
         {
             if (!IsOnBoard(h)) return false;
@@ -72,7 +84,7 @@ namespace HexPortal.Core
             return player == PlayerId.B ? h.R <= -edge : h.R >= edge;
         }
 
-        /// <summary>B-21: rows 1–6 plus the 6 cells of row 7 left of the Portal (r &lt; 0, or r = 0 and q &lt; 0; 63 cells).</summary>
+        /// <summary>B-21: rows 1–7 plus the 7 cells of row 8 left of the Portal (r &lt; 0, or r = 0 and q &lt; 0; 84 cells).</summary>
         public static bool IsInUpperHalf(Hex h) => IsOnBoard(h) && (h.R < 0 || (h.R == 0 && h.Q < 0));
 
         /// <summary>B-06: B's half is the upper half, A's half is its mirror. The Portal is in neither.</summary>

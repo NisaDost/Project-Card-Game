@@ -89,7 +89,7 @@ namespace HexPortal.Tests
         {
             var b = new TestBoard().Round(3).Rune(H(1, -1)).Quests(A, "Q-11", "Q-15", "Q-19");
             b.Unit(UnitClass.Guardian, A, H(1, -1), Biome.Forest);   // on a rune, own biome (board is Forest)
-            b.Unit(UnitClass.Archer, A, H(0, -5), Biome.Forest);     // B's home zone (r ≤ -5), own biome
+            b.Unit(UnitClass.Archer, A, H(0, -6), Biome.Forest);     // B's home zone (r ≤ -6), own biome
             b.Unit(UnitClass.Healer, A, H(0, 1), Biome.Desert);      // off biome
             var s = b.Build();
             Assert.That(Q(s, A, "Q-11").Current, Is.EqualTo(1));

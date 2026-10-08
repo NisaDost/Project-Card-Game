@@ -125,30 +125,42 @@ namespace HexPortal.Tests
         // ---------- Board (B) ----------
 
         [Test]
-        public void B01_Radius6_RowLengths7To13To7_Total127()
+        public void B01_Radius7_RowLengths8To15To8_Total169()
         {
-            Assert.That(Catalog.BoardRadius, Is.EqualTo(6));
-            Assert.That(Catalog.RowLengths, Is.EqualTo(new[] { 7, 8, 9, 10, 11, 12, 13, 12, 11, 10, 9, 8, 7 }));
-            Assert.That(Catalog.RowLengths.Sum(), Is.EqualTo(127));
-            Assert.That(Catalog.CellCount, Is.EqualTo(127));
+            Assert.That(Catalog.BoardRadius, Is.EqualTo(7));
+            Assert.That(Catalog.RowLengths, Is.EqualTo(new[] { 8, 9, 10, 11, 12, 13, 14, 15, 14, 13, 12, 11, 10, 9, 8 }));
+            Assert.That(Catalog.RowLengths.Sum(), Is.EqualTo(169));
+            Assert.That(Catalog.CellCount, Is.EqualTo(169));
             Assert.That(Catalog.RowLengths.Count, Is.EqualTo(2 * Catalog.BoardRadius + 1));
+            Assert.That(Catalog.UpperHalfCells, Is.EqualTo((169 - 1) / 2));
         }
 
         [Test]
-        public void B03_HomeZonesAreTwoRowsOf15Cells()
+        public void B03_HomeZonesAreTwoRowsOf17Cells()
         {
             Assert.That(Catalog.HomeZoneRows, Is.EqualTo(2));
-            Assert.That(Catalog.RowLengths[11] + Catalog.RowLengths[12], Is.EqualTo(15));
-            Assert.That(Catalog.RowLengths[0] + Catalog.RowLengths[1], Is.EqualTo(15));
+            Assert.That(Catalog.RowLengths[13] + Catalog.RowLengths[14], Is.EqualTo(17));
+            Assert.That(Catalog.RowLengths[0] + Catalog.RowLengths[1], Is.EqualTo(17));
         }
 
         [Test]
-        public void B22_Min18PerBiome_FiveToSevenSeeds()
+        public void B25_BiomeMinimumIsFloor028N_SixToEightSeeds()
         {
-            Assert.That(Catalog.MinCellsPerBiome, Is.EqualTo(18));
-            Assert.That(Catalog.BiomeSeedsPerBiomeMin, Is.EqualTo(5));
-            Assert.That(Catalog.BiomeSeedsPerBiomeMax, Is.EqualTo(7));
-            Assert.That(Catalog.MinCellsPerBiome * 3, Is.LessThanOrEqualTo(63));
+            Assert.That(Catalog.BiomeMinPercent, Is.EqualTo(28));
+            Assert.That(Catalog.MinCellsPerBiome(84), Is.EqualTo(23)); // floor(23.52)
+            Assert.That(Catalog.MinCellsPerBiome(75), Is.EqualTo(21)); // floor(21.0)
+            Assert.That(Catalog.MinCellsPerBiome(80), Is.EqualTo(22)); // floor(22.4)
+            for (int n = 1; n <= 84; n++)
+                Assert.That(Catalog.MinCellsPerBiome(n), Is.EqualTo((int)System.Math.Floor(0.28m * n)), "N " + n);
+            Assert.That(Catalog.BiomeSeedsPerBiomeMin, Is.EqualTo(6));
+            Assert.That(Catalog.BiomeSeedsPerBiomeMax, Is.EqualTo(8));
+        }
+
+        [Test]
+        public void B25_FourTemplates_IdsMatchIndex()
+        {
+            Assert.That(Catalog.MapTemplates.Count, Is.EqualTo(4));
+            for (int i = 0; i < 4; i++) Assert.That(Catalog.MapTemplates[i].Id, Is.EqualTo(i));
         }
 
         [Test]

@@ -41,7 +41,8 @@ namespace HexPortal.Game.Tests
             foreach (Marker m in Enum.GetValues(typeof(Marker)))
             {
                 Assert.That(ArtCatalog.Markers.ContainsKey(m), Is.True, m.ToString());
-                if (m != Marker.None) Assert.That(ArtCatalog.MarkerOf(m).Mesh().vertexCount, Is.GreaterThan(0), m + " prop");
+                if (m != Marker.None && m != Marker.Void) // B-25: Void is never drawn
+                    Assert.That(ArtCatalog.MarkerOf(m).Mesh().vertexCount, Is.GreaterThan(0), m + " prop");
             }
         }
     }

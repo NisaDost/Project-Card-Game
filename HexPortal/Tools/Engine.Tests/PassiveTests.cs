@@ -80,7 +80,7 @@ namespace HexPortal.Tests
         [Test]
         public void P01_FirstDeadUnitReturnsAsANewUnitAtTheNextOwnTurnStart_Once()
         {
-            var free = H(0, 5); // A's home zone (r ≥ 5)
+            var free = H(0, 6); // A's home zone (r ≥ 6)
             var b = RockHomeExcept(new TestBoard().Round(3).Active(B).Passive(A, "P-01"), A, free, TestBoard.DefaultTowerA);
             int victim = b.Unit(UnitClass.Rider, A, H(0, 1), Biome.Snow, health: 1);
             b.Effect(victim, "C-11");
@@ -112,7 +112,7 @@ namespace HexPortal.Tests
         [Test]
         public void P01_TheReturnedUnitCannotActInTheTurnItReturns_ButCanInTheNext()
         {
-            var free = H(0, 5); // A's home zone (r ≥ 5)
+            var free = H(0, 6); // A's home zone (r ≥ 6)
             var b = RockHomeExcept(new TestBoard().Round(3).Active(B).Passive(A, "P-01"), A, free, TestBoard.DefaultTowerA);
             b.Unit(UnitClass.Archer, A, H(0, 1), health: 1);
             int archer = b.Unit(UnitClass.Archer, B, H(0, -1));
@@ -150,7 +150,7 @@ namespace HexPortal.Tests
         [Test]
         public void P01_NoEmptyHomeCell_RetriedAtLaterOwnTurnStarts()
         {
-            var free = H(0, 5); // A's home zone (r ≥ 5)
+            var free = H(0, 6); // A's home zone (r ≥ 6)
             var b = RockHomeExcept(new TestBoard().Round(3).Active(B).Passive(A, "P-01"), A, free, TestBoard.DefaultTowerA);
             int blocker = b.Unit(UnitClass.Guardian, A, free);
             b.Unit(UnitClass.Archer, A, H(0, 1), health: 1);
@@ -161,7 +161,7 @@ namespace HexPortal.Tests
             Assert.That(ev.OfType<UnitRevived>(), Is.Empty);
             Assert.That(ev.OfType<PassiveRevealed>(), Is.Empty);
             Assert.That(s.GetProgress(A).LastBreathPending, Is.True);
-            Engine.Apply(s, new MoveCommand(A, blocker, H(0, 4)));
+            Engine.Apply(s, new MoveCommand(A, blocker, H(0, 5))); // v3.3: r = 5 is outside the home zone
             End(s);
             ev = End(s);
             Assert.That(ev.OfType<UnitRevived>().Single().Cell, Is.EqualTo(free));
@@ -171,7 +171,7 @@ namespace HexPortal.Tests
         [Test]
         public void P01_ReturnTriggersAnEnemyTrap()
         {
-            var free = H(0, 5); // A's home zone (r ≥ 5)
+            var free = H(0, 6); // A's home zone (r ≥ 6)
             // v3.1: the unit returns with 4 Health; B's Trap Master (P-02) makes the Spike Trap 3 + 1 = 4, still lethal.
             var b = RockHomeExcept(new TestBoard().Round(3).Active(B).Passive(A, "P-01").Passive(B, "P-02"), A, free, TestBoard.DefaultTowerA);
             b.Unit(UnitClass.Archer, A, H(0, 1), health: 1);
@@ -190,7 +190,7 @@ namespace HexPortal.Tests
         [Test]
         public void P01_ReturnNeverTriggersTowerOrOverwatchShots()
         {
-            var free = H(0, 5); // A's home zone (r ≥ 5)
+            var free = H(0, 6); // A's home zone (r ≥ 6)
             var b = RockHomeExcept(new TestBoard().Round(3).Active(B).Passive(A, "P-01"), A, free, TestBoard.DefaultTowerA)
                 .Tower(B, H(1, 4)); // 1 cell from the return cell
             b.Unit(UnitClass.Archer, A, H(0, 1), health: 1);

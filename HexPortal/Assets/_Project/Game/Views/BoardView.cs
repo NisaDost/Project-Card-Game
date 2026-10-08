@@ -31,6 +31,7 @@ namespace HexPortal.Game
         readonly bool[] eventCell = new bool[Board.Cells.Count];
         readonly float[] flashUntil = new float[Board.Cells.Count];
         readonly Color[] flashColor = new Color[Board.Cells.Count];
+        readonly bool[] voidCell = new bool[Board.Cells.Count];
         bool anyEvent, flashing;
 
         public int HighlightCount { get; private set; }
@@ -103,12 +104,26 @@ namespace HexPortal.Game
             {
                 var c = view.Cells[i];
                 bool known = c.TerrainKnown;
-                var color = known ? Gfx.BiomeColor(c.Tile.Biome) : Gfx.Unknown;
+                // B-25: Void cells are not part of the board: no tile, cloud, marker, trap or highlight.
+                bool isVoid = known && c.Tile.Marker == Marker.Void;
+                voidCell[i] = isVoid;
+                tiles[i].gameObject.SetActive(!isVoid);
+                if (isVoid)
+                {
+                    clouds[i].SetActive(false);
+                    for (int k = 1; k < markers[i].Length; k++) if (markers[i][k] != null) markers[i][k].SetActive(false);
+                    traps[i].SetActive(false);
+                    continue;
+                }
+                // Template rocks have no biome: tint the tile like the rock prop instead of the "no biome" colour.
+                var color = !known ? Gfx.Unknown
+                    : c.Tile.Biome == HexPortal.Core.Data.Biome.None && c.Tile.Marker == Marker.Rock ? Color.Lerp(ArtCatalog.MarkerOf(Marker.Rock).Color, Color.white, 0.25f)
+                    : Gfx.BiomeColor(c.Tile.Biome);
                 if (c.Visibility == CellVisibility.Explored) color = Gfx.Faded(color);
                 Gfx.SetColor(tiles[i], color);
                 clouds[i].SetActive(c.Visibility == CellVisibility.Hidden);
                 var m = known ? c.Tile.Marker : Marker.None;
-                for (int k = 1; k < markers[i].Length; k++) markers[i][k].SetActive((int)m == k);
+                for (int k = 1; k < markers[i].Length; k++) if (markers[i][k] != null) markers[i][k].SetActive((int)m == k);
                 // UX-13: a rune stone or wellspring held by an own unit glows (tile and marker).
                 bool held = (m == Marker.RuneStone || m == Marker.Wellspring) && c.Unit != null && !c.Unit.IsGhost && c.Unit.Owner == view.Viewer;
                 if (held) { Gfx.SetColor(tiles[i], Color.Lerp(color, HeldGlow, 0.5f)); heldCount++; }
@@ -121,7 +136,7 @@ namespace HexPortal.Game
             foreach (var t in view.OwnTraps) // UX-14, C-33: own traps only
             {
                 int i = Board.IndexOf(t.Pos);
-                if (i >= 0) { traps[i].SetActive(true); trapsShown++; }
+                if (i >= 0 && !voidCell[i]) { traps[i].SetActive(true); trapsShown++; }
             }
             TrapsShown = trapsShown;
             System.Array.Clear(eventCell, 0, eventCell.Length);
@@ -130,7 +145,7 @@ namespace HexPortal.Game
                 foreach (var h in view.AnnouncedEventCells)
                 {
                     int i = Board.IndexOf(h);
-                    if (i >= 0) { eventCell[i] = true; anyEvent = true; }
+                    if (i >= 0 && !voidCell[i]) { eventCell[i] = true; anyEvent = true; }
                 }
             ApplyHighlights();
         }
@@ -145,7 +160,7 @@ namespace HexPortal.Game
         public void Highlight(Hex h, Color c)
         {
             int i = Board.IndexOf(h);
-            if (i < 0) return;
+            if (i < 0 || voidCell[i]) return;
             if (highlightColor[i].a <= 0f) HighlightCount++;
             highlightColor[i] = c;
             ApplyHighlights();
@@ -157,7 +172,7 @@ namespace HexPortal.Game
         public void Flash(Hex h, Color color)
         {
             int i = Board.IndexOf(h);
-            if (i < 0) return;
+            if (i < 0 || voidCell[i]) return;
             flashUntil[i] = Time.time + 0.9f;
             flashColor[i] = color;
             flashing = true;

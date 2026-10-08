@@ -116,18 +116,18 @@ namespace HexPortal.Tests
         [Test]
         public void U27_PassThroughDoesNotTrigger()
         {
-            // B's tower at (1,-4). The board corner (0,-6) has 3 exits; a rock closes (-1,-5), so both remaining exits
-            // (1,-6) and (0,-5) are in range and every path passes through the tower's range.
-            var tower = H(1, -4);
-            var corner = H(0, -6);
-            var b = new TestBoard().Tower(B, tower).Rock(H(-1, -5));
+            // B's tower at (1,-5). The board corner (0,-7) has 3 exits; a rock closes (-1,-6), so both remaining exits
+            // (1,-7) and (0,-6) are in range and every path passes through the tower's range.
+            var tower = H(1, -5);
+            var corner = H(0, -7);
+            var b = new TestBoard().Tower(B, tower).Rock(H(-1, -6));
             int r = b.Unit(UnitClass.Rider, A, corner);
             var s = b.Build();
             Assert.That(Hex.Distance(corner, tower), Is.EqualTo(3));
-            var exits = Enumerable.Range(0, 6).Select(corner.Neighbor).Where(h => Board.IsOnBoard(h) && h != H(-1, -5)).ToList();
-            Assert.That(exits, Is.EquivalentTo(new[] { H(1, -6), H(0, -5) }));
+            var exits = Enumerable.Range(0, 6).Select(corner.Neighbor).Where(h => Board.IsOnBoard(h) && h != H(-1, -6)).ToList();
+            Assert.That(exits, Is.EquivalentTo(new[] { H(1, -7), H(0, -6) }));
             foreach (var e in exits) Assert.That(Hex.Distance(e, tower), Is.EqualTo(2));
-            var dest = H(-2, -3);
+            var dest = H(-2, -4);
             Assert.That(Hex.Distance(dest, corner), Is.EqualTo(3));
             Assert.That(Hex.Distance(dest, tower), Is.EqualTo(3));
 

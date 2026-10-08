@@ -44,7 +44,7 @@ namespace HexPortal.Core
             foreach (var h in Board.Cells)
             {
                 if (!Board.IsInUpperHalf(h)) continue;
-                if (IsCluster(def) ? Hex.Distance(h, Board.Portal) >= Catalog.BiomeShiftMinPortalDistance : IsPairTerrainEligible(state, h))
+                if (IsCluster(def) ? IsClusterCell(state, h) && Hex.Distance(h, Board.Portal) >= Catalog.BiomeShiftMinPortalDistance : IsPairTerrainEligible(state, h))
                     list.Add(h);
             }
             return list;
@@ -52,14 +52,19 @@ namespace HexPortal.Core
 
         static bool IsCluster(MapEventDef def) => def.Id == "E-11";
 
-        /// <summary>E-11: the center and its on-board neighbours except the Portal (at most BiomeShiftMaxCells).</summary>
-        static List<Hex> Cluster(Hex center)
+        /// <summary>E-11 cells: on the board with a biome. Excludes the Portal, Void and template rock (B-25); an E-10 rock keeps
+        /// its biome and may shift.</summary>
+        static bool IsClusterCell(GameState state, Hex h) => Board.IsOnBoard(h) && state.Map.Get(h).Biome != Biome.None;
+
+        /// <summary>E-11: the center and its neighbours that have a biome (B-25: never Void or template rock; never the Portal),
+        /// at most BiomeShiftMaxCells.</summary>
+        internal static List<Hex> ClusterCells(GameState state, Hex center)
         {
             var cells = new List<Hex> { center };
             for (int d = 0; d < Hex.Directions.Count && cells.Count < Catalog.BiomeShiftMaxCells; d++)
             {
                 var n = center.Neighbor(d);
-                if (Board.IsOnBoard(n) && n != Board.Portal) cells.Add(n);
+                if (IsClusterCell(state, n)) cells.Add(n);
             }
             return cells;
         }
@@ -81,7 +86,7 @@ namespace HexPortal.Core
             var cells = new List<Hex>();
             if (IsCluster(def))
             {
-                var half = Cluster(candidates[state.Rng.NextInt(candidates.Count)]);
+                var half = ClusterCells(state, candidates[state.Rng.NextInt(candidates.Count)]);
                 cells.AddRange(half);
                 foreach (var h in half) cells.Add(h.Mirror());
             }

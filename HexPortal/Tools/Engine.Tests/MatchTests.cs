@@ -82,6 +82,13 @@ namespace HexPortal.Tests
             return n;
         }
 
+        /// <summary>B-25: a Void or permanent template-rock cell of the map's template.</summary>
+        static bool IsTemplateCell(GameMap m, Hex h)
+        {
+            var def = Catalog.MapTemplates[m.TemplateId];
+            return def.UpperRocks.Concat(def.UpperVoids).Any(c => c == h || c.Mirror() == h);
+        }
+
         static void ScanView(GameState s, PlayerId p)
         {
             var o = p.Opponent();
@@ -160,6 +167,10 @@ namespace HexPortal.Tests
             foreach (var c in v.Cells)
             {
                 Assert.That(c.Visibility, Is.EqualTo(fog.Get(c.Cell)));
+                // V-04 exception (PM, v3.3): template Void/rock is Explored from the start with its exact terrain; any other
+                // cell (incl. E-10 rock on a never-seen cell, E-05) follows the normal fog rules.
+                if (IsTemplateCell(s.Map, c.Cell))
+                    Assert.That((c.Visibility != CellVisibility.Hidden, c.TerrainKnown, c.Tile.Marker), Is.EqualTo((true, true, s.Map.Get(c.Cell).Marker)), c.Cell.ToString());
                 switch (c.Visibility)
                 {
                     case CellVisibility.Hidden:

@@ -8,18 +8,38 @@ namespace HexPortal.Core.Data
     public static class Catalog
     {
         // ---------- Board (B) ----------
-        public const int BoardRadius = 6;            // B-01 (v3.0): hexagon of radius 6 around the Portal
-        public static readonly IReadOnlyList<int> RowLengths = new[] { 7, 8, 9, 10, 11, 12, 13, 12, 11, 10, 9, 8, 7 }; // B-01
-        public const int CellCount = 127;            // B-01
-        public const int HomeZoneRows = 2;           // B-03
-        public const int MinCellsPerBiome = 18;      // B-22 (v3.0), per upper half
-        public const int BiomeSeedsPerBiomeMin = 5;  // B-22 (v3.0): seeds per biome
-        public const int BiomeSeedsPerBiomeMax = 7;  // B-22 (v3.0): seeds per biome
-        public const int RuneStonesPerHalf = 2;      // B-23
-        public const int WellspringsPerHalf = 1;     // B-23
-        public const int SpecialTileRowMin = 3;      // B-23, GDD rows (1-based) of the upper half: axial r = -4
-        public const int SpecialTileRowMax = 5;      // B-23 (v3.0): axial r = -2
+        public const int BoardRadius = 7;            // B-01 (v3.3): hexagon of radius 7 around the Portal
+        public static readonly IReadOnlyList<int> RowLengths = new[] { 8, 9, 10, 11, 12, 13, 14, 15, 14, 13, 12, 11, 10, 9, 8 }; // B-01
+        public const int CellCount = 169;            // B-01 (v3.3): at most 169; a template may mark cells Void (B-25)
+        public const int HomeZoneRows = 2;           // B-03: 8 + 9 = 17 cells
+        public const int UpperHalfCells = 84;        // B-21 (v3.3), before the template removes rock/void cells
+        public const int BiomeMinPercent = 28;       // B-25 (v3.3): biome minimum = floor(0.28 × N), N = playable non-rock upper cells
+        public const int BiomeSeedsPerBiomeMin = 6;  // B-25 (v3.3): seeds per biome
+        public const int BiomeSeedsPerBiomeMax = 8;  // B-25 (v3.3): seeds per biome
+        public const int RuneStonesPerHalf = 2;      // B-23, B-25
+        public const int WellspringsPerHalf = 1;     // B-23, B-25
+        public const int SpecialTileRowMin = 3;      // B-25 (v3.3), GDD rows (1-based) of the upper half: axial r = -5
+        public const int SpecialTileRowMax = 5;      // B-25 (v3.3): axial r = -3
         public const int BiomeAttackBonus = 1;       // B-10, U-20
+
+        /// <summary>B-25: biome minimum for a template with <paramref name="playableUpperCells"/> playable non-rock upper cells.</summary>
+        public static int MinCellsPerBiome(int playableUpperCells) => playableUpperCells * BiomeMinPercent / 100;
+
+        /// <summary>B-25 (v3.3) map pool. Chosen by seed mod MapTemplates.Count. Cells are given for the upper half only
+        /// (B-21, axial (q, r)); the lower half is their mirror. Home zones and the special band are never touched.</summary>
+        public static readonly IReadOnlyList<MapTemplateDef> MapTemplates = new[]
+        {
+            new MapTemplateDef(0, "Plain", new int[0], new int[0]),
+            // Rocky ring at distance 2 from the Portal, 8 rocks and 4 gaps ((0,-2), (2,-2) and their mirrors).
+            new MapTemplateDef(1, "RockyRing", new[] { 1, -2, 2, -1, -1, -1, -2, 0 }, new int[0]),
+            // Void notches: every cell within distance 2 of the two side corners (-7,0) and (7,0). The four other corners
+            // lie in the home zones, which stay complete (B-25).
+            new MapTemplateDef(2, "IndentedEdges", new int[0],
+                new[] { -5, -2, -6, -1, -5, -1, -7, 0, -6, 0, -5, 0, 7, -1, 6, -1, 7, -2 }),
+            // Two corridors: a rock wall across row r = -2 (and its mirror r = 2) with two 2-cell gaps (q = -2,-1 and 3,4).
+            new MapTemplateDef(3, "TwoCorridors",
+                new[] { -5, -2, -4, -2, -3, -2, 0, -2, 1, -2, 2, -2, 5, -2, 6, -2, 7, -2 }, new int[0]),
+        };
 
         // ---------- Units (U) ----------
         public static readonly IReadOnlyList<UnitDef> Units = new[]

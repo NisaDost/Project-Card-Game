@@ -4,7 +4,8 @@ using HexPortal.Core.Data;
 
 namespace HexPortal.Core
 {
-    /// <summary>B-20…B-24 map generation. Uses its own Rng stream seeded from the map seed.</summary>
+    /// <summary>B-20…B-25 map generation. Uses its own Rng stream seeded from the map seed. B-25: the template is
+    /// seed mod MapTemplates.Count; its rock and Void cells are laid first, biomes and specials fill the rest.</summary>
     public static class MapGenerator
     {
         const int MaxAttempts = 1000;
@@ -17,10 +18,13 @@ namespace HexPortal.Core
         public static GameMap Generate(ulong seed)
         {
             var rng = new Rng(seed ^ MapStreamSalt);
+            int templateId = TemplateFor(seed);
+            var template = Catalog.MapTemplates[templateId];
             // B-24: on failure keep drawing from the same stream (attempt 2, 3, ...), never seed + 1.
             for (int attempt = 1; attempt <= MaxAttempts; attempt++)
             {
-                var map = new GameMap(seed, attempt);
+                var map = new GameMap(seed, attempt, templateId);
+                ApplyTemplate(map, template);
                 GenerateUpperBiomes(map, rng);
                 PlaceSpecials(map, rng);
                 MirrorAndPortal(map);
@@ -29,12 +33,26 @@ namespace HexPortal.Core
             throw new InvalidOperationException("No valid map after " + MaxAttempts + " attempts, seed " + seed);
         }
 
-        // B-22: 5–7 seeds per biome (v3.0) on distinct random upper cells, then balanced growth.
+        /// <summary>B-25: the template of a seed.</summary>
+        public static int TemplateFor(ulong seed) => (int)(seed % (ulong)Catalog.MapTemplates.Count);
+
+        // B-25: template cells of the upper half (mirrored later): permanent rock and Void, both without a biome.
+        static void ApplyTemplate(GameMap map, MapTemplateDef template)
+        {
+            foreach (var h in template.UpperRocks) map.Set(h, new Tile(Biome.None, Marker.Rock));
+            foreach (var h in template.UpperVoids) map.Set(h, new Tile(Biome.None, Marker.Void));
+        }
+
+        /// <summary>B-25: a playable, non-rock upper-half cell (gets a biome).</summary>
+        internal static bool IsUpperBiomeCell(GameMap map, Hex h) =>
+            Board.IsInUpperHalf(h) && map.Get(h).Marker != Marker.Rock && map.Get(h).Marker != Marker.Void;
+
+        // B-22, B-25: 6–8 seeds per biome (v3.3) on distinct random upper cells, then balanced growth.
         static void GenerateUpperBiomes(GameMap map, Rng rng)
         {
             var empty = new List<Hex>();
             foreach (var h in Board.Cells)
-                if (Board.IsInUpperHalf(h)) empty.Add(h);
+                if (IsUpperBiomeCell(map, h)) empty.Add(h);
 
             var counts = new int[Biomes.Length];
             for (int b = 0; b < Biomes.Length; b++)
@@ -65,7 +83,7 @@ namespace HexPortal.Core
                 ties.Clear();
                 for (int b = 0; b < Biomes.Length; b++)
                     if (frontiers[b].Count > 0 && counts[b] == min) ties.Add(b);
-                // Unreachable: the upper half is connected and every biome has seeds.
+                // Unreachable: every template keeps the upper half's biome cells connected and every biome has seeds.
                 if (ties.Count == 0) throw new InvalidOperationException("Upper half is not connected.");
 
                 int grow = ties[rng.NextInt(ties.Count)];
@@ -81,19 +99,19 @@ namespace HexPortal.Core
             for (int d = 0; d < 6; d++)
             {
                 var n = h.Neighbor(d);
-                if (Board.IsInUpperHalf(n) && map.Get(n).Biome == biome) return true;
+                if (IsUpperBiomeCell(map, n) && map.Get(n).Biome == biome) return true;
             }
             return false;
         }
 
-        // B-23: runes in the band, not adjacent to each other; wellsprings in the band, not adjacent to any rune.
+        // B-23, B-25: runes in the band, not adjacent to each other; wellsprings in the band, not adjacent to any rune.
         static void PlaceSpecials(GameMap map, Rng rng)
         {
             var band = new List<Hex>();
             foreach (var h in Board.Cells)
             {
                 int row = Board.GddRow(h);
-                if (Board.IsInUpperHalf(h) && row >= Catalog.SpecialTileRowMin && row <= Catalog.SpecialTileRowMax
+                if (IsUpperBiomeCell(map, h) && row >= Catalog.SpecialTileRowMin && row <= Catalog.SpecialTileRowMax
                     && !Board.IsHomeZone(h, PlayerId.A) && !Board.IsHomeZone(h, PlayerId.B))
                     band.Add(h);
             }
@@ -127,7 +145,7 @@ namespace HexPortal.Core
                     if (Hex.Distance(a, h) == 1) near = true;
                 if (!near) candidates.Add(h);
             }
-            // Unreachable with the current Catalog: 2 runes block at most 14 of the 30 band cells.
+            // Unreachable with the current Catalog: 2 runes block at most 14 of the 33 band cells.
             if (candidates.Count == 0) throw new InvalidOperationException("No room for special tiles (check Catalog B-23).");
             return candidates[rng.NextInt(candidates.Count)];
         }

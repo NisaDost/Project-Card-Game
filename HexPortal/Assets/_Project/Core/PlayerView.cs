@@ -111,8 +111,12 @@ namespace HexPortal.Core
         public PlayerId ActivePlayer { get; private set; }
         public GameResult Result { get; private set; }
 
-        /// <summary>Board.Cells order.</summary>
+        /// <summary>Board.Cells order. B-25: Void cells are Hidden but public (TerrainKnown, Tile = Void): the map's shape.</summary>
         public IReadOnlyList<CellView> Cells { get; private set; }
+        /// <summary>B-25: the playable (non-Void) cells in Board.Cells order; draw and frame only these. Public.</summary>
+        public IReadOnlyList<Hex> PlayableCells { get; private set; }
+        /// <summary>B-25: the map template (index into Catalog.MapTemplates). Public.</summary>
+        public int TemplateId { get; private set; }
         public IReadOnlyList<UnitView> OwnUnits { get; private set; }
         /// <summary>Live enemy units on Visible cells (V-05).</summary>
         public IReadOnlyList<UnitView> EnemyUnits { get; private set; }
@@ -212,6 +216,11 @@ namespace HexPortal.Core
                         if (t.Owner == o) enemyTowerPos = h;
                     }
                 }
+                else if (s.Map.Get(h).Marker == Marker.Void)
+                {
+                    c.TerrainKnown = true; // B-25: the board shape is public
+                    c.Tile = s.Map.Get(h);
+                }
                 else if (c.Visibility == CellVisibility.Explored)
                 {
                     var seen = fog.GetLastSeen(h);
@@ -279,7 +288,7 @@ namespace HexPortal.Core
             return new PlayerView
             {
                 Viewer = p, Phase = s.Phase, Round = s.Round, TurnIndex = s.TurnIndex, ActivePlayer = s.ActivePlayer, Result = s.Result,
-                Cells = cells, OwnUnits = own, EnemyUnits = enemies,
+                Cells = cells, PlayableCells = s.Map.PlayableCells, TemplateId = s.Map.TemplateId, OwnUnits = own, EnemyUnits = enemies,
                 OwnTowerPos = ownTower.IsPlaced ? ownTower.Pos : (Hex?)null, OwnTowerHealth = ownTower.Health,
                 OwnTowerShotAvailable = s.IsTowerShotAvailable(p), OwnTowerRevealedUntilTurn = ownTower.RevealedUntilTurn,
                 EnemyTowerPos = enemyTowerPos, EnemyTowerHealth = enemyTower.Health, EnemyTowerShotAvailable = s.IsTowerShotAvailable(o),

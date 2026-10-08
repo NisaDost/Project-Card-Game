@@ -45,6 +45,7 @@ namespace HexPortal.Sim
         public string WinnerConfig;    // "a", "b" or null
         public string ResultKey;       // W-01, W-02, W-03 c1..c4, W-04
         public int Rounds, Commands, PortalWinRound;
+        public int TemplateId;         // B-25: map template of the match
         public int TowerShots, OverwatchShots;
         /// <summary>Units that died (every cause).</summary>
         public int UnitsKilled;
@@ -72,7 +73,7 @@ namespace HexPortal.Sim
         public static GameRecord Play(GameSpec spec, bool timing)
         {
             var s = Match.Create(spec.Seed);
-            var rec = new GameRecord { Index = spec.Index, Seed = spec.Seed };
+            var rec = new GameRecord { Index = spec.Index, Seed = spec.Seed, TemplateId = s.Map.TemplateId };
             // Seat → configuration (0 = "a", 1 = "b").
             int[] config = spec.ConfigAOnSeatA ? new[] { 0, 1 } : new[] { 1, 0 };
             var levels = new[] { spec.LevelA, spec.LevelB };
