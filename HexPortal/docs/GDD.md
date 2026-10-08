@@ -1,6 +1,6 @@
 # HexPortal — Oyun Tasarım Dokümanı (GDD)
 
-> Sürüm: 3.3 · Tarih: 2026-10-07 · Durum: Prototip (Faz 1) kapsamı onaylandı
+> Sürüm: 3.4 · Tarih: 2026-10-08 · Durum: Prototip (Faz 1) kapsamı onaylandı
 > "HexPortal" çalışma adıdır, sonra değişebilir.
 
 Bu doküman oyunun **tek doğruluk kaynağıdır**. Her kuralın kalıcı bir kimliği vardır (ör. `U-04`). Kod, testler ve commit mesajları bu kimliklere referans verir. Kimlikler **asla yeniden numaralandırılmaz**. Bir kural kalkarsa "KALDIRILDI" diye işaretlenir, yeni kural yeni numara alır. Değişiklikler en alttaki **Değişiklik Günlüğü**'ne yazılır.
@@ -63,7 +63,7 @@ Kodda **yalnızca İngilizce adlar** kullanılır.
 
 | ID | Tür | Etki |
 |---|---|---|
-| **B-10** | Orman / Çöl / Kar | Kendi biyomunda saldıran birim +1 Saldırı alır (bkz. U-20) |
+| **B-10** | Orman / Çöl / Kar | Kendi biyomunda saldıran birim +5 Saldırı alır (bkz. U-20) |
 | **B-11** | Rün Taşı | Görev hedefi. Tur başında üzerinde kendi birimin varsa **+1 Enerji** (her rün taşı için ayrı; bkz. T-05). Üzerindeki biyom geçerliliğini korur |
 | **B-12** | Kaynak | Tur başında üzerinde kendi birimin varsa +1 Mana (bkz. T-03) |
 | **B-13** | Portal | Kazanma karosu. Biyomu yoktur. Her zaman iki oyuncuya görünür (V-06) |
@@ -95,13 +95,13 @@ Her sınıfın 3 biyom varyantı vardır. **Varyantların statları ve yetenekle
 
 | ID | Sınıf | Maliyet (Mana) | Saldırı | Can | Hareket | Görüş | Saldırı menzili | Yetenek |
 |---|---|---|---|---|---|---|---|---|
-| **U-01** | Muhafız | 3 | 2 | 12 | 1 | 2 | Komşu | **Siper:** Bkz. U-11 |
-| **U-02** | Süvari | 3 | 3 | 8 | 3 | 3 | Komşu | **Atik:** Hareket ederken birimlerin ve kulelerin üstünden geçer (U-09). **Hücum:** İlerle-saldır aksiyonuyla saldırırsa +1 Saldırı (T-05) |
-| **U-03** | Okçu | 2 | 2 | 6 | 2 | 3 | Düz hatta 1–3 | **Uzak atış:** Hat üzerindeki hiçbir şey (birim, kule, kaya) atışı engellemez |
-| **U-04** | Büyücü | 3 | 2 | 6 | 2 | 2 | Mesafe 1–2 | **Patlama:** Hedefe komşu düşman birimleri ve kuleler 1 hasar alır |
-| **U-05** | Şifacı | 2 | 1 | 7 | 1 | 2 | Komşu | **Şifa:** Kendi tur başında komşu dost birimler +2 Can alır. Birden çok Şifacı'nın etkisi toplanır, Şifacılar birbirini de iyileştirir. Şifacı kendini ve kuleyi iyileştirmez (U-24 tavanı geçerli) |
+| **U-01** | Muhafız | 3 | 20 | 140 | 1 | 2 | Komşu | **Siper:** Bkz. U-11 |
+| **U-02** | Süvari | 3 | 30 | 100 | 3 | 3 | Komşu | **Atik:** Hareket ederken birimlerin ve kulelerin üstünden geçer (U-09). **Hücum:** İlerle-saldır aksiyonuyla saldırırsa +10 Saldırı (T-05) |
+| **U-03** | Okçu | 2 | 25 | 80 | 2 | 3 | Düz hatta 1–3 | **Uzak atış:** Hat üzerindeki hiçbir şey (birim, kule, kaya) atışı engellemez |
+| **U-04** | Büyücü | 3 | 25 | 80 | 2 | 2 | Mesafe 1–2 | **Patlama:** Hedefe komşu düşman birimleri ve kuleler 10 hasar alır |
+| **U-05** | Şifacı | 2 | 10 | 90 | 1 | 2 | Komşu | **Şifa:** Kendi tur başında komşu dost birimler +15 Can alır. Birden çok Şifacı'nın etkisi toplanır, Şifacılar birbirini de iyileştirir. Şifacı kendini ve kuleyi iyileştirmez (U-24 tavanı geçerli) |
 
-**Kule (U-06):** Her oyuncunun 1 kulesi vardır. Can **20**, Saldırı **3**, saldırı menzili **mesafe 1–2**, Görüş **2**. Hareket etmez. Bir karoyu kaplar ve geçişi engeller. Kule yalnızca **savunma amaçlı** saldırır (U-27). Kartlar kuleyi hedef alamaz. Kule biyom bonusu almaz. Kule yıkılırsa sahibi kaybeder (W-02).
+**Kule (U-06):** Her oyuncunun 1 kulesi vardır. Can **250**, Saldırı **30**, saldırı menzili **mesafe 1–2**, Görüş **2**. Hareket etmez. Bir karoyu kaplar ve geçişi engeller. Kule yalnızca **savunma amaçlı** saldırır (U-27). Kartlar kuleyi hedef alamaz. Kule biyom bonusu almaz. Kule yıkılırsa sahibi kaybeder (W-02).
 
 ### 3.2 Hareket
 
@@ -117,14 +117,14 @@ Altıgen tahtada her karonun 6 komşusu vardır, yani birimler zaten her yöne g
 ### 3.3 Savaş
 
 - **U-20 Hasar:** Saldırı hasarı = Saldırı statı + biyom bonusu + buff'lar − debuff'lar, en az 0. Biyom bonusu, **saldıran birim** kendi biyomundaki bir karodayken geçerlidir. **"Hasar"**, Can'ı düşüren her etkidir: saldırı, Patlama, kule atışı, nöbet, tuzak ve Zehir. Kalkan (C-12) ve Kalın Duvar (P-04) bunların hepsine uygulanır.
-- **U-30 Dayanıklılık ilkesi (v3.1):** Buff'sız tek bir saldırı (biyom bonusu ve Hücum dahil) ya da tek bir kart veya tuzak, **Canı tam hiçbir birimi öldüremez**. Bir birimi öldürmek normalde en az 2 vuruş ya da vuruş + kart gerektirir. Sayılar bu ilkeye göre seçilir; Catalog testi en yüksek buff'sız vuruşun (Süvari 3 + 1 + 1 = 5) ve en yüksek tek kart/tuzak hasarının en düşük Candan (6) küçük olduğunu doğrular.
+- **U-30 Dayanıklılık ilkesi (v3.1):** Buff'sız tek bir saldırı (biyom bonusu ve Hücum dahil) ya da tek bir kart veya tuzak, **Canı tam hiçbir birimi öldüremez**. Bir birimi öldürmek normalde en az 2 vuruş ya da vuruş + kart gerektirir. Sayılar bu ilkeye göre seçilir; Catalog testi en yüksek buff'sız vuruşun (Süvari 30 + 5 + 10 = 45), kule atışının (30) ve en yüksek tek kart/tuzak hasarının (Diken 30) en düşük Candan (80) küçük olduğunu doğrular. **Hedef vuruş sayıları (v3.4):** Hafif birimler (Okçu, Büyücü, Şifacı) buff'sız ortalama **3–4** vuruşta, Süvari **3–4**, Muhafız **5–7** vuruşta, kule **8–10** vuruşta yıkılır (temel hasar ≈ Can ÷ hedef vuruş sayısı).
 - **U-21** Karşı saldırı yoktur. (Nöbet ve kule atışı karşı saldırı değildir; kendi tetik kuralları vardır, U-27 ve U-28.)
 - **U-22** Can 0'a inen birim ölür ve tahtadan kalkar. Üzerindeki tüm etkiler silinir.
 - **U-23 Ölüm çekişi:** Birimi ölen oyuncu hemen 1 kör kart çeker (el doluysa çekmez).
 - **U-24** Can, iyileşme ile başlangıç değerini aşamaz.
 - **U-25** Okçu komşu karodaki düşmana da saldırabilir (menzil 1–3).
 - **U-26 Kuleye saldırı:** Birimler rakip kuleye saldırabilir. Kule; menzil, Siper (U-11) ve görünürlük (V-07) açısından normal bir hedeftir. Q-13 ve W-02 bu hasarı sayar.
-- **U-27 Kule savunması (kule atışı):** Kule her zaman savunmadadır ve **rakibin her turunda en fazla 1 kez**, **tek bir** rakip birime otomatik saldırır. Tetik: rakibin turunda bir rakip birim, kulenin saldırı menzilinde **hareketini bitirirse**, **tahtaya çıkarsa** (T-07) veya **menzilindeyken saldırı yaparsa**. Tetikleyen birim hedef alınır. Hedef geçerli değilse (Siper, görünmüyor) kule ateş etmez ve hakkını korur. Tetik listesi kapalıdır: İtme veya ışınlanmayla (C-15, C-18, C-21) menzile gelen birim tetik oluşturmaz. Tuzaklar bundan ayrıdır (C-32). Kule atışı **her zaman kule Saldırısı kadar (3) hasar** verir (U-06). Biyom bonusu, buff veya debuff almaz. Hedef tarafındaki etkiler geçerlidir: Kalkan (C-12) hasarı engeller. Oyuncunun girdi vermesi gerekmez.
+- **U-27 Kule savunması (kule atışı):** Kule her zaman savunmadadır ve **rakibin her turunda en fazla 1 kez**, **tek bir** rakip birime otomatik saldırır. Tetik: rakibin turunda bir rakip birim, kulenin saldırı menzilinde **hareketini bitirirse**, **tahtaya çıkarsa** (T-07) veya **menzilindeyken saldırı yaparsa**. Tetikleyen birim hedef alınır. Hedef geçerli değilse (Siper, görünmüyor) kule ateş etmez ve hakkını korur. Tetik listesi kapalıdır: İtme veya ışınlanmayla (C-15, C-18, C-21) menzile gelen birim tetik oluşturmaz. Tuzaklar bundan ayrıdır (C-32). Kule atışı **her zaman kule Saldırısı kadar (30) hasar** verir (U-06). Biyom bonusu, buff veya debuff almaz. Hedef tarafındaki etkiler geçerlidir: Kalkan (C-12) hasarı engeller. Oyuncunun girdi vermesi gerekmez.
 - **U-28 Nöbet:** Bir birim, kendi turunda aksiyonu olarak (1 Enerji, T-05) **nöbete** geçebilir. Rakibin bir sonraki turu boyunca, U-27'deki aynı tetiklerle, saldırı menzilinde ve görüşünde olan **ilk** rakip birime 1 kez otomatik saldırır (U-20). Nöbet ateş edince veya rakibin turu bitince sona erer. Nöbetteki birim itilir veya ışınlanırsa nöbet bozulur. Nöbet durumu, birim rakibe görünürse rakibe de gösterilir.
 - **U-29 Tetik sırası:** Bir olay birden fazla nöbetçiyi tetiklerse önce kule, sonra birim kimliği sırasıyla ateş edilir. Hedef ölürse kalan nöbetçiler ateş etmez ve nöbette kalır. Saldırı tetikli atışlar, tetikleyen saldırı çözüldükten sonra yapılır. Bir birim bir karoya vardığında (hareket veya tahtaya çıkma) **önce tuzak** (C-32) çözülür, **sonra** kule ve nöbet tetikleri. Bu tetikler birimin tuzaktan sonraki durumuna bakar: Birim öldüyse ya da Ayna Tuzağı onu başka bir karoya taşıdıysa ateş edilmez (ışınlanmayla varış tetik değildir, U-27).
 
@@ -150,17 +150,17 @@ Altıgen tahtada her karonun 6 komşusu vardır, yani birimler zaten her yöne g
 
 | ID | Kart | Kategori | Etki | Süre | Maliyet (Mana) | Nadirlik | Havuzdaki kopya |
 |---|---|---|---|---|---|---|---|
-| **C-10** | Öfke | Güç (Buff) | +2 Saldırı | 2 tur | 1 | Sıradan | 4 |
-| **C-11** | Dev Gücü | Güç (Buff) | +1 Saldırı | Kalıcı | 2 | Nadir | 2 |
+| **C-10** | Öfke | Güç (Buff) | +15 Saldırı | 2 tur | 1 | Sıradan | 4 |
+| **C-11** | Dev Gücü | Güç (Buff) | +10 Saldırı | Kalıcı | 2 | Nadir | 2 |
 | **C-12** | Kalkan | Koruma (Buff) | Birime gelen bir sonraki hasarı tamamen engeller, sonra biter | Kalıcı | 1 | Sıradan | 4 |
-| **C-13** | Şifa İksiri | Koruma (Buff) | +5 Can | Anlık | 1 | Sıradan | 4 |
+| **C-13** | Şifa İksiri | Koruma (Buff) | +40 Can | Anlık | 1 | Sıradan | 4 |
 | **C-14** | Rüzgâr Adımı | Hareket (Buff) | Bu tur +2 Hareket | Anlık | 1 | Sıradan | 4 |
 | **C-15** | Işınlanma | Hareket (Buff) | Dost birimi, Kontrol Alanındaki (C-02) Portal hariç boş bir karoya taşır. Enerji harcamaz ve birimin aksiyonunu kullanmaz | Anlık | 3 | Epik | 1 |
-| **C-16** | Zayıflık | Lanet (Debuff) | −2 Saldırı | 2 tur | 1 | Sıradan | 4 |
-| **C-17** | Zehir | Lanet (Debuff) | Sahibinin tur başında −2 Can | 2 tur | 2 | Nadir | 2 |
+| **C-16** | Zayıflık | Lanet (Debuff) | −15 Saldırı | 2 tur | 1 | Sıradan | 4 |
+| **C-17** | Zehir | Lanet (Debuff) | Sahibinin tur başında −15 Can | 2 tur | 2 | Nadir | 2 |
 | **C-18** | İtme | Kontrol (Debuff) | Hedefi seçilen bir düz yönde 2 karo iter. Engele (birim, kule, kaya, tahta kenarı) çarparsa durur, hasar olmaz. Hiç ilerleyemese de kart oynanmış sayılır. İtilen birim Portal'da durabilir. Durduğu karodaki tuzak tetiklenir | Anlık | 1 | Sıradan | 4 |
 | **C-19** | Kök Salma | Kontrol (Debuff) | Hedef hareket edemez ama saldırabilir. Işınlanma (C-15) hareket aksiyonu olmadığı için kök salmış birimi yine taşır | 2 tur | 2 | Nadir | 2 |
-| **C-20** | Diken Tuzağı | Tuzak | Tetikleyen birim 3 hasar alır | Kalıcı | 1 | Nadir | 2 |
+| **C-20** | Diken Tuzağı | Tuzak | Tetikleyen birim 30 hasar alır | Kalıcı | 1 | Nadir | 2 |
 | **C-21** | Ayna Tuzağı | Tuzak | Tetikleyen birim, kendi başlangıç bölgesinde rastgele boş bir karoya ışınlanır | Kalıcı | 2 | Epik | 1 |
 
 Kopya toplamı: 6 sıradan × 4 + 4 nadir × 2 + 2 epik × 1 = **34 kart**.
@@ -220,7 +220,7 @@ Kopya toplamı: 6 sıradan × 4 + 4 nadir × 2 + 2 epik × 1 = **34 kart**.
   2. Tur başı etkileri uygulanır: Şifa (U-05), Zehir (C-17), Son Nefes (P-01).
   3. Kazanma kontrolü yapılır (W-01).
   4. Kart çekilir: Oyuncu Pazar'dan 1 kart alır **veya** 1 kör kart çeker (D-07 geçerli). Seçim rakibin turunda önceden yapıldıysa (T-11) o uygulanır. Çekim **zorunludur** ve turun diğer işlemlerinden önce yapılır. El doluysa ya da çekilecek kart yoksa atlanır. A da 1. rauntta çeker.
-- **T-05 Enerji ve aksiyon:** Tur başında Enerji **3**'e doldurulur (Catalog'da `EnergyPerTurn`). Üzerinde kendi birimi olan her Rün Taşı için **+1 Enerji** eklenir (B-11). Harcanmayan Enerji aktarılmaz. Tahtadaki her birim kendi turunda şunlardan **birini** yapar, her biri **1 Enerji**: **hareket** (U-07), **saldırı** veya **nöbet** (U-28). **İlerle-saldır (v3.2):** Dördüncü bir aksiyon türüdür ve **tek hamlede** yapılır, **2 Enerji** harcar. Birim, **başlangıç konumundan** Hareket değeri içinde ulaşabileceği bir karoya ilerler ve oradan saldırı menzilindeki bir hedefe hemen saldırır. Hedef, bu ilerleme + menzil ile ulaşılabilir olmalıdır. Hareket ile saldırı **ayrı hamleler olarak birleştirilemez**: Hareket eden birim o tur artık saldıramaz, saldıran birim hareket edemez. Oyuncu hedefi seçer; birden fazla uygun ilerleme karosu varsa karoyu da seçer. Hedefin geçerliliği **komut anında**, oyuncunun o anki görünür bilgisiyle kilitlenir (V-11). İlerleme sırasında yeni görünen bir Muhafız saldırıyı iptal etmez; saldırıyı yalnızca birimin ölmesi, başka bir karoya taşınması ya da hedefin ölmesi iptal eder. Nöbet her zaman tek başına bir aksiyondur.
+- **T-05 Enerji ve aksiyon:** Tur başında Enerji **3**'e doldurulur (Catalog'da `EnergyPerTurn`). Üzerinde kendi birimi olan her Rün Taşı için **+1 Enerji** eklenir (B-11). Harcanmayan Enerji aktarılmaz. Tahtadaki her birim kendi turunda şunlardan **birini** yapar, her biri **1 Enerji**: **hareket** (U-07), **saldırı** veya **nöbet** (U-28). **İlerle-saldır (v3.2):** Dördüncü bir aksiyon türüdür ve **tek hamlede** yapılır, **2 Enerji** harcar. Birim, **başlangıç konumundan** Hareket değeri içinde ulaşabileceği bir karoya ilerler ve oradan saldırı menzilindeki bir hedefe hemen saldırır. Hedef, bu ilerleme + menzil ile ulaşılabilir olmalıdır. Hareket ile saldırı **ayrı hamleler olarak birleştirilemez**: Hareket eden birim o tur artık saldıramaz, saldıran birim hareket edemez. Oyuncu yalnızca hedefi seçer; ilerleme karosu **otomatik** seçilir (v3.4): hedefe saldırı menzilinde kalan ulaşılabilir karolar arasından **birimin başlangıç konumuna yol olarak en yakın** olanı, eşitlikte birimin kendi biyomundaki karo, sonra sabit karo sırası. Hedefin geçerliliği **komut anında**, oyuncunun o anki görünür bilgisiyle kilitlenir (V-11). İlerleme sırasında yeni görünen bir Muhafız saldırıyı iptal etmez; saldırıyı yalnızca birimin ölmesi, başka bir karoya taşınması ya da hedefin ölmesi iptal eder. Nöbet her zaman tek başına bir aksiyondur.
 - **T-06 Kart oynama:** Mana yettiği sürece turda istenen sayıda kart oynanabilir (C-01, C-02). Kart oynamak Enerji harcamaz.
 - **T-07 Karakter çıkarma:** Eldeki bir karakter, kartın **Maliyeti** (§3.1) kadar Mana ödenerek tahtaya çıkarılır. Enerji ve aksiyon harcamaz. Kontrol Alanında (C-02) Portal hariç boş bir karoya konur. Çıktığı tur aksiyon yapamaz.
 - **T-08 Tur sonu:** Süreli etkilerin sayacı azalır (C-04). Görevler kontrol edilir (Q-02). Sıra rakibe geçer. Rakibin nöbetleri (U-28) bu turun sonunda biter.
@@ -250,8 +250,8 @@ Amaç: Turunu bitiren oyuncu boş beklemesin. Rakibin turu hem izlenecek hem de 
 | **Q-10** | Rün Bekçisi | Aynı rün taşını tut (üzerinde kendi birimin olsun) | – |
 | **Q-11** | Çift Rün | Tur sonunda iki farklı rün taşında kendi birimin olsun | – |
 | **Q-12** | Avcı | Toplam 2 düşman birimi yok et (kule sayılmaz; kulenin ve nöbetin öldürdükleri de sayılır) | – |
-| **Q-13** | Kuşatma | Rakip kuleye toplam 10 hasar ver (engellenen hasar sayılmaz) | – |
-| **Q-14** | Sağlam Kale | 10. raunt sonunda kulenin Can değeri 14 veya üstü olsun | 10. raunt sonunda Can < 14 |
+| **Q-13** | Kuşatma | Rakip kuleye toplam 80 hasar ver (engellenen hasar sayılmaz) | – |
+| **Q-14** | Sağlam Kale | 10. raunt sonunda kulenin Can değeri 175 veya üstü olsun | 10. raunt sonunda Can < 175 |
 | **Q-15** | Biyom Ustası | Tur sonunda 3 birimin aynı anda kendi biyomunda dursun | – |
 | **Q-16** | Kayıpsız | 8. raunt sonuna kadar hiç birim kaybetme | Bundan önce herhangi bir birim ölümü |
 | **Q-17** | Tuzakçı | Kendi tuzağın bir düşman birimde tetiklensin | – |
@@ -266,12 +266,12 @@ Amaç: Turunu bitiren oyuncu boş beklemesin. Rakibin turu hem izlenecek hem de 
 
 | ID | Pasif | Etki |
 |---|---|---|
-| **P-01** | Son Nefes | İlk ölen birimin, ölümünden sonraki ilk kendi tur başında kendi başlangıç bölgende rastgele boş bir karoda 4 Can ile geri gelir. Etkileri yoktur. Maçta 1 kez çalışır |
+| **P-01** | Son Nefes | İlk ölen birimin, ölümünden sonraki ilk kendi tur başında kendi başlangıç bölgende rastgele boş bir karoda 40 Can ile geri gelir. Etkileri yoktur. Maçta 1 kez çalışır |
 | **P-02** | Tuzak Ustası | Tuzakların tetiklendiğinde hedef ek 1 hasar alır |
 | **P-03** | Hızlı Başlangıç | 3. rauntta +2 Mana alırsın (6 sınırını aşabilir) |
-| **P-04** | Kalın Duvar | Kulene gelen ilk 5 hasar (toplam) engellenir |
+| **P-04** | Kalın Duvar | Kulene gelen ilk 50 hasar (toplam) engellenir |
 | **P-05** | Pazarcı | Pazar'dan ilk kart aldığında ek olarak 1 kör kart çekersin (D-07 geçerli). Maçta 1 kez çalışır |
-| **P-06** | Portal Bekçisi | Rakip bir birim Portal'a her girdiğinde 3 hasar alır |
+| **P-06** | Portal Bekçisi | Rakip bir birim Portal'a her girdiğinde 30 hasar alır |
 
 ---
 
@@ -345,6 +345,7 @@ Amaç: Turunu bitiren oyuncu boş beklemesin. Rakibin turu hem izlenecek hem de 
 - **UX-13 (v3.3):** Birim stat bloğunda Can çubuğunun altında **Saldırı (etkin) ve saldırı menzili** kompakt ikonlarla gösterilir. Rün Taşı veya Kaynak üzerinde duran birimde karo parlar ve birimin altında küçük bir işaret görünür; o karonun bonusu (+1 Enerji / +1 Mana) tur başında bildirimle gösterilir.
 - **UX-14 (v3.3):** Oyuncunun kendi tuzakları kendi ekranında tahtada görünür (rakibe gizli, C-33). Portal bir oyuncu için açıldığında belirgin bir görsel efekt ve bildirim gösterilir (her iki oyuncuya, W-01 kamuya açık).
 - **UX-15 (v3.3):** Oyun içinde **duraklat menüsü**: Devam, Ayarlar (süre, ses, titreşim), Ana menüye dön (maçtan çıkış onayı). Android geri tuşu duraklat menüsünü açar.
+- **UX-16 (v3.4):** Paneller (duraklat menüsü, görevler, bilgi paneli) **birbirini dışlar**: biri açılınca diğeri kapanır. Ana menüde **Çıkış** butonu vardır. Oyuncunun yakınlaştırma ve kaydırma ayarı **tur değişince korunur**; kamera yalnızca maç başında ve çift dokunuşla otomatik çerçevelenir. Rün Taşı ve Kaynak işaretleri birimin boyundan bağımsız görünür (karo kenarında halka ve birimin üstünde küçük ikon).
 - **UX-12 Seçim modu (v3.0):** Bir kart ya da birim seçilince yerleştirme/hareket modu açılır. Bu modda tahtadaki birimlerin üstündeki stat çubukları **gizlenir**, karolar ve vurgular net görünür. Seçimden çıkınca stat çubukları geri gelir. Stat çubukları kompakt tutulur.
 - **UX-04** Ekran düzeni (yatay):
   - **Orta:** Tahta. Kendi bölgen altta (B-05), hafif eğik 3D kamera. Tahta ekran yüksekliğine sığacak şekilde ölçeklenir.
@@ -435,3 +436,4 @@ Detaylar `CLAUDE.md` ve `.claude/rules/` altındadır.
 | 3.1 | 2026-10-02 | **Hasar/Can oranı ve maç uzunluğu (kullanıcı geri bildirimi):** Yeni U-30 dayanıklılık ilkesi. Canlar yaklaşık iki katına: Muhafız 12, Süvari 8, Okçu 6, Büyücü 6, Şifacı 7, Kule 20 (Saldırı 3). Şifa +2, Şifa İksiri +5, Zehir −2/tur. Bağlı sayılar: Q-13 10 hasar, Q-14 10. raunt / Can ≥ 14, Q-16 8. raunt, P-01 4 Can, P-04 5 hasar. Raunt sınırı 15 → 20 (W-03). Olaylar baş ve son rauntlar dışında eşit aralıkla (4, 7, 10, 13, 16) (E-01, E-02). Sayılar ilk tahmindir, Sim ile ölçülecek |
 | 3.2 | 2026-10-02 | **İlerle-saldır tek hamle (kullanıcı kararı):** v3.0'daki "hareket et, sonra ayrı hamleyle saldır" kaldırıldı. Yerine tek hamlelik ilerle-saldır aksiyonu (2 Enerji) geldi: Hedef, başlangıç konumundan Hareket + menzil içinde olmalı. Hareket eden birim o tur saldıramaz (T-05). Süvari Hücum'u ilerle-saldır'a bağlandı (U-02) |
 | 3.3 | 2026-10-07 | **İkinci cihaz testinden sonra (kullanıcı):** Rün Taşı tur başında +1 Enerji verir (B-11, T-05); Kaynak'ın +1 Mana'sı aynen. Tahta yarıçap 7'ye büyüdü (≤169 karo, başlangıç bölgesi 17, Portal'a ≥6) (B-01, B-03). Yeni B-25 harita havuzu: Her maçta 4 şablondan biri rastgele. Arayüz: Saldırı ve menzil stat bloğunda, özel karo üstünde efekt (UX-13); kendi tuzakların görünür, Portal açılış efekti (UX-14); duraklat menüsü ve geri tuşu (UX-15) |
+| 3.4 | 2026-10-08 | **Üçüncü cihaz testinden sonra (kullanıcı):** Statlar 100'lü ölçeğe taşındı, hedef vuruş sayısına göre (U-30): Can Muhafız 140, Süvari 100, Okçu 80, Büyücü 80, Şifacı 90, Kule 250; Saldırı 20/30/25/25/10, Kule 30; biyom +5, Hücum +10, Patlama 10, Şifa +15, Öfke +15, Dev Gücü +10, Zayıflık −15, Zehir −15, Diken 30, İksir +40; bağlı sayılar Q-13 80, Q-14 175, P-01 40, P-04 50, P-06 30. İlerle-saldırda ilerleme karosu otomatik seçilir (T-05). UX-16: Paneller birbirini dışlar, ana menüde Çıkış, zoom tur değişince korunur, özel karo işaretleri birim boyundan bağımsız |
