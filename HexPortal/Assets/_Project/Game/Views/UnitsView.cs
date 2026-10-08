@@ -40,7 +40,8 @@ namespace HexPortal.Game
             public bool Dying => DieT < 1f;
             // Overlay tag (UX "stat bars"): big Health bar + number, small Attack chip, buff/debuff/overwatch chips.
             public VisualElement Tag, HpFill;
-            public Label Hp, Atk, Range, Buff, Debuff, Watching;
+            public Label Hp, Atk, Range, Buff, Debuff, Watching, Spot;
+            public string ShownSpot;
             public int ShownRangeClass = -1;
             public int ShownHp = -1, ShownMax = -1, ShownAtk = -1, ShownBuffTurns = -1, ShownDebuffTurns = -1;
             public string ShownBuff, ShownDebuff;
@@ -142,7 +143,7 @@ namespace HexPortal.Game
             {
                 if (c.Unit != null)
                 {
-                    ShowUnit(c.Unit, v);
+                    ShowUnit(c.Unit, v, c.TerrainKnown ? c.Tile.Marker : Marker.None);
                     shown++;
                     if (!c.Unit.IsGhost) seen[c.Unit.Id] = new Seen { Class = c.Unit.Class, Owner = c.Unit.Owner, Pos = c.Unit.Pos };
                 }
@@ -181,7 +182,7 @@ namespace HexPortal.Game
             foreach (var b in bursts) { b.Age = BurstSeconds; b.Go.SetActive(false); }
         }
 
-        void ShowUnit(UnitView u, PlayerView v)
+        void ShowUnit(UnitView u, PlayerView v, Marker spot)
         {
             var vis = Get(u.Id);
             vis.IsTower = false;
@@ -202,6 +203,7 @@ namespace HexPortal.Game
                 vis.Range.text = Strings.RangeChip(def.Range, def.MinRange, def.MaxRange);
             }
             vis.Range.style.display = DisplayStyle.Flex;
+            SetSpot(vis, ArtCatalog.MarkerOf(spot).Icon, spot);
             SetTag(vis, u.Health, def.Health, u.EffectiveAttack, u.IsGhost ? null : u.BuffId, u.BuffTurnsLeft,
                 u.IsGhost ? null : u.DebuffId, u.DebuffTurnsLeft, u.OnOverwatch && !u.IsGhost, rim, u.IsGhost, dim);
         }
@@ -212,6 +214,7 @@ namespace HexPortal.Game
             if (!vis.IsTower) { SetBody(vis, 100); vis.IsTower = true; }
             Place(vis, c.Cell);
             SetLook(vis, Color.Lerp(Gfx.OwnerColor(c.TowerOwner), Color.white, 0.35f), Gfx.OwnerColor(c.TowerOwner), c.TowerIsGhost);
+            SetSpot(vis, "", Marker.None);
             vis.Range.style.display = DisplayStyle.None;
             vis.ShownRangeClass = -1;
             vis.Watch.SetActive(false);
@@ -323,9 +326,30 @@ namespace HexPortal.Game
             vis.Debuff = Chip(chips, "chip-debuff");
             vis.Watching = Chip(chips, "chip-watch");
             vis.Watching.text = Strings.OverwatchIcon;
+            vis.Spot = Chip(chips, "chip-spot");
+            vis.Spot.style.display = DisplayStyle.None;
             vis.Tag.Add(bar);
             vis.Tag.Add(chips);
             tagLayer.Add(vis.Tag);
+        }
+
+        /// <summary>UX-16: the marker under the unit (rune / wellspring) as a small icon in its tag, so a tall model never
+        /// hides it. Rebuilt only when it changes.</summary>
+        static void SetSpot(Visual vis, string icon, Marker m)
+        {
+            if (icon == vis.ShownSpot) return;
+            vis.ShownSpot = icon;
+            bool on = !string.IsNullOrEmpty(icon);
+            vis.Spot.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!on) return;
+            vis.Spot.text = icon;
+            vis.Spot.style.backgroundColor = ArtCatalog.MarkerOf(m).Color;
+        }
+
+        /// <summary>Units whose tag shows a marker icon (tests).</summary>
+        public int SpotIconsShown
+        {
+            get { int n = 0; foreach (var v in visuals) if (v.Used && v.Spot.style.display == DisplayStyle.Flex) n++; return n; }
         }
 
         static Label Chip(VisualElement row, string cls)

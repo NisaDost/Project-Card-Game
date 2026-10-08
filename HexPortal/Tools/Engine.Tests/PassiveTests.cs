@@ -7,12 +7,14 @@ using NUnit.Framework;
 namespace HexPortal.Tests
 {
     // GDD §9 commander passives: P-00…P-06 with the v2.7/v2.8 decisions (P-01 new unit, retry, trap but no shots;
-    // P-02 +1 also on the Mirror Trap, damage before the teleport; P-06 on every arrival, Shield blocks, before shots).
+    // P-02 extra damage also on the Mirror Trap, damage before the teleport; P-06 on every arrival, Shield blocks, before shots).
     public class PassiveTests
     {
         static readonly PlayerId A = PlayerId.A, B = PlayerId.B;
         static Hex H(int q, int r) => new Hex(q, r);
         static int MaxHp(UnitClass c) => Catalog.Units.Single(u => u.Class == c).Health;
+        static readonly int Spike = Catalog.SupportCards.Single(c => c.Id == "C-20").Amount;
+        static int PAmount(string id) => Catalog.Passives.Single(p => p.Id == id).Amount;
 
         /// <summary>Ends the active player's turn (a pending draw is made blind first).</summary>
         static List<GameEvent> End(GameState s)
@@ -172,7 +174,7 @@ namespace HexPortal.Tests
         public void P01_ReturnTriggersAnEnemyTrap()
         {
             var free = H(0, 6); // A's home zone (r ≥ 6)
-            // v3.1: the unit returns with 4 Health; B's Trap Master (P-02) makes the Spike Trap 3 + 1 = 4, still lethal.
+            // v3.4: the unit returns with P-01 Health (40); Spike Trap 30 + Trap Master (P-02) 10 is lethal.
             var b = RockHomeExcept(new TestBoard().Round(3).Active(B).Passive(A, "P-01").Passive(B, "P-02"), A, free, TestBoard.DefaultTowerA);
             b.Unit(UnitClass.Archer, A, H(0, 1), health: 1);
             int archer = b.Unit(UnitClass.Archer, B, H(0, -1));
@@ -183,8 +185,10 @@ namespace HexPortal.Tests
             var rev = ev.OfType<UnitRevived>().Single();
             var t = ev.OfType<TrapTriggered>().Single();
             Assert.That((t.CardId, t.UnitId), Is.EqualTo((trap, rev.UnitId)));
-            var died = ev.OfType<UnitDied>().Single(); // 4 damage on 4 Health
-            Assert.That((died.UnitId, died.Killer), Is.EqualTo((rev.UnitId, B)));
+            var dmg = ev.OfType<DamageDealt>().Single(d => d.TargetUnitId == rev.UnitId);
+            Assert.That((dmg.Kind, dmg.Amount, dmg.SourcePlayer), Is.EqualTo((DamageKind.Trap, Spike + PAmount("P-02"), B)));
+            Assert.That(PAmount("P-01") - Spike - PAmount("P-02"), Is.LessThanOrEqualTo(0));
+            Assert.That(ev.OfType<UnitDied>().Any(d => d.UnitId == rev.UnitId), Is.True);
         }
 
         [Test]
@@ -217,21 +221,21 @@ namespace HexPortal.Tests
             var ev = Engine.Apply(s, new MoveCommand(B, g, H(1, -2)));
             AssertRevealed(ev, A, "P-02", s);
             var dmg = ev.OfType<DamageDealt>().Single();
-            Assert.That((dmg.Kind, dmg.Amount, dmg.SourcePlayer), Is.EqualTo((DamageKind.Trap, 3 + 1, A)));
+            Assert.That((dmg.Kind, dmg.Amount, dmg.SourcePlayer), Is.EqualTo((DamageKind.Trap, Spike + PAmount("P-02"), A)));
             Assert.That(ev.FindIndex(e => e is PassiveRevealed), Is.LessThan(ev.FindIndex(e => e is DamageDealt)));
         }
 
         [Test]
-        public void P02_MirrorTrapDealsOneDamageBeforeTheTeleport_TeleportOnlyIfAlive()
+        public void P02_MirrorTrapDealsExtraDamageBeforeTheTeleport_TeleportOnlyIfAlive()
         {
             var b = new TestBoard().Round(3).Active(B).Passive(A, "P-02");
-            int tough = b.Unit(UnitClass.Guardian, B, H(2, -2), health: 2);
-            int weak = b.Unit(UnitClass.Guardian, B, H(-1, 0), health: 1);
+            int tough = b.Unit(UnitClass.Guardian, B, H(2, -2), health: PAmount("P-02") + 1);
+            int weak = b.Unit(UnitClass.Guardian, B, H(-1, 0), health: PAmount("P-02"));
             b.Trap(A, "C-21", H(1, -2));
             b.Trap(A, "C-21", H(-1, 1));
             var s = b.Build();
             var ev = Engine.Apply(s, new MoveCommand(B, tough, H(1, -2)));
-            Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(1));
+            Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(PAmount("P-02")));
             Assert.That(ev.FindIndex(e => e is DamageDealt), Is.LessThan(ev.FindIndex(e => e is UnitTeleported)));
             Assert.That(s.GetUnit(tough).Health, Is.EqualTo(1));
             Assert.That(Board.IsHomeZone(s.GetUnit(tough).Pos, B), Is.True);
@@ -251,7 +255,7 @@ namespace HexPortal.Tests
             b.Trap(A, "C-21", H(1, -2));
             var s = b.Build();
             var ev = Engine.Apply(s, new MoveCommand(B, g, H(1, -2)));
-            Assert.That(ev.OfType<ShieldBlocked>().Single().Amount, Is.EqualTo(1));
+            Assert.That(ev.OfType<ShieldBlocked>().Single().Amount, Is.EqualTo(PAmount("P-02")));
             Assert.That(ev.OfType<DamageDealt>(), Is.Empty);
             Assert.That(ev.OfType<UnitTeleported>().Count(), Is.EqualTo(1));
             Assert.That(s.GetUnit(g).Health, Is.EqualTo(1));
@@ -265,41 +269,45 @@ namespace HexPortal.Tests
             b.Trap(A, "C-20", H(1, -2));
             var s = b.Build();
             var ev = Engine.Apply(s, new MoveCommand(B, g, H(1, -2)));
-            Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(3));
+            Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(Spike));
             Assert.That(ev.OfType<PassiveRevealed>(), Is.Empty);
         }
 
         // ---------- P-04 with Q-13 ----------
 
         [Test]
-        public void P04_ThickWallBlocksTheFirstFiveTowerDamage_NotCountedForQ13()
+        public void P04_ThickWallBlocksTheFirstTowerDamage_NotCountedForQ13()
         {
-            Assert.That(Catalog.Passives.Single(p => p.Id == "P-04").Amount, Is.EqualTo(5)); // v3.1
+            int wall = Catalog.Passives.Single(p => p.Id == "P-04").Amount;
+            Assert.That(wall, Is.EqualTo(50)); // v3.4
+            int arch = Catalog.Units.Single(u => u.Class == UnitClass.Archer).Attack;                              // off biome
+            int mageHit = Catalog.Units.Single(u => u.Class == UnitClass.Mage).Attack + Catalog.BiomeAttackBonus;   // own biome
+            Assert.That(arch, Is.LessThan(wall));
+            Assert.That(arch + mageHit, Is.GreaterThan(wall)); // the Mage's hit is split: part blocked, part dealt
             var b = new TestBoard().Round(3).Passive(B, "P-04").Quests(A, "Q-13");
-            int archer = b.Unit(UnitClass.Archer, A, H(3, -4)); // straight line, 2 from B's tower (3,-6)
-            int mage = b.Unit(UnitClass.Mage, A, H(2, -4));     // 2 from the tower
+            int archer = b.Unit(UnitClass.Archer, A, H(3, -4));               // straight line, 2 from B's tower (3,-6)
+            int mage = b.Unit(UnitClass.Mage, A, H(2, -4), Biome.Forest);     // 2 from the tower, on its own biome
             var s = b.Build();
-            var ev = Engine.Apply(s, new AttackCommand(A, archer, TestBoard.DefaultTowerB)); // 2: all blocked
+            var ev = Engine.Apply(s, new AttackCommand(A, archer, TestBoard.DefaultTowerB)); // all blocked
             AssertRevealed(ev, B, "P-04", s);
             var blocked = ev.OfType<TowerDamageBlocked>().Single();
-            Assert.That((blocked.Owner, blocked.Amount), Is.EqualTo((B, 2)));
+            Assert.That((blocked.Owner, blocked.Amount), Is.EqualTo((B, arch)));
             Assert.That(ev.OfType<DamageDealt>().Any(d => d.TargetUnitId == DamageDealt.Tower), Is.False);
             Assert.That(s.GetTower(B).Health, Is.EqualTo(Catalog.Tower.Health));
             Assert.That(EventFilter.For(ev, A).OfType<TowerDamageBlocked>().Count(), Is.EqualTo(1));
-            ev = Engine.Apply(s, new AttackCommand(A, mage, TestBoard.DefaultTowerB)); // 2: all blocked (4 of 5)
-            Assert.That(ev.OfType<TowerDamageBlocked>().Single().Amount, Is.EqualTo(2));
+
+            ev = Engine.Apply(s, new AttackCommand(A, mage, TestBoard.DefaultTowerB)); // the rest of the wall blocked, the remainder dealt
+            Assert.That(ev.OfType<TowerDamageBlocked>().Single().Amount, Is.EqualTo(wall - arch));
+            Assert.That(ev.OfType<DamageDealt>().Single(d => d.TargetUnitId == DamageDealt.Tower).Amount, Is.EqualTo(arch + mageHit - wall));
+            Assert.That(ev.OfType<PassiveRevealed>(), Is.Empty);
+            Assert.That(s.GetProgress(A).TowerDamage, Is.EqualTo(arch + mageHit - wall));
+            Assert.That(s.GetProgress(B).WallBlocked, Is.EqualTo(wall));
 
             End(s);
             End(s);
-            ev = Engine.Apply(s, new AttackCommand(A, archer, TestBoard.DefaultTowerB)); // 2: 1 blocked, 1 dealt
-            Assert.That(ev.OfType<TowerDamageBlocked>().Single().Amount, Is.EqualTo(1));
-            Assert.That(ev.OfType<DamageDealt>().Single(d => d.TargetUnitId == DamageDealt.Tower).Amount, Is.EqualTo(1));
-            Assert.That(ev.OfType<PassiveRevealed>(), Is.Empty);
-            Assert.That(s.GetProgress(A).TowerDamage, Is.EqualTo(1));
-            Assert.That(s.GetProgress(B).WallBlocked, Is.EqualTo(5));
-            ev = Engine.Apply(s, new AttackCommand(A, mage, TestBoard.DefaultTowerB)); // the wall is used up
+            ev = Engine.Apply(s, new AttackCommand(A, archer, TestBoard.DefaultTowerB)); // the wall is used up
             Assert.That(ev.OfType<TowerDamageBlocked>(), Is.Empty);
-            Assert.That(s.GetProgress(A).TowerDamage, Is.EqualTo(3));
+            Assert.That(s.GetProgress(A).TowerDamage, Is.EqualTo(2 * arch + mageHit - wall));
         }
 
         // ---------- P-05 ----------
@@ -344,7 +352,7 @@ namespace HexPortal.Tests
         // ---------- P-06 ----------
 
         [Test]
-        public void P06_EnemyMovingOntoThePortalTakesThreeDamage()
+        public void P06_EnemyMovingOntoThePortalTakesItsDamage()
         {
             var b = new TestBoard().Round(3).Passive(B, "P-06");
             int rider = b.Unit(UnitClass.Rider, A, H(0, 2));
@@ -352,15 +360,15 @@ namespace HexPortal.Tests
             var ev = Engine.Apply(s, new MoveCommand(A, rider, Board.Portal));
             AssertRevealed(ev, B, "P-06", s);
             var d = ev.OfType<DamageDealt>().Single();
-            Assert.That((d.Kind, d.Amount, d.SourcePlayer, d.TargetUnitId), Is.EqualTo((DamageKind.PortalWarden, 3, B, rider)));
-            Assert.That(s.GetUnit(rider).Health, Is.EqualTo(MaxHp(UnitClass.Rider) - 3));
+            Assert.That((d.Kind, d.Amount, d.SourcePlayer, d.TargetUnitId), Is.EqualTo((DamageKind.PortalWarden, PAmount("P-06"), B, rider)));
+            Assert.That(s.GetUnit(rider).Health, Is.EqualTo(MaxHp(UnitClass.Rider) - PAmount("P-06")));
         }
 
         [Test]
         public void P06_ADeathMeansNoShots_AndTheKillCountsForThePassiveOwner()
         {
             var b = new TestBoard().Round(3).Passive(B, "P-06").Tower(B, H(1, -1));
-            int archer = b.Unit(UnitClass.Archer, A, H(0, 2), health: 3); // wounded: the P-06 hit (3) kills it
+            int archer = b.Unit(UnitClass.Archer, A, H(0, 2), health: PAmount("P-06")); // wounded: the P-06 hit kills it
             int watcher = b.Unit(UnitClass.Archer, B, H(0, -2));
             b.U(watcher).OnOverwatch = true;
             var s = b.Build();
@@ -394,7 +402,7 @@ namespace HexPortal.Tests
             Assert.That(ev.OfType<UnitPushed>().Single().To, Is.EqualTo(Board.Portal));
             AssertRevealed(ev, A, "P-06", s);
             Assert.That(ev.OfType<DamageDealt>().Single().Kind, Is.EqualTo(DamageKind.PortalWarden));
-            Assert.That(s.GetUnit(target).Health, Is.EqualTo(MaxHp(UnitClass.Guardian) - 3));
+            Assert.That(s.GetUnit(target).Health, Is.EqualTo(MaxHp(UnitClass.Guardian) - PAmount("P-06")));
         }
 
         [Test]

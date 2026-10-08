@@ -78,7 +78,8 @@ namespace HexPortal.Game
         int boardPointer = -1;
         Vector2 boardPress, boardLast;
         bool boardDragged, boardRightDrag;
-        int boardPointers;
+        int boardPointers; // == boardIds.Count
+        readonly List<int> boardIds = new List<int>(10); // pointer ids currently pressed on the board (no duplicates)
         bool pinchActive;
         float pinchSpan;
         Vector2 pinchMid;
@@ -128,19 +129,22 @@ namespace HexPortal.Game
                 market[i] = root.Q<Button>("market-" + i);
                 Guard(market[i], () => OnDrawSlot(slot));
             }
+            root.Q<Label>("market-title").text = Strings.MarketTitle;
             blindBtn = root.Q<Button>("blind-btn"); blindBtn.text = Strings.Blind; Guard(blindBtn, () => OnDrawSlot(DrawCommand.Blind));
             endBtn = root.Q<Button>("end-btn"); Guard(endBtn, OnEnd);
             overwatchBtn = root.Q<Button>("overwatch-btn"); overwatchBtn.text = Strings.OverwatchIcon + " " + Strings.Overwatch; Guard(overwatchBtn, OnOverwatch);
             questsConfirm = root.Q<Button>("quests-confirm"); questsConfirm.text = Strings.Confirm; Guard(questsConfirm, OnConfirmQuests);
-            var questBtn = root.Q<Button>("quest-btn"); questBtn.text = Strings.Quests; questBtn.clicked += () => questPanel.style.display = DisplayStyle.Flex;
-            oppInfo.RegisterCallback<PointerUpEvent>(_ => questPanel.style.display = DisplayStyle.Flex); // details live in the panel
-            var qc = root.Q<Button>("quest-close"); qc.text = Strings.Close; qc.clicked += () => questPanel.style.display = DisplayStyle.None;
+            var questBtn = root.Q<Button>("quest-btn"); questBtn.text = Strings.Quests; questBtn.clicked += OpenQuests;
+            oppInfo.RegisterCallback<PointerUpEvent>(_ => OpenQuests()); // details live in the panel
+            var qc = root.Q<Button>("quest-close"); qc.text = Strings.Close; qc.clicked += CloseQuests;
+            root.Q<Label>("quest-title").text = Strings.Quests;
             var cc = root.Q<Button>("confirm-cancel"); cc.text = Strings.Cancel; cc.clicked += CancelConfirm;
             var ok = root.Q<Button>("confirm-ok"); ok.text = Strings.Confirm; ok.clicked += AcceptConfirm;
 
             root.Q<Label>("menu-title").text = Strings.Title;
             tutorial = new Tutorial(match, root, match.Close);
             WirePause();
+            var quit = root.Q<Button>("menu-quit"); quit.text = Strings.Quit; quit.clicked += Application.Quit;
             var tut = root.Q<Button>("menu-tutorial"); tut.text = Strings.Tutorial;
             tut.clicked += StartTutorial;
             var hot = root.Q<Button>("menu-hotseat"); hot.text = Strings.Hotseat; hot.clicked += StartHotseat;
@@ -157,13 +161,13 @@ namespace HexPortal.Game
             root.Q<Label>("handoff-title").text = Strings.HandoffTitle;
             root.Q<Label>("handoff-tap").text = Strings.HandoffTap;
             var rm = root.Q<Button>("result-menu"); rm.text = Strings.NewMatch; rm.clicked += () => Show(Screen.Menu);
-            screenHandoff.RegisterCallback<PointerUpEvent>(_ => match.AcknowledgeHandoff());
+            screenHandoff.RegisterCallback<PointerUpEvent>(_ => { ResetInput(); match.AcknowledgeHandoff(); });
 
             var hit = root.Q("board-hit");
             hit.RegisterCallback<PointerDownEvent>(e => OnBoardDown(hit, e));
             hit.RegisterCallback<PointerMoveEvent>(OnBoardMove);
             hit.RegisterCallback<PointerUpEvent>(e => OnBoardUp(hit, e));
-            hit.RegisterCallback<PointerCancelEvent>(e => { if (hit.HasPointerCapture(e.pointerId)) hit.ReleasePointer(e.pointerId); boardPointers = 0; boardPointer = -1; });
+            hit.RegisterCallback<PointerCancelEvent>(e => { if (hit.HasPointerCapture(e.pointerId)) hit.ReleasePointer(e.pointerId); EndBoardGesture(); });
             hit.RegisterCallback<WheelEvent>(OnWheel);
             // Card drag (UX-03): the pressed pointer is captured by the root, so its move/up/cancel reach these handlers
             // wherever the finger goes (board, HUD, off-panel). TrickleDown also sees them if the capture was refused.
@@ -179,9 +183,19 @@ namespace HexPortal.Game
             Show(Screen.Menu);
         }
 
+        /// <summary>Test/debug hook: the seed of the next match started from the menu (consumed once). Null = clock seed.</summary>
+        public ulong? NextSeed { get; set; }
+
+        ulong TakeSeed()
+        {
+            ulong s = NextSeed ?? (ulong)System.Environment.TickCount;
+            NextSeed = null;
+            return s;
+        }
+
         void StartHotseat()
         {
-            ulong seed = (ulong)System.Environment.TickCount;
+            ulong seed = TakeSeed();
             facing = null;
             ClearLog();
             match.NewMatch(seed, timerOn);
@@ -254,7 +268,8 @@ namespace HexPortal.Game
         public void OpenPause()
         {
             if (!match.HasMatch) return;
-            ResetInput();
+            ResetInput(); // UX-16: one panel at a time (closes info)
+            questPanel.style.display = DisplayStyle.None;
             match.Paused = true;
             SyncPauseTexts();
             pausePanel.style.display = DisplayStyle.Flex;
@@ -264,7 +279,26 @@ namespace HexPortal.Game
         {
             match.Paused = false;
             pausePanel.style.display = DisplayStyle.None;
+            ResetInput();
         }
+
+        /// <summary>UX-05/UX-16: quests panel. Opening it drops the selection, closes the info and pause panels.</summary>
+        public void OpenQuests()
+        {
+            if (!match.HasMatch || Current != Screen.Board || match.Paused) return;
+            ResetInput();
+            questPanel.style.display = DisplayStyle.Flex;
+        }
+
+        public void CloseQuests()
+        {
+            questPanel.style.display = DisplayStyle.None;
+            ResetInput();
+        }
+
+        public bool QuestsOpen => questPanel.style.display == DisplayStyle.Flex;
+        public bool InfoOpen => infoPanel.style.display == DisplayStyle.Flex;
+        public bool PauseOpen => pausePanel.style.display == DisplayStyle.Flex;
 
         /// <summary>Short vibration when an own unit or the own tower is hit (UX-15 setting).</summary>
         void VibrateOnOwnDamage(DamageDealt d, PlayerView v)
@@ -291,7 +325,7 @@ namespace HexPortal.Game
 
         void StartAi(AiLevel level)
         {
-            ulong seed = (ulong)System.Environment.TickCount;
+            ulong seed = TakeSeed();
             facing = null;
             ClearLog();
             match.NewAiMatch(seed, humanSeat, level, aiTimerOn);
@@ -385,12 +419,13 @@ namespace HexPortal.Game
                 Show(Screen.Handoff);
                 return;
             }
-            if (shownMatch != match.MatchNumber) { shownMatch = match.MatchNumber; facing = null; framedTurn = -1; portalNoticed[0] = portalNoticed[1] = false; board.SetPortalOpen(false, Color.clear); ClearLog(); }
+            if (shownMatch != match.MatchNumber) { shownMatch = match.MatchNumber; facing = null; noticedTurn = -1; CameraRig.ForgetViews(); portalNoticed[0] = portalNoticed[1] = false; board.SetPortalOpen(false, Color.clear); ClearLog(); }
             CameraRig.SetPlayable(v.TemplateId, v.PlayableCells); // B-25: frame, clamp and pick on the template's cells
-            bool faced = facing != v.Viewer;
-            if (faced) { CameraRig.Face(cam, v.Viewer); facing = v.Viewer; }
-            bool myTurnStart = v.Phase == GamePhase.Playing && v.ActivePlayer == v.Viewer && v.TurnIndex != framedTurn;
-            if (faced || myTurnStart) FrameOwn(v, myTurnStart);
+            // UX-16: zoom and pan survive turn changes. The default framing only at match start (per side in hotseat,
+            // B-05) and on a double tap; a hotseat side change restores that side's last view.
+            if (facing != v.Viewer) { CameraRig.Face(cam, v.Viewer); facing = v.Viewer; }
+            bool myTurnStart = v.Phase == GamePhase.Playing && v.ActivePlayer == v.Viewer && v.TurnIndex != noticedTurn;
+            if (myTurnStart) noticedTurn = v.TurnIndex;
             if (myTurnStart) TurnStartNotice(v);
             CheckPortal(v);
             board.Render(v);
@@ -407,22 +442,7 @@ namespace HexPortal.Game
 
         static bool IsOpponentTurn(PlayerView v) => v.Phase == GamePhase.Playing && v.ActivePlayer != v.Viewer;
 
-        readonly List<Vector3> framePoints = new List<Vector3>();
-        int framedTurn = -1;
-
-        /// <summary>Start of the player's turn: frame own units + tower (double tap still shows the whole board).</summary>
-        void FrameOwn(PlayerView v, bool turnStart)
-        {
-            if (CameraRig.Instance == null) return;
-            if (turnStart) framedTurn = v.TurnIndex;
-            framePoints.Clear();
-            if (v.Phase == GamePhase.Playing)
-            {
-                foreach (var u in v.OwnUnits) framePoints.Add(HexLayout.ToWorld(u.Pos, BoardView.TileHeight));
-                if (v.OwnTowerPos.HasValue) framePoints.Add(HexLayout.ToWorld(v.OwnTowerPos.Value, BoardView.TileHeight));
-            }
-            CameraRig.Instance.Frame(framePoints);
-        }
+        int noticedTurn = -1;
 
         /// <summary>UX-10 plan arrows only exist vs the AI on its turn (in hotseat the waiting player does not hold the device).</summary>
         bool PlanningAllowed() => match.HasMatch && match.Mode == MatchMode.VsAi && IsOpponentTurn(match.View);
@@ -488,7 +508,7 @@ namespace HexPortal.Game
         public string OpponentInfoText => oppTower.text + " " + oppHand.text + " " + oppQuests.text;
         public string QuestPanelText => questText.text;
 
-        void OnConfirmQuests() => match.Apply(new ChooseQuestsCommand(match.Viewer, pickedQuests));
+        void OnConfirmQuests() => ApplyCmd(new ChooseQuestsCommand(match.Viewer, pickedQuests));
 
         void BuildPassiveOptions(PlayerView v)
         {
@@ -498,7 +518,7 @@ namespace HexPortal.Game
                 var pid = id;
                 var b = new Button { text = ArtCatalog.Name(pid) + "\n" + ArtCatalog.Text(pid) };
                 b.AddToClassList("btn"); b.AddToClassList("option");
-                b.clicked += () => match.Apply(new ChoosePassiveCommand(match.Viewer, pid));
+                b.clicked += () => ApplyCmd(new ChoosePassiveCommand(match.Viewer, pid));
                 passiveOptions.Add(b);
             }
         }
@@ -603,6 +623,7 @@ namespace HexPortal.Game
             // UX-15: the Android back button arrives as Escape.
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.escapeKey.wasPressedThisFrame && Current == Screen.Board && match.HasMatch) { if (Paused) ClosePause(); else OpenPause(); }
+            WatchdogTick();
             TickPinch();
             TickClock();
         }
@@ -743,8 +764,7 @@ namespace HexPortal.Game
             var v = match.View;
             string text = null;
             if (secondPick.Count > 0)
-                text = secondPick[0] is MoveAttackCommand ? Strings.PickApproach
-                    : secondPick[0] is PlayCardCommand pc && pc.Dest.HasValue ? Strings.PickDestination : Strings.PickDirection;
+                text = secondPick[0] is PlayCardCommand pc && pc.Dest.HasValue ? Strings.PickDestination : Strings.PickDirection;
             else if (rangePreview) text = Strings.RangePreview;
             else if (v.Phase == GamePhase.Setup) text = v.SetupStep == SetupStep.Tower ? Strings.PlaceTower : Strings.PlaceUnits;
             else if (v.DrawPending && v.ActivePlayer == v.Viewer) text = Strings.DrawFirst;
@@ -949,6 +969,8 @@ namespace HexPortal.Game
             board.ClearHighlights();
             if (match.View.Phase == GamePhase.Playing) // C-02, UX-03 (setup uses the home zone, shown by the targets)
                 foreach (var z in match.View.ControlZone) board.Highlight(z, Gfx.ZoneHl);
+            foreach (var c in match.Legal) // S-05 tower step: the tower cells stay blue while a card is looked at
+                if (c is PlaceTowerCommand t) board.Highlight(t.Cell, Gfx.MoveHl);
             foreach (var c in match.Legal)
                 if (CardOf(c) == cardId && CellOf(c, out var h)) board.Highlight(h, Gfx.TargetHl);
             foreach (var el in handCards)
@@ -974,67 +996,58 @@ namespace HexPortal.Game
             else SelectCard(cardId);
         }
 
+        /// <summary>The ONE entry point for a board tap, in every phase (setup tower/units/traps and play). It dispatches
+        /// on the input mode; every branch either sends a legal command (ApplyCmd → Idle), changes the selection, or
+        /// falls back to <see cref="TapIdle"/>. No other path places a tower, a unit or a card.</summary>
         void OnCellTapped(Hex cell)
         {
-            if (confirmAction != null) return;
-            if (match.Paused) return;
-            if (PlanningAllowed() && plans.RemoveEndingAt(cell)) return; // UX-10: a tap on an arrow head deletes it
-            if (secondPick.Count > 0) // card second pick or move-attack approach; a tap anywhere else cancels
+            switch (Mode)
             {
-                foreach (var c in secondPick)
-                    if (SecondPickCell(c) == cell) { ApplyCmd(c); return; }
-                ClearSelection();
-                return;
+                case InputMode.Locked:
+                    if (QuestsOpen) CloseQuests(); // UX-16: a tap outside the quests panel closes it
+                    return;
+                case InputMode.Confirm:
+                case InputMode.Dragging:
+                    return;
+                case InputMode.SecondPick: // C-15 destination / C-18 direction; a tap anywhere else cancels
+                    foreach (var c in secondPick)
+                        if (SecondPickCell(c) == cell) { ApplyCmd(c); return; }
+                    ClearSelection();
+                    return;
+                case InputMode.CardSelected:
+                    if (TryCardOnCell(selectedCard, cell)) return;
+                    break; // not a target of the card: the tap means what it means in Idle (tower cell, own unit, info)
+                case InputMode.UnitSelected:
+                    if (TryUnitOnCell(cell)) return;
+                    break;
             }
-            if (selectedCard >= 0 && TryCardOnCell(selectedCard, cell)) return;
+            TapIdle(cell);
+        }
+
+        /// <summary>Idle tap: tower placement (setup), select an own unit, else drop the selection and show the cell's info.</summary>
+        void TapIdle(Hex cell)
+        {
+            if (PlanningAllowed() && plans.RemoveEndingAt(cell)) return; // UX-10: a tap on an arrow head deletes it
             foreach (var c in match.Legal)
                 if (c is PlaceTowerCommand t && t.Cell == cell) { ApplyCmd(c); return; }
-            if (selectedUnit >= 0 && !rangePreview)
-            {
-                foreach (var c in match.Legal)
-                    if ((c is MoveCommand m && m.UnitId == selectedUnit && m.Dest == cell)
-                        || (c is AttackCommand a && a.UnitId == selectedUnit && a.Target == cell)) { ApplyCmd(c); return; }
-                if (TryMoveAttack(selectedUnit, cell)) return;
-                if (previewOnly.Contains(cell)) { ShowToast(Strings.ReasonMoveAttackEnergy); return; }
-            }
             foreach (var u in match.View.OwnUnits)
-                if (u.Pos == cell) { SelectUnit(u.Id); return; }
+                if (u.Pos == cell) { if (selectedUnit == u.Id && !rangePreview) ClearSelection(); else SelectUnit(u.Id); return; }
             ClearSelection();
             ShowCellInfo(cell); // UX-11: enemy units, ghosts and towers (only what the view holds)
         }
 
-        /// <summary>T-05 (v3.2): an orange target. One approach cell: act at once. Several: the player picks the approach
-        /// (blue); a tap elsewhere cancels.</summary>
-        bool TryMoveAttack(int unitId, Hex target)
+        /// <summary>UX-02 / T-05: move, attack or move-attack of the selected unit on the cell (legal list only).</summary>
+        bool TryUnitOnCell(Hex cell)
         {
-            secondPick.Clear();
+            if (rangePreview) return false;
             foreach (var c in match.Legal)
-                if (c is MoveAttackCommand ma && ma.UnitId == unitId && ma.Target == target) secondPick.Add(c);
-            if (secondPick.Count == 0) return false;
-            if (secondPick.Count == 1)
-            {
-                var only = secondPick[0];
-                secondPick.Clear();
-                ApplyCmd(only);
-                return true;
-            }
-            board.ClearHighlights();
-            board.Highlight(target, Gfx.MoveAttackHl);
-            foreach (var c in secondPick) board.Highlight(((MoveAttackCommand)c).Approach, Gfx.MoveHl);
-            UpdatePrompt();
-            return true;
-        }
-
-        /// <summary>Approach cells offered right now (T-05 two-step pick), for tests/CLI.</summary>
-        public int PendingApproachCount
-        {
-            get
-            {
-                int n = 0;
-                foreach (var c in secondPick)
-                    if (c is MoveAttackCommand) n++;
-                return n;
-            }
+                if ((c is MoveCommand m && m.UnitId == selectedUnit && m.Dest == cell)
+                    || (c is AttackCommand a && a.UnitId == selectedUnit && a.Target == cell)) { ApplyCmd(c); return true; }
+            // T-05 (v3.4): one move-attack per target; the engine computes the approach. One tap on the orange target.
+            foreach (var c in match.Legal)
+                if (c is MoveAttackCommand ma && ma.UnitId == selectedUnit && ma.Target == cell) { ApplyCmd(c); return true; }
+            if (previewOnly.Contains(cell)) { ShowToast(Strings.ReasonMoveAttackEnergy); return true; }
+            return false;
         }
 
         /// <summary>Plays the card on the cell if legal. Push (C-18) and Teleport (C-15) need a second pick.
@@ -1113,7 +1126,6 @@ namespace HexPortal.Game
 
         static Hex SecondPickCell(ICommand c)
         {
-            if (c is MoveAttackCommand ma) return ma.Approach;
             var p = (PlayCardCommand)c;
             if (p.Dest.HasValue) return p.Dest.Value;
             return p.Direction >= 0 ? p.Target.Neighbor(p.Direction) : p.Target;
@@ -1124,7 +1136,12 @@ namespace HexPortal.Game
         void OnBoardDown(VisualElement hit, PointerDownEvent e)
         {
             if (pressCard >= 0) return; // a card is pressed or dragged: board taps and pans wait (UX-03)
-            boardPointers++;
+            // Root cause (v3.4): the InputForUI provider re-sends ButtonPressed for a touch that moves (its Click action
+            // fires again on the touch state change), so the same finger can deliver several PointerDowns. Counting
+            // them as fingers turned the gesture into a "pinch" and left the count stuck after the up.
+            if (boardIds.Contains(e.pointerId)) return;
+            boardIds.Add(e.pointerId);
+            boardPointers = boardIds.Count;
             hit.CapturePointer(e.pointerId);
             if (boardPointers > 1) { boardDragged = true; return; } // second finger: a pinch, never a tap
             boardPointer = e.pointerId;
@@ -1147,7 +1164,8 @@ namespace HexPortal.Game
         void OnBoardUp(VisualElement hit, PointerUpEvent e)
         {
             if (hit.HasPointerCapture(e.pointerId)) hit.ReleasePointer(e.pointerId);
-            boardPointers = Mathf.Max(0, boardPointers - 1);
+            if (!boardIds.Remove(e.pointerId)) return; // an up we never counted (or a duplicate)
+            boardPointers = boardIds.Count;
             if (e.pointerId != boardPointer) return;
             boardPointer = -1;
             if (planning && boardDragged && !pinchActive)
@@ -1220,7 +1238,7 @@ namespace HexPortal.Game
 
         void OnCardDown(int cardId, PointerDownEvent e)
         {
-            if (pressCard >= 0 || confirmAction != null || match.Paused) return; // second finger, a dialog or the pause menu
+            if (pressCard >= 0 || Mode == InputMode.Locked || Mode == InputMode.Confirm) return; // second finger, a dialog, a panel or the pause menu
             if (e.pointerType == UnityEngine.UIElements.PointerType.mouse && e.button != 0) return;
             pressCard = cardId;
             pressPointer = e.pointerId;
@@ -1317,32 +1335,76 @@ namespace HexPortal.Game
         public void CancelPointers()
         {
             if (pressCard >= 0) CancelCardPointer();
+            EndBoardGesture();
+        }
+
+        /// <summary>Ends the board gesture (tap/pan/plan/pinch bookkeeping).</summary>
+        void EndBoardGesture()
+        {
+            boardIds.Clear();
             boardPointers = 0;
             boardPointer = -1;
             pinchActive = false;
+            planning = false;
         }
 
-        /// <summary>A new press arrives. Gesture state that waits for an earlier PointerUp is stale when that up was lost
-        /// (finger lifted outside the panel, an unrouted second-finger up, mouse released outside the Game view): the
-        /// same pointer pressing again, or no other finger actually on the screen, proves the earlier press ended.
-        /// Without this, a lost up left boardPointers &gt; 0 (every tap read as a pinch) or pressCard set (board and hand
-        /// ignored) until the next Refresh, i.e. until Turu Bitir.</summary>
+        /// <summary>
+        /// Root cause of the v3.4 device reports ("first tap not on the tower bugs out", "characters can't be placed by
+        /// tap or drag", "pause → resume fixes it"). The project-wide UI actions feed UI Toolkit through the InputForUI
+        /// provider, whose Click action re-fires while a touch MOVES, so one finger delivers duplicate PointerDowns:
+        /// <list type="bullet">
+        /// <item>On the board each duplicate was counted as another finger: boardPointers became 2, the gesture was read
+        /// as a pinch (no tap, no pan) and after the up the count stayed at 1, so every later tap was again "the second
+        /// finger" and was dropped.</item>
+        /// <item>On a card the duplicate reached the root (which holds the drag capture) and the old "same pointer id
+        /// pressed again = its previous press is over" heal cancelled the drag in mid-air.</item>
+        /// </list>
+        /// A finger that never moves sends no duplicate, which is why a clean first tap on a tower cell worked, and only
+        /// ResetInput (pause, or a successful command → Refresh) cleared the stuck count. Now board downs are counted
+        /// per pointer id (duplicates ignored), a same-id down while a finger is on the screen is a duplicate (never a reset), a press on another id heals
+        /// stale state only when no other finger is physically down, and <see cref="WatchdogTick"/> ends any gesture
+        /// whose up was really lost once nothing touches the screen.
+        /// </summary>
         void HealStalePointers(int pointerId)
         {
-            // UI Toolkit reuses pointer ids (mouse: one id; touch: one id per finger slot), so the same id pressing again
-            // means its previous press is over. Other ids are real extra fingers and are left alone.
-            if (pressCard >= 0 && pressPointer == pointerId) CancelCardPointer();
-            if (boardPointers > 0 && boardPointer == pointerId)
+            bool tracked = (pressCard >= 0 && pressPointer == pointerId) || boardIds.Contains(pointerId);
+            int presses = PhysicalPresses();
+            if (tracked && presses > 0) return;   // duplicate down of a finger that is still on the screen
+            if (!tracked && presses != 1) return; // another finger is also down (pinch, second finger): keep the gesture
+            if (pressCard >= 0) CancelCardPointer();
+            if (boardPointers > 0 || pinchActive) EndBoardGesture();
+        }
+
+        /// <summary>Fingers on the screen plus pressed mouse buttons, read from the Input System (no allocation).</summary>
+        static int PhysicalPresses()
+        {
+            int n = 0;
+            var touches = ETouch.activeTouches;
+            for (int i = 0; i < touches.Count; i++)
             {
-                boardPointers = 0;
-                boardPointer = -1;
-                pinchActive = false;
-                planning = false;
+                var ph = touches[i].phase;
+                if (ph != UnityEngine.InputSystem.TouchPhase.Ended && ph != UnityEngine.InputSystem.TouchPhase.Canceled) n++;
             }
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            if (mouse != null && (mouse.leftButton.isPressed || mouse.rightButton.isPressed)) n++;
+            return n;
+        }
+
+        int idleFrames;
+        /// <summary>Per frame: a gesture that is still "in progress" while nothing has touched the screen for a few
+        /// frames lost its up; end it (a drag returns its card to the hand, UX-03).</summary>
+        void WatchdogTick()
+        {
+            if (pressCard < 0 && boardPointers == 0 && !pinchActive) { idleFrames = 0; return; }
+            if (PhysicalPresses() > 0) { idleFrames = 0; return; }
+            if (++idleFrames < 2) return;
+            idleFrames = 0;
+            if (pressCard >= 0) CancelCardPointer();
+            EndBoardGesture();
         }
 
         /// <summary>Client input state, derived from the gesture/selection fields (one source of truth).</summary>
-        public enum InputMode { Locked, Idle, UnitSelected, CardSelected, ApproachChoice, Dragging, Confirm }
+        public enum InputMode { Locked, Idle, UnitSelected, CardSelected, SecondPick, Dragging, Confirm }
 
         public InputMode Mode
         {
@@ -1350,9 +1412,10 @@ namespace HexPortal.Game
             {
                 if (!match.HasMatch || match.HandoffPending || match.IsOver || Current != Screen.Board) return InputMode.Locked;
                 if (match.Paused) return InputMode.Locked;
+                if (QuestsOpen) return InputMode.Locked;
                 if (confirmAction != null) return InputMode.Confirm;
                 if (dragging) return InputMode.Dragging;
-                if (secondPick.Count > 0) return InputMode.ApproachChoice;
+                if (secondPick.Count > 0) return InputMode.SecondPick;
                 if (selectedCard >= 0) return InputMode.CardSelected;
                 if (selectedUnit >= 0) return InputMode.UnitSelected;
                 return InputMode.Idle;
@@ -1395,6 +1458,7 @@ namespace HexPortal.Game
 
         void OpenInfo(string icon, Color iconColor, string title, string body)
         {
+            questPanel.style.display = DisplayStyle.None; // UX-16: one panel at a time
             tutorial?.Yield(true);
             infoIcon.text = icon;
             infoIcon.style.color = iconColor;

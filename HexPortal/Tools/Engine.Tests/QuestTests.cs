@@ -177,7 +177,7 @@ namespace HexPortal.Tests
         // ---------- Q-13 ----------
 
         [Test]
-        public void Q13_TenDamageToTheEnemyTowerInTotal_SplashCounts()
+        public void Q13_TotalDamageToTheEnemyTower_SplashCounts()
         {
             // Both attackers stand at distance 3 from B's tower (3,-6): out of its range, so no tower shots.
             var b = new TestBoard().Round(3).Quests(A, "Q-13");
@@ -185,17 +185,25 @@ namespace HexPortal.Tests
             int mage = b.Unit(UnitClass.Mage, A, H(3, -3));     // 2 from (3,-5)
             b.Unit(UnitClass.Archer, B, H(3, -5)); // next to B's tower (not a Guardian: no cover, U-11)
             var s = b.Build();
-            for (int turn = 1; turn <= 4; turn++)
+            int target = Catalog.Quests.Single(q => q.Id == "Q-13").Amount;
+            int arch = Catalog.Units.Single(u => u.Class == UnitClass.Archer).Attack;
+            int total = 0, turn = 0;
+            bool doneSeen = false;
+            while (!doneSeen)
             {
-                Engine.Apply(s, new AttackCommand(A, archer, TestBoard.DefaultTowerB));       // 2
-                if (turn <= 2) Engine.Apply(s, new AttackCommand(A, mage, H(3, -5)));        // splash 1 on the tower
-                int expected = new[] { 3, 6, 8, 10 }[turn - 1];
-                Assert.That(s.GetProgress(A).TowerDamage, Is.EqualTo(expected));
+                turn++;
+                Assert.That(turn, Is.LessThanOrEqualTo(10));
+                Engine.Apply(s, new AttackCommand(A, archer, TestBoard.DefaultTowerB));
+                total += arch;
+                if (turn <= 2) { Engine.Apply(s, new AttackCommand(A, mage, H(3, -5))); total += Catalog.MageSplashDamage; } // splash on the tower
+                Assert.That(s.GetProgress(A).TowerDamage, Is.EqualTo(total));
                 var done = Completed(End(s), A).ToList();
-                Assert.That(done, Is.EqualTo(turn == 4 ? new[] { "Q-13" } : new string[0]), "turn " + turn);
-                if (turn < 4) End(s);
+                doneSeen = done.Count > 0;
+                Assert.That(done, Is.EqualTo(total >= target ? new[] { "Q-13" } : new string[0]), "turn " + turn);
+                if (!doneSeen) End(s);
             }
-            Assert.That(s.GetTower(B).Health, Is.EqualTo(Catalog.Tower.Health - 10));
+            Assert.That(turn, Is.GreaterThan(2)); // the splash turns alone do not finish it
+            Assert.That(s.GetTower(B).Health, Is.EqualTo(Catalog.Tower.Health - total));
         }
 
         // ---------- Q-14, Q-04 ----------
@@ -204,7 +212,7 @@ namespace HexPortal.Tests
         public void Q14_JudgedAtTheEndOfRoundTen_CompleteOrFail_Public()
         {
             var b = new TestBoard().Round(10).Quests(A, "Q-14").Quests(B, "Q-14")
-                .Tower(A, TestBoard.DefaultTowerA, 14).Tower(B, TestBoard.DefaultTowerB, 13);
+                .Tower(A, TestBoard.DefaultTowerA, 175).Tower(B, TestBoard.DefaultTowerB, 174);
             var s = b.Build();
             var ev = End(s); // A's turn end in round 10: not yet
             Assert.That(ev.OfType<QuestCompleted>().Concat<GameEvent>(ev.OfType<QuestFailed>()), Is.Empty);

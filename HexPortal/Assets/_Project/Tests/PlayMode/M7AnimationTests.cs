@@ -11,7 +11,7 @@ namespace HexPortal.Game.Tests
     public class M7AnimationTests
     {
         static int ObjectCount() =>
-            Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length;
+            Object.FindObjectsByType<Transform>(FindObjectsInactive.Include).Length;
 
         /// <summary>A full AI-vs-scripted match with frames between commands (tweens run and get skipped mid-way)
         /// completes with no errors, no extra GameObjects beyond the pools, and bounded pools.</summary>

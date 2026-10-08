@@ -25,7 +25,7 @@ namespace HexPortal.Core
     /// whether the unit already acted (they answer "where could it", e.g. on the opponent's turn, UX-10).</summary>
     public static class Preview
     {
-        /// <summary>T-05 (v3.2): the targets the viewer's unit can hit with a move-attack, each with its approach cells.
+        /// <summary>T-05 (v3.2): the targets the viewer's unit can hit with a move-attack, each with its single automatic approach (v3.4).
         /// Targets in Board.Cells order. Empty if the unit is not the viewer's.</summary>
         public static List<MoveAttackOption> MoveAttackTargets(PlayerView view, int unitId)
         {
@@ -34,15 +34,8 @@ namespace HexPortal.Core
             var u = belief.GetUnit(unitId);
             if (u == null || u.Owner != view.Viewer) return result;
             var visible = Visibility.VisibleCells(belief, view.Viewer);
-            var byTarget = new Dictionary<Hex, List<Hex>>();
-            foreach (var h in Movement.Destinations(belief, u, visible))
-                foreach (var t in Combat.LegalTargetsFrom(belief, u, h, visible))
-                {
-                    if (!byTarget.TryGetValue(t, out var list)) byTarget[t] = list = new List<Hex>();
-                    list.Add(h);
-                }
-            foreach (var t in Board.Cells) // fixed order, never the dictionary's
-                if (byTarget.TryGetValue(t, out var approaches)) result.Add(new MoveAttackOption { Target = t, Approaches = approaches });
+            foreach (var o in MoveAttack.Options(belief, u, visible)) // T-05 (v3.4): the one automatic approach
+                result.Add(new MoveAttackOption { Target = o.Key, Approaches = new List<Hex> { o.Value } });
             return result;
         }
 

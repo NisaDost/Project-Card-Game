@@ -24,7 +24,7 @@ namespace HexPortal.Tests
         // ---------- C-10, C-11, C-04, C-05, C-06 ----------
 
         [Test]
-        public void C10_RageAddsTwoAttack_ForThisAndNextOwnTurn()
+        public void C10_RageAddsItsAttack_ForThisAndNextOwnTurn()
         {
             var b = new TestBoard().Mana(A, 1);
             int a = b.Unit(UnitClass.Archer, A, H(0, 1));
@@ -34,13 +34,13 @@ namespace HexPortal.Tests
             var ev = Engine.Apply(s, new PlayCardCommand(A, rage, H(0, 1)));
             Assert.That(ev.OfType<EffectApplied>().Single().DefId, Is.EqualTo("C-10"));
             ev = Engine.Apply(s, new AttackCommand(A, a, H(0, -1)));
-            Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(Atk(UnitClass.Archer) + 2));
+            Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(Atk(UnitClass.Archer) + Amount("C-10")));
 
             ev = Engine.Apply(s, new EndTurnCommand(A));
             Assert.That(s.GetUnit(a).Buff.TurnsLeft, Is.EqualTo(1));
             Engine.Apply(s, new EndTurnCommand(B));
             ev = Engine.Apply(s, new AttackCommand(A, a, H(0, -1)));
-            Assert.That(ev.OfType<DamageDealt>().First().Amount, Is.EqualTo(Atk(UnitClass.Archer) + 2));
+            Assert.That(ev.OfType<DamageDealt>().First().Amount, Is.EqualTo(Atk(UnitClass.Archer) + Amount("C-10")));
             ev = Engine.Apply(s, new EndTurnCommand(A));
             Assert.That(s.GetUnit(a).Buff, Is.Null);
             var exp = ev.OfType<EffectExpired>().Single();
@@ -59,7 +59,7 @@ namespace HexPortal.Tests
             for (int i = 0; i < 4; i++) EndRound(s);
             Assert.That(s.GetUnit(a).Buff.Def.Id, Is.EqualTo("C-11"));
             var ev = Engine.Apply(s, new AttackCommand(A, a, H(0, -1)));
-            Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(Atk(UnitClass.Archer) + 1));
+            Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(Atk(UnitClass.Archer) + Amount("C-11")));
         }
 
         [Test]
@@ -76,7 +76,7 @@ namespace HexPortal.Tests
             Assert.That(ev.OfType<EffectExpired>().Single().DefId, Is.EqualTo("C-11"));
             Assert.That(s.GetUnit(a).Buff.Def.Id, Is.EqualTo("C-10"));
             ev = Engine.Apply(s, new AttackCommand(A, a, H(0, -1)));
-            Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(Atk(UnitClass.Archer) + 2)); // not +3
+            Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(Atk(UnitClass.Archer) + Amount("C-10"))); // not + both
 
             EndRound(s);
             Engine.Apply(s, new EndTurnCommand(A)); // Rage runs out; Giant Strength does not come back
@@ -98,7 +98,7 @@ namespace HexPortal.Tests
             Engine.Apply(s, new PlayCardCommand(A, r2, H(0, 1)));
             Assert.That(s.GetUnit(a).Buff.TurnsLeft, Is.EqualTo(Catalog.TimedEffectTurns));
             var ev = Engine.Apply(s, new AttackCommand(A, a, H(0, -1)));
-            Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(Atk(UnitClass.Archer) + 2));
+            Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(Atk(UnitClass.Archer) + Amount("C-10")));
             Engine.Apply(s, new EndTurnCommand(A));
             Assert.That(s.GetUnit(a).Buff, Is.Not.Null); // the restarted timer still has a turn left
         }
@@ -223,17 +223,17 @@ namespace HexPortal.Tests
         // ---------- C-13, C-14 ----------
 
         [Test]
-        public void C13_HealingPotionAddsFive_CappedAtMax()
+        public void C13_HealingPotionAddsItsAmount_CappedAtMax()
         {
             var b = new TestBoard().Mana(A, 2);
-            int g = b.Unit(UnitClass.Guardian, A, H(0, 1), health: Hp(UnitClass.Guardian) - 7);
+            int g = b.Unit(UnitClass.Guardian, A, H(0, 1), health: Hp(UnitClass.Guardian) - Amount("C-13") - 2);
             int p1 = b.Hand(A, "C-13");
             int p2 = b.Hand(A, "C-13");
             var s = b.Build();
             var ev = Engine.Apply(s, new PlayCardCommand(A, p1, H(0, 1)));
-            Assert.That(Amount("C-13"), Is.EqualTo(5));
+            Assert.That(Amount("C-13"), Is.EqualTo(40));
             Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian) - 2));
-            Assert.That(ev.OfType<UnitHealed>().Single().Amount, Is.EqualTo(5));
+            Assert.That(ev.OfType<UnitHealed>().Single().Amount, Is.EqualTo(Amount("C-13")));
             ev = Engine.Apply(s, new PlayCardCommand(A, p2, H(0, 1)));
             Assert.That(s.GetUnit(g).Health, Is.EqualTo(Hp(UnitClass.Guardian))); // U-24
             Assert.That(ev.OfType<UnitHealed>().Single().Amount, Is.EqualTo(2));

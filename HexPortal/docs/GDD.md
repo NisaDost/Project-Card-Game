@@ -267,7 +267,7 @@ Amaç: Turunu bitiren oyuncu boş beklemesin. Rakibin turu hem izlenecek hem de 
 | ID | Pasif | Etki |
 |---|---|---|
 | **P-01** | Son Nefes | İlk ölen birimin, ölümünden sonraki ilk kendi tur başında kendi başlangıç bölgende rastgele boş bir karoda 40 Can ile geri gelir. Etkileri yoktur. Maçta 1 kez çalışır |
-| **P-02** | Tuzak Ustası | Tuzakların tetiklendiğinde hedef ek 1 hasar alır |
+| **P-02** | Tuzak Ustası | Tuzakların tetiklendiğinde hedef ek 10 hasar alır |
 | **P-03** | Hızlı Başlangıç | 3. rauntta +2 Mana alırsın (6 sınırını aşabilir) |
 | **P-04** | Kalın Duvar | Kulene gelen ilk 50 hasar (toplam) engellenir |
 | **P-05** | Pazarcı | Pazar'dan ilk kart aldığında ek olarak 1 kör kart çekersin (D-07 geçerli). Maçta 1 kez çalışır |

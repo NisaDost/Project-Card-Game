@@ -173,18 +173,18 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void B10_BiomeAttackBonusIsOne()
+        public void B10_BiomeAttackBonusIsFive()
         {
-            Assert.That(Catalog.BiomeAttackBonus, Is.EqualTo(1));
+            Assert.That(Catalog.BiomeAttackBonus, Is.EqualTo(5));
         }
 
         // ---------- Units (U) ----------
 
-        [TestCase(UnitClass.Guardian, "U-01", 3, 2, 12, 1, 2, RangeKind.Adjacent, 1, 1, TestName = "U01_GuardianStats")]
-        [TestCase(UnitClass.Rider, "U-02", 3, 3, 8, 3, 3, RangeKind.Adjacent, 1, 1, TestName = "U02_RiderStats")]
-        [TestCase(UnitClass.Archer, "U-03", 2, 2, 6, 2, 3, RangeKind.StraightLine, 1, 3, TestName = "U03_ArcherStats")]
-        [TestCase(UnitClass.Mage, "U-04", 3, 2, 6, 2, 2, RangeKind.Distance, 1, 2, TestName = "U04_MageStats")]
-        [TestCase(UnitClass.Healer, "U-05", 2, 1, 7, 1, 2, RangeKind.Adjacent, 1, 1, TestName = "U05_HealerStats")]
+        [TestCase(UnitClass.Guardian, "U-01", 3, 20, 140, 1, 2, RangeKind.Adjacent, 1, 1, TestName = "U01_GuardianStats")]
+        [TestCase(UnitClass.Rider, "U-02", 3, 30, 100, 3, 3, RangeKind.Adjacent, 1, 1, TestName = "U02_RiderStats")]
+        [TestCase(UnitClass.Archer, "U-03", 2, 25, 80, 2, 3, RangeKind.StraightLine, 1, 3, TestName = "U03_ArcherStats")]
+        [TestCase(UnitClass.Mage, "U-04", 3, 25, 80, 2, 2, RangeKind.Distance, 1, 2, TestName = "U04_MageStats")]
+        [TestCase(UnitClass.Healer, "U-05", 2, 10, 90, 1, 2, RangeKind.Adjacent, 1, 1, TestName = "U05_HealerStats")]
         public void UnitStats(UnitClass cls, string id, int cost, int atk, int hp, int move, int sight,
             RangeKind range, int minRange, int maxRange)
         {
@@ -201,28 +201,29 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void U02_RiderChargeBonusIsOne() => Assert.That(Catalog.RiderChargeBonus, Is.EqualTo(1));
+        public void U02_RiderChargeBonusIsTen() => Assert.That(Catalog.RiderChargeBonus, Is.EqualTo(10));
 
         [Test]
-        public void U04_MageSplashIsOne() => Assert.That(Catalog.MageSplashDamage, Is.EqualTo(1));
+        public void U04_MageSplashIsTen() => Assert.That(Catalog.MageSplashDamage, Is.EqualTo(10));
 
         [Test]
-        public void U05_HealAmountIsTwo() => Assert.That(Catalog.HealerHealAmount, Is.EqualTo(2));
+        public void U05_HealAmountIsFifteen() => Assert.That(Catalog.HealerHealAmount, Is.EqualTo(15));
 
-        /// <summary>U-30 (v3.1): no unbuffed single attack (biome bonus and Charge included), no single card or trap and no
+        /// <summary>U-30 (v3.4): no unbuffed single attack (biome bonus and Charge included), no single card or trap and no
         /// tower shot kills a unit at full Health.</summary>
         [Test]
         public void U30_NoSingleUnbuffedHitCardOrTrapKillsAFullHealthUnit()
         {
             int lowest = Catalog.Units.Min(u => u.Health);
-            Assert.That(lowest, Is.EqualTo(6));
+            Assert.That(lowest, Is.EqualTo(80));
             int hit = Catalog.Units.Max(u => u.Attack + Catalog.BiomeAttackBonus + (u.Class == UnitClass.Rider ? Catalog.RiderChargeBonus : 0));
-            Assert.That(hit, Is.EqualTo(5)); // Rider 3 + 1 + 1
+            Assert.That(hit, Is.EqualTo(45)); // Rider 30 + 5 + 10
             Assert.That(hit, Is.LessThan(lowest));
             int card = Catalog.SupportCards.Where(c => c.Effect == EffectKind.TrapDamage || c.Effect == EffectKind.Poison)
                 .Max(c => c.Amount);
-            Assert.That(card, Is.EqualTo(3)); // Spike Trap 3; Poison 2 per tick
+            Assert.That(card, Is.EqualTo(30)); // Spike Trap 30; Poison 15 per tick
             Assert.That(card, Is.LessThan(lowest));
+            Assert.That(Catalog.Tower.Attack, Is.EqualTo(30));
             Assert.That(Catalog.Tower.Attack, Is.LessThan(lowest));
             Assert.That(Catalog.MageSplashDamage, Is.LessThan(lowest));
         }
@@ -231,8 +232,8 @@ namespace HexPortal.Tests
         public void U06_TowerStats()
         {
             var t = Catalog.Tower;
-            Assert.That(t.Health, Is.EqualTo(20));
-            Assert.That(t.Attack, Is.EqualTo(3));
+            Assert.That(t.Health, Is.EqualTo(250));
+            Assert.That(t.Attack, Is.EqualTo(30));
             Assert.That(t.MinRange, Is.EqualTo(1));
             Assert.That(t.MaxRange, Is.EqualTo(2));
             Assert.That(t.Sight, Is.EqualTo(2));
@@ -241,9 +242,9 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void U27_TowerShotDamageIsTheTowerAttackThree_OncePerOpponentTurn()
+        public void U27_TowerShotDamageIsTheTowerAttackThirty_OncePerOpponentTurn()
         {
-            Assert.That(Catalog.Tower.Attack, Is.EqualTo(3));
+            Assert.That(Catalog.Tower.Attack, Is.EqualTo(30));
             Assert.That(Catalog.TowerShotsPerOpponentTurn, Is.EqualTo(1));
         }
 
@@ -252,17 +253,17 @@ namespace HexPortal.Tests
 
         // ---------- Support cards (C) ----------
 
-        [TestCase("C-10", CardCategory.Power, SupportPool.Buff, EffectKind.AttackBonus, 2, DurationKind.Timed, 1, Rarity.Common, 4, TestName = "C10_Rage")]
-        [TestCase("C-11", CardCategory.Power, SupportPool.Buff, EffectKind.AttackBonus, 1, DurationKind.Permanent, 2, Rarity.Rare, 2, TestName = "C11_GiantStrength")]
+        [TestCase("C-10", CardCategory.Power, SupportPool.Buff, EffectKind.AttackBonus, 15, DurationKind.Timed, 1, Rarity.Common, 4, TestName = "C10_Rage")]
+        [TestCase("C-11", CardCategory.Power, SupportPool.Buff, EffectKind.AttackBonus, 10, DurationKind.Permanent, 2, Rarity.Rare, 2, TestName = "C11_GiantStrength")]
         [TestCase("C-12", CardCategory.Protection, SupportPool.Buff, EffectKind.BlockNextDamage, 0, DurationKind.Permanent, 1, Rarity.Common, 4, TestName = "C12_Shield")]
-        [TestCase("C-13", CardCategory.Protection, SupportPool.Buff, EffectKind.Heal, 5, DurationKind.Instant, 1, Rarity.Common, 4, TestName = "C13_HealingPotion")]
+        [TestCase("C-13", CardCategory.Protection, SupportPool.Buff, EffectKind.Heal, 40, DurationKind.Instant, 1, Rarity.Common, 4, TestName = "C13_HealingPotion")]
         [TestCase("C-14", CardCategory.Movement, SupportPool.Buff, EffectKind.MoveBonus, 2, DurationKind.Instant, 1, Rarity.Common, 4, TestName = "C14_WindStep")]
         [TestCase("C-15", CardCategory.Movement, SupportPool.Buff, EffectKind.Teleport, 0, DurationKind.Instant, 3, Rarity.Epic, 1, TestName = "C15_Teleport")]
-        [TestCase("C-16", CardCategory.Curse, SupportPool.DebuffTrap, EffectKind.AttackPenalty, 2, DurationKind.Timed, 1, Rarity.Common, 4, TestName = "C16_Weakness")]
-        [TestCase("C-17", CardCategory.Curse, SupportPool.DebuffTrap, EffectKind.Poison, 2, DurationKind.Timed, 2, Rarity.Rare, 2, TestName = "C17_Poison")]
+        [TestCase("C-16", CardCategory.Curse, SupportPool.DebuffTrap, EffectKind.AttackPenalty, 15, DurationKind.Timed, 1, Rarity.Common, 4, TestName = "C16_Weakness")]
+        [TestCase("C-17", CardCategory.Curse, SupportPool.DebuffTrap, EffectKind.Poison, 15, DurationKind.Timed, 2, Rarity.Rare, 2, TestName = "C17_Poison")]
         [TestCase("C-18", CardCategory.Control, SupportPool.DebuffTrap, EffectKind.Push, 2, DurationKind.Instant, 1, Rarity.Common, 4, TestName = "C18_Push")]
         [TestCase("C-19", CardCategory.Control, SupportPool.DebuffTrap, EffectKind.Root, 0, DurationKind.Timed, 2, Rarity.Rare, 2, TestName = "C19_Root")]
-        [TestCase("C-20", CardCategory.Trap, SupportPool.DebuffTrap, EffectKind.TrapDamage, 3, DurationKind.Permanent, 1, Rarity.Rare, 2, TestName = "C20_SpikeTrap")]
+        [TestCase("C-20", CardCategory.Trap, SupportPool.DebuffTrap, EffectKind.TrapDamage, 30, DurationKind.Permanent, 1, Rarity.Rare, 2, TestName = "C20_SpikeTrap")]
         [TestCase("C-21", CardCategory.Trap, SupportPool.DebuffTrap, EffectKind.TrapTeleportHome, 0, DurationKind.Permanent, 2, Rarity.Epic, 1, TestName = "C21_MirrorTrap")]
         public void SupportCardRow(string id, CardCategory cat, SupportPool pool, EffectKind effect, int amount,
             DurationKind duration, int cost, Rarity rarity, int copies)
@@ -370,8 +371,8 @@ namespace HexPortal.Tests
         [TestCase("Q-10", 1, 0, true, false, TestName = "Q10_RuneKeeper")]
         [TestCase("Q-11", 2, 0, false, false, TestName = "Q11_DoubleRune")]
         [TestCase("Q-12", 2, 0, false, false, TestName = "Q12_Hunter")]
-        [TestCase("Q-13", 10, 0, false, false, TestName = "Q13_Siege")]
-        [TestCase("Q-14", 14, 10, false, true, TestName = "Q14_StrongKeep")]
+        [TestCase("Q-13", 80, 0, false, false, TestName = "Q13_Siege")]
+        [TestCase("Q-14", 175, 10, false, true, TestName = "Q14_StrongKeep")]
         [TestCase("Q-15", 3, 0, false, false, TestName = "Q15_BiomeMaster")]
         [TestCase("Q-16", 0, 8, false, true, TestName = "Q16_Flawless")]
         [TestCase("Q-17", 1, 0, false, false, TestName = "Q17_Trapper")]
@@ -391,12 +392,12 @@ namespace HexPortal.Tests
         [Test]
         public void P_PoolHasSixPassives() => Assert.That(Catalog.Passives.Count, Is.EqualTo(6));
 
-        [TestCase("P-01", 4, 0, true, TestName = "P01_LastBreath")]
-        [TestCase("P-02", 1, 0, false, TestName = "P02_TrapMaster")]
+        [TestCase("P-01", 40, 0, true, TestName = "P01_LastBreath")]
+        [TestCase("P-02", 10, 0, false, TestName = "P02_TrapMaster")]
         [TestCase("P-03", 2, 3, false, TestName = "P03_QuickStart")]
-        [TestCase("P-04", 5, 0, false, TestName = "P04_ThickWall")]
+        [TestCase("P-04", 50, 0, false, TestName = "P04_ThickWall")]
         [TestCase("P-05", 1, 0, true, TestName = "P05_Merchant")]
-        [TestCase("P-06", 3, 0, false, TestName = "P06_PortalWarden")]
+        [TestCase("P-06", 30, 0, false, TestName = "P06_PortalWarden")]
         public void PassiveRow(string id, int amount, int round, bool oncePerMatch)
         {
             var p = Passive(id);

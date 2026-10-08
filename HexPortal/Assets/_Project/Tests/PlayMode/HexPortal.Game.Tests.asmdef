@@ -4,6 +4,7 @@
     "references": [
         "HexPortal.Core",
         "HexPortal.Game",
+        "Unity.InputSystem",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

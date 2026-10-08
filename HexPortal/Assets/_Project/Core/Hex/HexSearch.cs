@@ -10,9 +10,14 @@ namespace HexPortal.Core
         /// A step may enter a cell only if canPass(cell). A reached cell (not start) is returned only if canStop(cell).
         /// Output is in BFS order, neighbours in Hex.Directions order.
         /// </summary>
-        public static List<Hex> Reachable(Hex start, int steps, Func<Hex, bool> canPass, Func<Hex, bool> canStop)
+        public static List<Hex> Reachable(Hex start, int steps, Func<Hex, bool> canPass, Func<Hex, bool> canStop) =>
+            Reachable(start, steps, canPass, canStop, out _);
+
+        /// <summary>The same; <paramref name="pathSteps"/>[i] is the path length to result[i].</summary>
+        public static List<Hex> Reachable(Hex start, int steps, Func<Hex, bool> canPass, Func<Hex, bool> canStop, out List<int> pathSteps)
         {
             var result = new List<Hex>();
+            pathSteps = new List<int>();
             var seen = new HashSet<Hex> { start };
             var frontier = new List<Hex> { start };
             for (int step = 0; step < steps && frontier.Count > 0; step++)
@@ -25,7 +30,7 @@ namespace HexPortal.Core
                         if (!Board.IsOnBoard(n) || seen.Contains(n) || !canPass(n)) continue;
                         seen.Add(n);
                         next.Add(n);
-                        if (canStop(n)) result.Add(n);
+                        if (canStop(n)) { result.Add(n); pathSteps.Add(step + 1); }
                     }
                 frontier = next;
             }

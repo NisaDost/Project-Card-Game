@@ -101,7 +101,7 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void U27_DamageIsTheTowerAttackThree_NoBiome()
+        public void U27_DamageIsTheTowerAttack_NoBiome()
         {
             // The target stands on its own biome and the tower cell is Forest: the shot is still Tower.Attack.
             var b = new TestBoard().Tower(B, TowerB);
@@ -109,8 +109,8 @@ namespace HexPortal.Tests
             var s = b.Build();
             var ev = Engine.Apply(s, new MoveCommand(A, r, H(1, -1)));
             Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(Catalog.Tower.Attack));
-            Assert.That(Catalog.Tower.Attack, Is.EqualTo(3)); // v3.1
-            Assert.That(s.GetUnit(r).Health, Is.EqualTo(Hp(UnitClass.Rider) - 3));
+            Assert.That(Catalog.Tower.Attack, Is.EqualTo(30)); // v3.4
+            Assert.That(s.GetUnit(r).Health, Is.EqualTo(Hp(UnitClass.Rider) - Catalog.Tower.Attack));
         }
 
         [Test]
@@ -265,7 +265,7 @@ namespace HexPortal.Tests
         [Test]
         public void T05_U27_MoveAttack_ArrivalThenAttackTrigger()
         {
-            var b = new TestBoard().Tower(B, TowerB);
+            var b = new TestBoard().Tower(B, TowerB).Biome(H(0, -1), Biome.Desert); // v3.4: the own-biome tie-break picks (0,-1) over (-2,-1)
             b.Unit(UnitClass.Guardian, A, H(-1, -1));
             int healer = b.Unit(UnitClass.Healer, B, H(0, -3), health: 1); // sees (-1,-1) at distance 2
             int m = b.Unit(UnitClass.Mage, A, H(-2, 1));
@@ -284,24 +284,23 @@ namespace HexPortal.Tests
         public void T05_U11_MoveAttack_NewlySeenGuardianDoesNotCancelTheLockedTarget()
         {
             var b = new TestBoard();
-            b.Unit(UnitClass.Archer, A, H(-3, 0));                   // sees the Portal target, not (1,0)
-            int m = b.Unit(UnitClass.Mage, A, H(-3, 1));
+            int m = b.Unit(UnitClass.Rider, A, H(-3, 0));            // v3.4: a Rider (sight 3); the Portal is always Visible (V-06)
             int target = b.Unit(UnitClass.Healer, B, Board.Portal);
             b.Unit(UnitClass.Guardian, B, H(1, 0));                  // next to the target, hidden from A now
             var s = b.Build();
             Assert.That(Visibility.VisibleCells(s, A).Contains(H(1, 0)), Is.False);
-            var cmd = new MoveAttackCommand(A, m, H(-1, 1), Board.Portal);
+            var cmd = new MoveAttackCommand(A, m, H(-1, 0), Board.Portal); // the only path-2 approach next to the Portal
             Assert.That(Engine.GetLegalCommands(s, A), Does.Contain(cmd));
             Engine.Apply(s, cmd);
             Assert.That(Visibility.VisibleCells(s, A).Contains(H(1, 0)), Is.True); // seen after the arrival: cover now
-            Assert.That(s.GetUnit(target).Health, Is.EqualTo(Hp(UnitClass.Healer) - Def(UnitClass.Mage).Attack));
+            Assert.That(s.GetUnit(target).Health, Is.EqualTo(Hp(UnitClass.Healer) - Def(UnitClass.Rider).Attack - Catalog.RiderChargeBonus));
         }
 
         /// <summary>T-05 (v3.2): if the arrival kills the unit (tower shot), the attack does not happen; the 2 Energy is spent.</summary>
         [Test]
         public void T05_MoveAttack_CancelledWhenTheArrivalShotKills_EnergySpent()
         {
-            var b = new TestBoard().Tower(B, TowerB);
+            var b = new TestBoard().Tower(B, TowerB).Biome(H(0, -1), Biome.Desert); // v3.4: the own-biome tie-break picks (0,-1)
             int m = b.Unit(UnitClass.Mage, A, H(-1, 0), health: Catalog.Tower.Attack);
             int target = b.Unit(UnitClass.Guardian, B, H(0, -2));
             var s = b.Build();
@@ -316,7 +315,7 @@ namespace HexPortal.Tests
         [Test]
         public void T05_U28_MoveAttack_CancelledWhenTheOverwatchShotKills()
         {
-            var b = new TestBoard();
+            var b = new TestBoard().Biome(H(0, 1), Biome.Desert); // v3.4: the own-biome tie-break picks (0,1) over (2,0)
             int ow = b.Unit(UnitClass.Archer, B, H(0, -2));
             b.U(ow).OnOverwatch = true;
             int g = b.Unit(UnitClass.Guardian, A, H(1, 1), health: Def(UnitClass.Archer).Attack);

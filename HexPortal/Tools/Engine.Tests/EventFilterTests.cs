@@ -86,7 +86,7 @@ namespace HexPortal.Tests
             Assert.That(forA.OfType<DamageDealt>(), Is.Empty);
             var forB = EventFilter.For(ev, B);
             Assert.That(forB.OfType<TrapTriggered>().Single().UnitId, Is.EqualTo(e));
-            Assert.That(forB.OfType<DamageDealt>().Single().Amount, Is.EqualTo(3));
+            Assert.That(forB.OfType<DamageDealt>().Single().Amount, Is.EqualTo(Catalog.SupportCards.Single(c => c.Id == "C-20").Amount));
         }
 
         [Test]

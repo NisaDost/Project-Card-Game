@@ -17,20 +17,23 @@ namespace HexPortal.Tests
         public void U20_U02_PlayerViewShowsTheEffectiveAttack()
         {
             var b = new TestBoard(); // Forest board
-            int archer = b.Unit(UnitClass.Archer, A, H(-1, 1), Biome.Forest);   // 2 + 1 biome
-            int rider = b.Unit(UnitClass.Rider, A, H(-2, 0));                   // Desert on Forest: 3
+            int archer = b.Unit(UnitClass.Archer, A, H(-1, 1), Biome.Forest);   // Attack + biome
+            int rider = b.Unit(UnitClass.Rider, A, H(-2, 0));                   // Desert on Forest: base Attack
             int weak = b.Unit(UnitClass.Healer, A, H(-1, 2));                   // 1 − 2 → 0
             b.Effect(weak, "C-16");
-            int enemy = b.Unit(UnitClass.Rider, B, H(0, -1), Biome.Forest);     // 3 + 1 biome + 2 Rage
+            int enemy = b.Unit(UnitClass.Rider, B, H(0, -1), Biome.Forest);     // Attack + biome + Rage
             b.Effect(enemy, "C-10");
             var s = b.Build();
             var v = PlayerView.For(s, A);
             UnitView Own(int id) => v.OwnUnits.Single(u => u.Id == id);
-            Assert.That(Own(archer).EffectiveAttack, Is.EqualTo(3));
-            Assert.That((Own(rider).EffectiveAttack, Own(rider).ChargeBonus), Is.EqualTo((3, 1)));
+            int Atk(UnitClass c) => Catalog.Units.Single(u => u.Class == c).Attack;
+            int Amt(string id) => Catalog.SupportCards.Single(c => c.Id == id).Amount;
+            Assert.That(Amt("C-16"), Is.GreaterThan(Atk(UnitClass.Healer))); // the min-0 case below
+            Assert.That(Own(archer).EffectiveAttack, Is.EqualTo(Atk(UnitClass.Archer) + Catalog.BiomeAttackBonus));
+            Assert.That((Own(rider).EffectiveAttack, Own(rider).ChargeBonus), Is.EqualTo((Atk(UnitClass.Rider), Catalog.RiderChargeBonus)));
             Assert.That((Own(weak).EffectiveAttack, Own(weak).ChargeBonus), Is.EqualTo((0, 0)));
             var e = v.EnemyUnits.Single();
-            Assert.That((e.Id, e.EffectiveAttack, e.ChargeBonus), Is.EqualTo((enemy, 6, 1)));
+            Assert.That((e.Id, e.EffectiveAttack, e.ChargeBonus), Is.EqualTo((enemy, Atk(UnitClass.Rider) + Catalog.BiomeAttackBonus + Amt("C-10"), Catalog.RiderChargeBonus)));
         }
 
         [Test]

@@ -104,7 +104,7 @@ namespace HexPortal.Tests
             var s = b.Build();
             var ev = Engine.Apply(s, new DeployCommand(A, card, InRange));
             var u = s.UnitAt(InRange);
-            Assert.That(u.Health, Is.EqualTo(HealthOf(UnitClass.Guardian) - 3 - Catalog.Tower.Attack));
+            Assert.That(u.Health, Is.EqualTo(HealthOf(UnitClass.Guardian) - Catalog.SupportCards.Single(c => c.Id == "C-20").Amount - Catalog.Tower.Attack));
             var trig = ev.OfType<TrapTriggered>().Single();
             var shot = ev.OfType<TowerShot>().Single();
             Assert.That(ev.IndexOf(ev.OfType<UnitDeployed>().Single()), Is.LessThan(ev.IndexOf(trig)));
@@ -125,7 +125,7 @@ namespace HexPortal.Tests
             var s = b.Build();
             var ev = Engine.Apply(s, new DeployCommand(A, card, InRange));
             Assert.That(ev.OfType<DamageDealt>().Select(d => d.Kind), Is.EqualTo(new[] { DamageKind.Trap, DamageKind.TowerShot }));
-            Assert.That(s.UnitAt(InRange).Health, Is.EqualTo(HealthOf(UnitClass.Guardian) - 3 - Catalog.Tower.Attack));
+            Assert.That(s.UnitAt(InRange).Health, Is.EqualTo(HealthOf(UnitClass.Guardian) - Catalog.SupportCards.Single(c => c.Id == "C-20").Amount - Catalog.Tower.Attack));
         }
 
         [Test]

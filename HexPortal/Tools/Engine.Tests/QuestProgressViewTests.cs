@@ -66,7 +66,7 @@ namespace HexPortal.Tests
             var s = b.Build();
             Engine.Apply(s, new AttackCommand(A, archer, TestBoard.DefaultTowerB));
             var siege = Q(s, A, "Q-13");
-            Assert.That((siege.Current, siege.Target, siege.Round), Is.EqualTo((2, 10, 0)));
+            Assert.That((siege.Current, siege.Target, siege.Round), Is.EqualTo((Catalog.Units.Single(u => u.Class == UnitClass.Archer).Attack, 80, 0)));
         }
 
         [Test]
@@ -104,7 +104,7 @@ namespace HexPortal.Tests
             var b = new TestBoard().Round(3).Quests(A, "Q-14").Tower(A, TestBoard.DefaultTowerA, 8);
             var s = b.Build();
             var q = Q(s, A, "Q-14");
-            Assert.That((q.Current, q.Target, q.Round), Is.EqualTo((8, 14, 10))); // v3.1: Health ≥ 14 at the end of round 10
+            Assert.That((q.Current, q.Target, q.Round), Is.EqualTo((8, 175, 10))); // v3.4: Health ≥ 175 at the end of round 10
         }
 
         [Test]

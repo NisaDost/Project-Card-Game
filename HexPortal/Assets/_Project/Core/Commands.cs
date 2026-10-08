@@ -36,7 +36,7 @@ namespace HexPortal.Core
     }
 
     /// <summary>T-05 (v3.2) move-attack: one action for MoveAttackEnergy (2). The unit moves from its start cell to Approach
-    /// (a legal move destination, U-07/U-09/U-12) and attacks Target from there (a legal target from Approach). U-02 Charge.</summary>
+    /// and attacks Target from there. U-02 Charge. v3.4: Approach must equal MoveAttack.ApproachFor (automatic, not a player choice).</summary>
     public sealed class MoveAttackCommand : ICommand
     {
         public PlayerId Player { get; }

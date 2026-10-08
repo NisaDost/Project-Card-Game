@@ -36,7 +36,7 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void T05_MoveAttack_OneCommand_TwoEnergy_AllApproachTargetPairsListed()
+        public void T05_MoveAttack_OneCommand_TwoEnergy_OnePerTargetListed()
         {
             var b = new TestBoard();
             int g = b.Unit(UnitClass.Guardian, A, H(-1, 0)); // Move 1, adjacent range
@@ -44,17 +44,18 @@ namespace HexPortal.Tests
             var s = b.Build();
             var legal = Engine.GetLegalCommands(s, A);
             var ma = legal.OfType<MoveAttackCommand>().Where(c => c.UnitId == g).ToList();
-            // Every (approach, target) pair: approach a legal move, target legal from there.
-            var expected = Movement.Destinations(s, s.GetUnit(g))
-                .SelectMany(h => Combat.LegalTargetsFrom(s, s.GetUnit(g), h, Visibility.VisibleCells(s, A))
-                    .Select(t => new MoveAttackCommand(A, g, h, t))).ToList();
+            // v3.4: one command per reachable target (board order), with the automatic approach.
+            var vis = Visibility.VisibleCells(s, A);
+            var targets = Movement.Destinations(s, s.GetUnit(g)).SelectMany(h => Combat.LegalTargetsFrom(s, s.GetUnit(g), h, vis)).ToHashSet();
+            var expected = Board.Cells.Where(targets.Contains)
+                .Select(t => new MoveAttackCommand(A, g, MoveAttack.ApproachFor(s, s.GetUnit(g), t).Value, t)).ToList();
             Assert.That(ma, Is.EqualTo(expected));
             Assert.That(ma, Does.Contain(new MoveAttackCommand(A, g, H(0, 0), H(1, 0))));
             Assert.That(ma.All(c => c.Approach != H(-1, 0)), Is.True); // staying in place is a plain attack
 
             var ev = Engine.Apply(s, new MoveAttackCommand(A, g, H(0, 0), H(1, 0)));
             Assert.That(ev.OfType<UnitMoved>().Single().To, Is.EqualTo(H(0, 0)));
-            Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(2));
+            Assert.That(ev.OfType<DamageDealt>().Single().Amount, Is.EqualTo(Catalog.Units.Single(u => u.Class == UnitClass.Guardian).Attack));
             Assert.That(s.GetEnergy(A), Is.EqualTo(Catalog.EnergyPerTurn - Catalog.MoveAttackEnergy));
             Assert.That(s.GetUnit(g).ActedThisTurn, Is.True);
         }

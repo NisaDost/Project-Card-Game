@@ -4,16 +4,17 @@
 Label { color: rgb(245, 245, 250); -unity-font-style: bold; }
 
 /* ---------- Top strip: icons + numbers only (UX-04) ---------- */
-.top-strip { position: absolute; left: 0; right: 0; top: 0; height: 104px; flex-direction: row; align-items: center;
-    justify-content: space-between; padding-left: 20px; padding-right: 20px; background-color: rgba(10, 12, 20, 0.78); }
-.top-group { flex-direction: row; align-items: center; }
+.top-strip { position: absolute; left: 0; right: 0; top: 0; height: 100px; flex-direction: row; align-items: center;
+    justify-content: space-between; padding: 0 24px; background-color: rgba(10, 12, 20, 0.85);
+    border-bottom-width: 3px; border-color: rgba(120, 140, 200, 0.45); }
+.top-group { flex-direction: row; align-items: center; height: 100%; }
 .top-group.center { position: absolute; left: 30%; right: 30%; justify-content: center; }
-.top-group.right { justify-content: flex-end; min-height: 100px; padding-left: 20px; border-radius: 16px; }
+.top-group.right { justify-content: flex-end; padding: 0 12px; border-radius: 16px; }
 .top-group.right:active { background-color: rgba(255, 255, 255, 0.12); }
-.stat { font-size: 50px; margin: 0 14px; -unity-text-align: middle-center; }
+.stat { font-size: 44px; margin: 0 12px; -unity-text-align: middle-center; }
 .stat.own { color: rgb(140, 185, 255); }
 .stat.opp { color: rgb(255, 140, 140); }
-.banner { font-size: 44px; padding: 6px 26px; border-radius: 14px; background-color: rgba(60, 80, 140, 0.95); margin: 0 8px; }
+.banner { font-size: 40px; padding: 4px 24px; border-radius: 14px; background-color: rgba(60, 80, 140, 0.95); margin: 0 6px; }
 .banner.mine { background-color: rgb(40, 140, 70); }
 .banner.theirs { background-color: rgb(150, 50, 60); }
 .banner.event { background-color: rgba(210, 115, 20, 0.95); }
@@ -56,8 +57,11 @@ Label { color: rgb(245, 245, 250); -unity-font-style: bold; }
 .btn.quest { min-height: 173px; font-size: 44px; background-color: rgb(110, 75, 170); border-color: rgb(200, 170, 255); }
 .btn.half { flex-grow: 1; margin: 6px; }
 .btn.ok { background-color: rgb(40, 150, 75); border-color: rgb(140, 240, 160); }
-.market-grid { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
-.btn.market { width: 188px; height: 188px; font-size: 30px; margin: 4px 0; padding: 4px; -unity-text-align: middle-center; }
+.section-title { font-size: 30px; color: rgb(190, 200, 225); margin: 0 4px 6px 4px; -unity-text-align: middle-left; }
+.market-grid { flex-direction: row; flex-wrap: wrap; justify-content: space-between; padding: 10px; border-radius: 20px;
+    background-color: rgba(10, 12, 20, 0.55); }
+.btn.market { width: 176px; height: 176px; min-width: 176px; min-height: 176px; font-size: 30px; margin: 4px; padding: 6px;
+    -unity-text-align: middle-center; border-radius: 18px; }
 .btn.market.picked { border-color: rgb(255, 230, 80); border-width: 9px; }
 .btn.end { min-height: 210px; font-size: 54px; background-color: rgb(35, 150, 70); border-color: rgb(150, 240, 170); }
 .btn.end:active { background-color: rgb(70, 200, 105); border-color: rgb(255, 255, 255); }
@@ -95,18 +99,24 @@ Label { color: rgb(245, 245, 250); -unity-font-style: bold; }
     color: rgb(170, 20, 20); }
 
 /* ---------- UX-11 info panel (left; a tap closes it) ---------- */
-.info-panel { position: absolute; left: 16px; top: 470px; width: 560px; bottom: 236px; padding: 16px 20px;
-    background-color: rgb(16, 20, 34); border-radius: 20px; border-width: 4px; border-color: rgb(120, 140, 200);
+.info-panel { position: absolute; left: 16px; top: 470px; width: 560px; bottom: 236px; padding: 18px 22px;
+    background-color: rgba(20, 24, 40, 0.97); border-radius: 22px; border-width: 5px; border-color: rgb(120, 140, 200);
     display: none; overflow: hidden; }
-.info-head { flex-direction: row; align-items: center; margin-bottom: 6px; }
+.info-head { flex-direction: row; align-items: center; margin-bottom: 10px; padding-bottom: 8px;
+    border-bottom-width: 3px; border-color: rgba(120, 140, 200, 0.5); }
 .info-icon { font-size: 48px; width: 64px; -unity-text-align: middle-center; }
-.info-title { font-size: 34px; flex-shrink: 1; white-space: normal; }
-.info-text { font-size: 24px; white-space: normal; -unity-font-style: normal; color: rgb(230, 232, 240); }
+.info-title { font-size: 40px; flex-shrink: 1; white-space: normal; }
+.info-text { font-size: 26px; white-space: normal; -unity-font-style: normal; color: rgb(230, 232, 240); }
 
 /* ---------- Popups and screens ---------- */
-.popup { position: absolute; left: 25%; right: 25%; top: 16%; padding: 30px; background-color: rgba(20, 24, 40, 0.97);
+.popup { position: absolute; left: 26%; right: 26%; top: 13%; max-height: 80%; padding: 24px 30px; background-color: rgba(20, 24, 40, 0.98);
     border-radius: 22px; border-width: 5px; border-color: rgb(120, 140, 200); display: none; }
-.popup-text { font-size: 38px; white-space: normal; margin-bottom: 18px; -unity-font-style: normal; }
+.popup-head { flex-direction: row; align-items: center; justify-content: space-between; min-height: 96px;
+    margin-bottom: 16px; padding-bottom: 10px; border-bottom-width: 3px; border-color: rgba(120, 140, 200, 0.5); }
+.popup-title { font-size: 52px; -unity-text-align: middle-left; flex-grow: 1; }
+.btn.close { min-width: 200px; min-height: 140px; font-size: 38px; margin: 0; }
+.popup-scroll { flex-shrink: 1; }
+.popup-text { font-size: 34px; white-space: normal; margin-bottom: 12px; -unity-font-style: normal; }
 .popup-row { flex-direction: row; }
 
 .screen { position: absolute; left: 0; top: 0; right: 0; bottom: 0; align-items: center; justify-content: center;
@@ -162,5 +172,7 @@ Label { color: rgb(245, 245, 250); -unity-font-style: bold; }
 .chip-range { background-color: rgb(40, 90, 170); }
 /* UX-15 pause menu */
 .btn.pause { width: 130px; height: 130px; font-size: 52px; margin-left: auto; padding: 0; }
-.pause-panel { top: 3%; left: 30%; right: 30%; }
+.pause-panel { top: 6%; left: 32%; right: 32%; }
 .pause-panel .btn { min-height: 130px; margin: 6px 0; font-size: 40px; }
+.btn.big.quit { background-color: rgb(120, 45, 55); border-color: rgb(230, 140, 150); }
+.chip-spot { color: rgb(255, 255, 255); -unity-text-outline-width: 1px; -unity-text-outline-color: black; }

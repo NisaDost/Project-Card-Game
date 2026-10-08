@@ -109,13 +109,28 @@ namespace HexPortal.Game
             boundsReady = true;
         }
 
-        /// <summary>Default framing for the viewer (B-05); also resets zoom and pan.</summary>
+        // UX-16: each side keeps its own zoom/pan (hotseat rotates 180° per player, B-05); cleared for a new match.
+        static readonly bool[] savedView = new bool[2];
+        static readonly Vector3[] savedTarget = new Vector3[2];
+        static readonly float[] savedDistance = new float[2];
+
+        /// <summary>A new match: every side starts from the default framing again.</summary>
+        public static void ForgetViews() { savedView[0] = savedView[1] = false; forgotten = true; }
+        static bool forgotten = true;
+
+        /// <summary>Turns the camera to the viewer's side (B-05). The first time in a match: default framing; later: that
+        /// side's last zoom and pan (UX-16).</summary>
         public static void Face(Camera cam, PlayerId viewer)
         {
             var rig = cam.GetComponent<CameraRig>();
             if (rig == null) { rig = cam.gameObject.AddComponent<CameraRig>(); rig.cam = cam; }
-            rig.yaw = viewer == PlayerId.A ? 0f : 180f;
-            rig.ResetView();
+            float yaw = viewer == PlayerId.A ? 0f : 180f;
+            int was = rig.yaw == 0f ? 0 : 1, now = (int)viewer;
+            if (!forgotten && rig.distance > 0f) { savedView[was] = true; savedTarget[was] = rig.target; savedDistance[was] = rig.distance; }
+            forgotten = false;
+            rig.yaw = yaw;
+            if (savedView[now] && was != now) { rig.target = savedTarget[now]; rig.distance = savedDistance[now]; rig.Clamp(); rig.Apply(); }
+            else { savedView[now] = false; rig.ResetView(); }
         }
 
         /// <summary>Double tap: back to the default framing for the current side.</summary>

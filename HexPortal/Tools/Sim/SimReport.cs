@@ -125,6 +125,10 @@ namespace HexPortal.Sim
             {
                 ["units killed per game"] = Ratio(games.Sum(g => g.UnitsKilled), n),
                 ["hits to kill (damaging events taken by each unit that died, per class)"] = hitsByClass,
+                ["tower hits to destroy (damaging events on each destroyed tower)"] = Stats(games.SelectMany(g => g.TowerHitsToDestroy).Select(x => (double)x)),
+                ["towers destroyed"] = games.Sum(g => g.TowerHitsToDestroy.Count),
+                ["tower hits per " + Catalog.Tower.Health + " damage (all tower hits, incl. surviving towers)"] =
+                    games.Sum(g => g.TowerDamage) == 0 ? 0.0 : Math.Round((double)games.Sum(g => g.TowerHits) * Catalog.Tower.Health / games.Sum(g => g.TowerDamage), 2),
             };
 
             // ---- Length ----

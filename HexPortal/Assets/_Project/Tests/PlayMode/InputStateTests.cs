@@ -125,7 +125,6 @@ namespace HexPortal.Game.Tests
             int energy = m.View.Energy;
             app.Ui.TapCell(m.View.OwnUnits.First(u => u.Id == ma.UnitId).Pos);
             app.Ui.TapCell(ma.Target);
-            if (app.Ui.Mode == GameUi.InputMode.ApproachChoice) app.Ui.TapCell(ma.Approach);
             Assert.That(m.View.Energy, Is.EqualTo(energy - 2), "move-attack applied");
             Assert.That(app.Ui.Mode, Is.EqualTo(GameUi.InputMode.Idle));
         }

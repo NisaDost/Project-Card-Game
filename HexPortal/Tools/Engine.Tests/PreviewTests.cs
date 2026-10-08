@@ -54,7 +54,7 @@ namespace HexPortal.Tests
             Assert.That(Ser(Preview.MoveAttackTargets(PlayerView.For(with, A), rider)),
                 Is.EqualTo(Ser(Preview.MoveAttackTargets(PlayerView.For(Make(false), A), rider))));
             Assert.That(Preview.MoveAttackTargets(PlayerView.For(with, A), rider).Single(o => o.Target == H(1, 0)).Approaches,
-                Does.Contain(H(0, 1)));
+                Is.EqualTo(new[] { MoveAttack.ApproachFor(with, with.GetUnit(rider), H(1, 0)).Value }));
         }
 
         [Test]

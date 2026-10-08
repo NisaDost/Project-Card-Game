@@ -52,6 +52,10 @@ namespace HexPortal.Sim
         /// <summary>Per class: for each unit that died, the number of damaging events (DamageDealt with Amount &gt; 0) it took
         /// since it entered the board, including the killing one.</summary>
         public SortedDictionary<string, List<int>> HitsToKill = new SortedDictionary<string, List<int>>();
+        /// <summary>Tower durability (U-30 v3.4): damaging events (Amount &gt; 0) and damage taken by both towers, and for each
+        /// destroyed tower the hits it took.</summary>
+        public int TowerHits, TowerDamage;
+        public List<int> TowerHitsToDestroy = new List<int>();
         public SortedDictionary<string, int> Events = new SortedDictionary<string, int>();
         public List<double> DecisionMs = new List<double>();
         public List<double> ActionDecisionMs = new List<double>();
@@ -86,6 +90,7 @@ namespace HexPortal.Sim
             var sw = new Stopwatch();
             int prePickedTurn = -1;
             var hits = new Dictionary<int, int>();         // unit id → damaging events so far (lookup only, never iterated)
+            var towerHits = new int[2];                    // per tower owner (A = 0, B = 1)
             var unitClass = new Dictionary<int, string>(); // unit id → class (lookup only)
 
             void Decide(PlayerId p)
@@ -159,6 +164,10 @@ namespace HexPortal.Sim
                             if (dep != null) unitClass[ud.UnitId] = dep.Class.ToString();
                             break;
                         case UnitRevived ur: unitClass[ur.UnitId] = ur.Class.ToString(); break;
+                        case DamageDealt td when td.TargetUnitId == DamageDealt.Tower && td.Amount > 0:
+                            rec.TowerHits++; rec.TowerDamage += td.Amount;
+                            towerHits[td.SourcePlayer == PlayerId.A ? 1 : 0]++;
+                            break;
                         case DamageDealt dd when dd.TargetUnitId != DamageDealt.Tower && dd.Amount > 0:
                             hits[dd.TargetUnitId] = (hits.TryGetValue(dd.TargetUnitId, out int hk) ? hk : 0) + 1;
                             break;
@@ -227,6 +236,8 @@ namespace HexPortal.Sim
                 rec.Seats[seat].Passive = s.GetPassiveChoice(p) == null ? null : s.GetPassiveChoice(p).Id;
             }
             rec.Rounds = s.Round;
+            foreach (var tp in new[] { PlayerId.A, PlayerId.B })
+                if (s.GetTower(tp).Health <= 0) rec.TowerHitsToDestroy.Add(towerHits[(int)tp]);
             rec.ResultKey = ResultKey(s.Result);
             rec.Winner = s.Result.Winner.HasValue ? s.Result.Winner.Value.ToString() : null;
             rec.WinnerConfig = s.Result.Winner.HasValue ? rec.Seats[(int)s.Result.Winner.Value].Config : null;

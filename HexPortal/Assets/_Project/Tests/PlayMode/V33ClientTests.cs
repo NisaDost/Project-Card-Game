@@ -35,7 +35,7 @@ namespace HexPortal.Game.Tests
             var app = App();
             yield return null;
             var m = app.Match;
-            var board = Object.FindFirstObjectByType<BoardView>(FindObjectsInactive.Include);
+            var board = Object.FindAnyObjectByType<BoardView>(FindObjectsInactive.Include);
             m.NewAiMatch(52, PlayerId.A, AiLevel.Normal, timer: false);
             var rng = new System.Random(52);
             bool sawTrap = false, sawUnit = false;

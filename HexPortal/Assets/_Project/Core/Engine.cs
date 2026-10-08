@@ -48,7 +48,7 @@ namespace HexPortal.Core
                 case DrawCommand d: Draw(state, d, events); break;
                 case MoveCommand m: Move(state, m, events); break;
                 case AttackCommand a: Attack(state, a, events); break;
-                case MoveAttackCommand ma: MoveAttack(state, ma, events); break;
+                case MoveAttackCommand ma: ApplyMoveAttack(state, ma, events); break;
                 case OverwatchCommand o: Overwatch(state, o, events); break;
                 case DeployCommand dep: Deploy.Apply(state, dep, events); break;
                 case PlayCardCommand pc: Cards.Apply(state, pc, events); break;
@@ -94,10 +94,9 @@ namespace HexPortal.Core
                 foreach (var h in dests) list.Add(new MoveCommand(player, u.Id, h));
                 foreach (var h in Combat.LegalTargets(state, u, visible)) list.Add(new AttackCommand(player, u.Id, h));
                 list.Add(new OverwatchCommand(player, u.Id));
-                if (Turn.CanMoveAttack(state, u)) // T-05 (v3.2): approach cells in move order, targets in board order
-                    foreach (var h in dests)
-                        foreach (var t in Combat.LegalTargetsFrom(state, u, h, visible))
-                            list.Add(new MoveAttackCommand(player, u.Id, h, t));
+                if (Turn.CanMoveAttack(state, u)) // T-05 (v3.4): one command per target, automatic approach, targets in board order
+                    foreach (var o in MoveAttack.Options(state, u, visible))
+                        list.Add(new MoveAttackCommand(player, u.Id, o.Value, o.Key));
             }
             var zone = ControlZone.Cells(state, player);
             Deploy.AddLegal(state, player, visible, zone, list);
@@ -152,14 +151,14 @@ namespace HexPortal.Core
         /// GetLegalCommands). Arrival first (trap, then tower and overwatch, U-29, C-32); the attack (with the U-02 Charge)
         /// happens only if the unit is still alive on Approach, the game goes on and Target is still a legal target. The
         /// Energy is spent either way.</summary>
-        static void MoveAttack(GameState state, MoveAttackCommand cmd, EventLog events)
+        static void ApplyMoveAttack(GameState state, MoveAttackCommand cmd, EventLog events)
         {
             var u = ActingUnit(state, cmd, cmd.UnitId);
             if (!Turn.CanMoveAttack(state, u)) throw new IllegalCommandException("Move-attack needs " + Catalog.MoveAttackEnergy + " Energy: " + cmd);
-            if (!Movement.Destinations(state, u).Contains(cmd.Approach)) throw new IllegalCommandException("Illegal approach: " + cmd);
-            var visible = Visibility.VisibleCells(state, u.Owner);
-            if (!Combat.LegalTargetsFrom(state, u, cmd.Approach, visible).Contains(cmd.Target))
-                throw new IllegalCommandException("Illegal target: " + cmd);
+            // T-05 (v3.4): the approach is automatic; the command must carry exactly the computed one.
+            var approach = MoveAttack.ApproachFor(state, u, cmd.Target);
+            if (approach == null) throw new IllegalCommandException("Illegal target: " + cmd);
+            if (approach.Value != cmd.Approach) throw new IllegalCommandException("Approach must be " + approach.Value + ": " + cmd);
 
             // v3.2 (PM S1): the target is locked now. After the arrival only the unit's death or displacement (Mirror Trap)
             // or the target's death cancels the attack; newly seen cover or other visibility changes do not.

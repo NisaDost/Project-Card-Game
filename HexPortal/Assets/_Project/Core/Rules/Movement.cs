@@ -17,15 +17,19 @@ namespace HexPortal.Core
             Destinations(state, unit, Visibility.VisibleCells(state, unit.Owner));
 
         /// <summary>C-19: a rooted unit has none. C-14: Wind Step adds to Move this turn.</summary>
-        internal static List<Hex> Destinations(GameState state, Unit unit, ISet<Hex> visible)
+        internal static List<Hex> Destinations(GameState state, Unit unit, ISet<Hex> visible) =>
+            Destinations(state, unit, visible, out _);
+
+        /// <summary>The same, with the path length to each destination (T-05 v3.4 approach choice).</summary>
+        internal static List<Hex> Destinations(GameState state, Unit unit, ISet<Hex> visible, out List<int> pathSteps)
         {
-            if (unit.IsRooted) return new List<Hex>();
+            if (unit.IsRooted) { pathSteps = new List<int>(); return new List<Hex>(); }
             Func<Hex, bool> canStop = h => visible.Contains(h) && IsEmpty(state, h);
             // U-09: the Rider passes through units and towers of either side, never rock or Void. It still stops only on empty cells.
             Func<Hex, bool> canPass = unit.Class == UnitClass.Rider
                 ? h => visible.Contains(h) && state.Map.IsPassable(h)
                 : canStop;
-            return HexSearch.Reachable(unit.Pos, unit.Def.Move + unit.MoveBonus, canPass, canStop);
+            return HexSearch.Reachable(unit.Pos, unit.Def.Move + unit.MoveBonus, canPass, canStop, out pathSteps);
         }
     }
 }

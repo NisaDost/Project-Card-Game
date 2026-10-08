@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace HexPortal.Core.Data
 {
     /// <summary>
-    /// All game numbers. Must match docs/GDD.md (v2.3) exactly; change only with the user's approval.
+    /// All game numbers. Must match docs/GDD.md (v3.4) exactly; change only with the user's approval.
     /// </summary>
     public static class Catalog
     {
@@ -20,7 +20,7 @@ namespace HexPortal.Core.Data
         public const int WellspringsPerHalf = 1;     // B-23, B-25
         public const int SpecialTileRowMin = 3;      // B-25 (v3.3), GDD rows (1-based) of the upper half: axial r = -5
         public const int SpecialTileRowMax = 5;      // B-25 (v3.3): axial r = -3
-        public const int BiomeAttackBonus = 1;       // B-10, U-20
+        public const int BiomeAttackBonus = 5;       // B-10, U-20
 
         /// <summary>B-25: biome minimum for a template with <paramref name="playableUpperCells"/> playable non-rock upper cells.</summary>
         public static int MinCellsPerBiome(int playableUpperCells) => playableUpperCells * BiomeMinPercent / 100;
@@ -45,20 +45,20 @@ namespace HexPortal.Core.Data
         public static readonly IReadOnlyList<UnitDef> Units = new[]
         {
             //          id      class               cost atk hp mv sight range                 min max
-            new UnitDef("U-01", UnitClass.Guardian, 3,   2, 12, 1, 2,    RangeKind.Adjacent,     1,  1), // v3.1 Health
-            new UnitDef("U-02", UnitClass.Rider,    3,   3,  8, 3, 3,    RangeKind.Adjacent,     1,  1),
-            new UnitDef("U-03", UnitClass.Archer,   2,   2,  6, 2, 3,    RangeKind.StraightLine, 1,  3),
-            new UnitDef("U-04", UnitClass.Mage,     3,   2,  6, 2, 2,    RangeKind.Distance,     1,  2),
-            new UnitDef("U-05", UnitClass.Healer,   2,   1,  7, 1, 2,    RangeKind.Adjacent,     1,  1),
+            new UnitDef("U-01", UnitClass.Guardian, 3,   20, 140, 1, 2,    RangeKind.Adjacent,     1,  1), // v3.4 100 scale
+            new UnitDef("U-02", UnitClass.Rider,    3,   30, 100, 3, 3,    RangeKind.Adjacent,     1,  1),
+            new UnitDef("U-03", UnitClass.Archer,   2,   25, 80, 2, 3,    RangeKind.StraightLine, 1,  3),
+            new UnitDef("U-04", UnitClass.Mage,     3,   25, 80, 2, 2,    RangeKind.Distance,     1,  2),
+            new UnitDef("U-05", UnitClass.Healer,   2,   10, 90, 1, 2,    RangeKind.Adjacent,     1,  1),
         };
 
-        public const int RiderChargeBonus = 1;       // U-02 Hücum (v3.0: attack after a move in the same turn)
-        public const int MageSplashDamage = 1;       // U-04 Patlama
-        public const int HealerHealAmount = 2;       // U-05 Şifa (v3.1)
+        public const int RiderChargeBonus = 10;       // U-02 Hücum (v3.0: attack after a move in the same turn)
+        public const int MageSplashDamage = 10;       // U-04 Patlama
+        public const int HealerHealAmount = 15;       // U-05 Şifa (v3.4)
         public const int DeathDrawCount = 1;         // U-23
 
         //                                        hp  atk min max sight move
-        public static readonly TowerDef Tower = new TowerDef(20, 3, 1, 2, 2, 0); // U-06 (v3.1)
+        public static readonly TowerDef Tower = new TowerDef(250, 30, 1, 2, 2, 0); // U-06 (v3.4)
         public const int TowersPerPlayer = 1;        // U-06
         // U-27: a tower shot always deals Tower.Attack damage, no biome/buff/debuff.
         public const int TowerShotsPerOpponentTurn = 1; // U-27
@@ -71,17 +71,17 @@ namespace HexPortal.Core.Data
         public static readonly IReadOnlyList<SupportCardDef> SupportCards = new[]
         {
             //                 id      name              category                 pool                    effect                        amt duration                cost rarity         copies
-            new SupportCardDef("C-10", "Rage",           CardCategory.Power,      SupportPool.Buff,       EffectKind.AttackBonus,       2, DurationKind.Timed,  1, Rarity.Common, 4),
-            new SupportCardDef("C-11", "GiantStrength",  CardCategory.Power,      SupportPool.Buff,       EffectKind.AttackBonus,       1, DurationKind.Permanent, 2, Rarity.Rare,   2),
+            new SupportCardDef("C-10", "Rage",           CardCategory.Power,      SupportPool.Buff,       EffectKind.AttackBonus,       15, DurationKind.Timed,  1, Rarity.Common, 4),
+            new SupportCardDef("C-11", "GiantStrength",  CardCategory.Power,      SupportPool.Buff,       EffectKind.AttackBonus,       10, DurationKind.Permanent, 2, Rarity.Rare,   2),
             new SupportCardDef("C-12", "Shield",         CardCategory.Protection, SupportPool.Buff,       EffectKind.BlockNextDamage,   0, DurationKind.Permanent, 1, Rarity.Common, 4),
-            new SupportCardDef("C-13", "HealingPotion",  CardCategory.Protection, SupportPool.Buff,       EffectKind.Heal,              5,DurationKind.Instant,   1, Rarity.Common, 4),
+            new SupportCardDef("C-13", "HealingPotion",  CardCategory.Protection, SupportPool.Buff,       EffectKind.Heal,              40, DurationKind.Instant,   1, Rarity.Common, 4),
             new SupportCardDef("C-14", "WindStep",       CardCategory.Movement,   SupportPool.Buff,       EffectKind.MoveBonus,         2, DurationKind.Instant,   1, Rarity.Common, 4),
             new SupportCardDef("C-15", "Teleport",       CardCategory.Movement,   SupportPool.Buff,       EffectKind.Teleport,          0, DurationKind.Instant,   3, Rarity.Epic,   1),
-            new SupportCardDef("C-16", "Weakness",       CardCategory.Curse,      SupportPool.DebuffTrap, EffectKind.AttackPenalty,     2, DurationKind.Timed,  1, Rarity.Common, 4),
-            new SupportCardDef("C-17", "Poison",         CardCategory.Curse,      SupportPool.DebuffTrap, EffectKind.Poison,            2,DurationKind.Timed,  2, Rarity.Rare,   2),
+            new SupportCardDef("C-16", "Weakness",       CardCategory.Curse,      SupportPool.DebuffTrap, EffectKind.AttackPenalty,     15, DurationKind.Timed,  1, Rarity.Common, 4),
+            new SupportCardDef("C-17", "Poison",         CardCategory.Curse,      SupportPool.DebuffTrap, EffectKind.Poison,            15, DurationKind.Timed,  2, Rarity.Rare,   2),
             new SupportCardDef("C-18", "Push",           CardCategory.Control,    SupportPool.DebuffTrap, EffectKind.Push,              2, DurationKind.Instant,   1, Rarity.Common, 4),
             new SupportCardDef("C-19", "Root",           CardCategory.Control,    SupportPool.DebuffTrap, EffectKind.Root,              0, DurationKind.Timed,  2, Rarity.Rare,   2),
-            new SupportCardDef("C-20", "SpikeTrap",      CardCategory.Trap,       SupportPool.DebuffTrap, EffectKind.TrapDamage,        3, DurationKind.Permanent, 1, Rarity.Rare,   2),
+            new SupportCardDef("C-20", "SpikeTrap",      CardCategory.Trap,       SupportPool.DebuffTrap, EffectKind.TrapDamage,        30, DurationKind.Permanent, 1, Rarity.Rare,   2),
             new SupportCardDef("C-21", "MirrorTrap",     CardCategory.Trap,       SupportPool.DebuffTrap, EffectKind.TrapTeleportHome,  0, DurationKind.Permanent, 2, Rarity.Epic,   1),
         };
 
@@ -138,8 +138,8 @@ namespace HexPortal.Core.Data
             new QuestDef("Q-10", "RuneKeeper",     1,     0,    true,  false), // hold the same rune stone
             new QuestDef("Q-11", "DoubleRune",     2,     0,    false, false), // units on 2 different rune stones
             new QuestDef("Q-12", "Hunter",         2,     0,    false, false), // kill 2 enemy units
-            new QuestDef("Q-13", "Siege",          10,    0,    false, false), // 10 damage to enemy tower (v3.1)
-            new QuestDef("Q-14", "StrongKeep",     14,    10,   false, true),  // tower health >= 14 at end of round 10 (v3.1)
+            new QuestDef("Q-13", "Siege",          80,    0,    false, false), // 80 damage to enemy tower (v3.4)
+            new QuestDef("Q-14", "StrongKeep",     175,   10,   false, true),  // tower health >= 175 at end of round 10 (v3.4)
             new QuestDef("Q-15", "BiomeMaster",    3,     0,    false, false), // 3 units on own biome
             new QuestDef("Q-16", "Flawless",       0,     8,    false, true),  // no unit lost until end of round 8 (v3.1)
             new QuestDef("Q-17", "Trapper",        1,     0,    false, false), // own trap triggers on an enemy
@@ -151,12 +151,12 @@ namespace HexPortal.Core.Data
         public static readonly IReadOnlyList<PassiveDef> Passives = new[]
         {
             //             id      name            amount round once
-            new PassiveDef("P-01", "LastBreath",   4,     0,    true),  // revive first dead unit with 4 Health (v3.1)
-            new PassiveDef("P-02", "TrapMaster",   1,     0,    false), // +1 trap damage
+            new PassiveDef("P-01", "LastBreath",   40,    0,    true),  // revive first dead unit with 40 Health (v3.4)
+            new PassiveDef("P-02", "TrapMaster",  10,     0,    false), // +10 trap damage
             new PassiveDef("P-03", "QuickStart",   2,     3,    false), // +2 Mana in round 3
-            new PassiveDef("P-04", "ThickWall",    5,     0,    false), // first 5 tower damage blocked (v3.1)
+            new PassiveDef("P-04", "ThickWall",    50,    0,    false), // first 50 tower damage blocked (v3.4)
             new PassiveDef("P-05", "Merchant",     1,     0,    true),  // +1 blind draw on first market buy
-            new PassiveDef("P-06", "PortalWarden", 3,     0,    false), // 3 damage to enemy entering the Portal
+            new PassiveDef("P-06", "PortalWarden", 30,    0,    false), // 30 damage to enemy entering the Portal
         };
 
         // ---------- Map events (E) ----------

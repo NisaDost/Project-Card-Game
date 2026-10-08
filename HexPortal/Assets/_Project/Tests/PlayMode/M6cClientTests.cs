@@ -21,7 +21,7 @@ namespace HexPortal.Game.Tests
         }
 
         static int ObjectCount() =>
-            Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length;
+            Object.FindObjectsByType<Transform>(FindObjectsInactive.Include).Length;
 
         /// <summary>Scripted human: lasting buffs on own units first, then attacks, then a few moves/deploys, then end.</summary>
         static ICommand HumanChoice(MatchController m, System.Random rng, ref int actions)
@@ -82,7 +82,7 @@ namespace HexPortal.Game.Tests
             Assert.That(turns, Is.GreaterThan(4));
             Assert.That(units.PoolSize, Is.LessThanOrEqualTo(Mathf.Max(maxShown, poolBefore)), "pool reuses visuals of dead units");
             Assert.That(units.BurstPoolSize, Is.LessThanOrEqualTo(6));
-            Assert.That(Object.FindObjectsByType<Collider>(FindObjectsInactive.Include, FindObjectsSortMode.None), Is.Empty,
+            Assert.That(Object.FindObjectsByType<Collider>(FindObjectsInactive.Include), Is.Empty,
                 "no colliders: the Physics module is stripped in builds");
             Assert.That(app.LoggedErrors, Is.EqualTo(errorsBefore), "no errors logged during the match");
             LogAssert.NoUnexpectedReceived();

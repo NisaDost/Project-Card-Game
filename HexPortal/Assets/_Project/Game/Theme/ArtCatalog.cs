@@ -38,7 +38,8 @@ namespace HexPortal.Game
 
         public sealed class BiomeArt { public string Name; public Color Color; }
 
-        public sealed class MarkerArt { public Color Color; public Func<Mesh> Mesh; }
+        /// <summary>Icon: the small glyph above a unit standing on the marker (UX-16; empty = none).</summary>
+        public sealed class MarkerArt { public Color Color; public Func<Mesh> Mesh; public string Icon = ""; }
 
         public static readonly Dictionary<UnitClass, UnitArt> Units = new Dictionary<UnitClass, UnitArt>
         {
@@ -115,8 +116,8 @@ namespace HexPortal.Game
         public static readonly Dictionary<Marker, MarkerArt> Markers = new Dictionary<Marker, MarkerArt>
         {
             [Marker.None] = new MarkerArt { Color = Color.clear, Mesh = null },
-            [Marker.RuneStone] = new MarkerArt { Color = new Color(0.55f, 0.25f, 0.85f), Mesh = () => LowPoly.Rune },
-            [Marker.Wellspring] = new MarkerArt { Color = new Color(0.1f, 0.85f, 0.95f), Mesh = () => LowPoly.Wellspring },
+            [Marker.RuneStone] = new MarkerArt { Color = new Color(0.55f, 0.25f, 0.85f), Mesh = () => LowPoly.Rune, Icon = Strings.EnergyIcon },
+            [Marker.Wellspring] = new MarkerArt { Color = new Color(0.1f, 0.85f, 0.95f), Mesh = () => LowPoly.Wellspring, Icon = Strings.ManaIcon },
             [Marker.Portal] = new MarkerArt { Color = new Color(0.95f, 0.3f, 0.9f), Mesh = () => LowPoly.Portal },
             [Marker.Rock] = new MarkerArt { Color = new Color(0.35f, 0.33f, 0.32f), Mesh = () => LowPoly.Rock },
             [Marker.Void] = new MarkerArt { Color = Color.clear, Mesh = null }, // B-25: never drawn

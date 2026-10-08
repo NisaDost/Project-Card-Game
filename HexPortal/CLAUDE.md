@@ -41,7 +41,7 @@ docs/              GDD.md, PROGRESS.md
 2. For anything bigger than a small fix, write a short plan first and wait for the user's OK.
 3. **Tests first.** For each rule, add a test named `RuleId_Behaviour`, for example `U09_RiderPassesThroughUnits`.
 4. Implement it in the smallest way that makes the tests pass. No speculative abstractions.
-5. `dotnet test` must be green. A Stop hook enforces this when Core or Tools files change.
+5. `dotnet test` must be green. A Stop hook enforces this when Core or Tools files change. Before EVERY commit the PlayMode regression suite (simulated touches on the real UI) must be green too; red means no commit.
 6. Verify Unity-side changes yourself (see Commands). Ask the user only for real-device tests and look-and-feel judgments.
 7. For a milestone or a large diff, run the `gdd-reviewer` agent and fix what it finds.
 8. Update `docs/PROGRESS.md`. Commit with a message like `[M2] U-07 U-09 BFS movement and rider pass-through`.

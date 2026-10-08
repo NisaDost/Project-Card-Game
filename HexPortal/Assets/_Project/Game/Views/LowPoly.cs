@@ -126,6 +126,21 @@ namespace HexPortal.Game
         public static Mesh Portal => Cached(204, MakePortal);
         public static Mesh Rock => Cached(205, MakeRock);
         public static Mesh Trap => Cached(206, MakeTrap);
+        public static Mesh MarkerRing => Cached(207, MakeMarkerRing);
+
+        /// <summary>UX-16: a flat hex ring on the tile edge (outer radius ~0.9), visible around any unit standing on the tile.</summary>
+        static Mesh MakeMarkerRing()
+        {
+            var b = new Builder();
+            const float r = 0.84f;
+            for (int i = 0; i < 6; i++)
+            {
+                float a = Mathf.Deg2Rad * (60f * i);
+                b.Box(new Vector3(Mathf.Cos(a) * r * 0.866f, 0.03f, Mathf.Sin(a) * r * 0.866f), new Vector3(r * 1.05f, 0.06f, 0.13f),
+                    Quaternion.Euler(0f, 90f - 60f * i, 0f));
+            }
+            return b.Build("MarkerRing");
+        }
 
 
         /// <summary>Pointy-top hex tile, outer radius 1, height 1 (y 0..1) with a bevelled top rim.</summary>

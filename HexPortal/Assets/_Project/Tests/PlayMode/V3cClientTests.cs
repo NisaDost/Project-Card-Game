@@ -230,43 +230,31 @@ namespace HexPortal.Game.Tests
             return false;
         }
 
-        /// <summary>T-05 (v3.2): orange targets; several approaches ask for a pick, a tap elsewhere cancels; one approach acts.</summary>
+        /// <summary>T-05 (v3.4): orange targets; one tap on the target acts (the engine computes the approach).</summary>
         [UnityTest]
-        public IEnumerator T05_MoveAttackTargetAndApproachPick()
+        public IEnumerator T05_MoveAttackOneTapOnTarget()
         {
             var app = App();
             yield return null;
             var m = app.Match;
             bool found = false;
+            System.Func<MoveAttackCommand, bool> orange = c => !m.Legal.OfType<AttackCommand>().Any(a => a.UnitId == c.UnitId && a.Target == c.Target);
             for (ulong seed = 1; seed <= 40 && !found; seed++)
-            {
-                found = PlayUntil(m, v => m.Legal.OfType<MoveAttackCommand>().GroupBy(c => (c.UnitId, c.Target))
-                    .Any(g => g.Count() > 1 && !m.Legal.OfType<AttackCommand>().Any(a => a.UnitId == g.Key.UnitId && a.Target == g.Key.Target)), seed);
-            }
-            if (!found) Assert.Ignore("no multi-approach move-attack in the sampled seeds");
+                found = PlayUntil(m, v => m.Legal.OfType<MoveAttackCommand>().Any(orange), seed);
+            if (!found) Assert.Ignore("no move-attack in the sampled seeds");
             yield return null;
-            var grp = m.Legal.OfType<MoveAttackCommand>().GroupBy(c => (c.UnitId, c.Target))
-                .First(g => g.Count() > 1 && !m.Legal.OfType<AttackCommand>().Any(a => a.UnitId == g.Key.UnitId && a.Target == g.Key.Target));
-            var unit = m.View.OwnUnits.First(u => u.Id == grp.Key.UnitId);
+            var ma = m.Legal.OfType<MoveAttackCommand>().First(orange);
+            Assert.That(m.Legal.OfType<MoveAttackCommand>().Count(c => c.UnitId == ma.UnitId && c.Target == ma.Target), Is.EqualTo(1), "one command per (unit, target)");
+            var unit = m.View.OwnUnits.First(u => u.Id == ma.UnitId);
             app.Ui.TapCell(unit.Pos);
             Assert.That(app.Ui.SelectedUnit, Is.EqualTo(unit.Id));
             Assert.That(app.Units.BarsHidden, Is.True, "UX-12");
             StringAssert.Contains(Strings.InfoActions, app.Ui.InfoText, "UX-11 shows the 2-Energy move-attack");
             int energy = m.View.Energy;
-            app.Ui.TapCell(grp.Key.Target);
-            Assert.That(app.Ui.PendingApproachCount, Is.EqualTo(grp.Count()));
-            Assert.That(m.View.Energy, Is.EqualTo(energy), "nothing applied yet");
-            app.Ui.TapCell(new Hex(0, 0) == grp.First().Approach ? new Hex(1, 0) : new Hex(0, 0)); // outside: cancel (or acts if that is an approach)
-            if (m.View.Energy == energy)
-            {
-                Assert.That(app.Ui.PendingApproachCount, Is.EqualTo(0));
-                Assert.That(app.Ui.SelectedUnit, Is.EqualTo(-1));
-                Assert.That(app.Units.BarsHidden, Is.False, "UX-12 bars restored");
-                app.Ui.TapCell(unit.Pos);
-                app.Ui.TapCell(grp.Key.Target);
-                app.Ui.TapCell(grp.Last().Approach);
-            }
+            app.Ui.TapCell(ma.Target);
             Assert.That(m.View.Energy, Is.EqualTo(energy - Catalog.MoveAttackEnergy), "move-attack applied for 2 Energy");
+            Assert.That(app.Ui.Mode, Is.EqualTo(GameUi.InputMode.Idle));
+            Assert.That(app.Units.BarsHidden, Is.False, "UX-12 bars restored");
         }
 
         /// <summary>UX-10: on the AI's turn a tap on an own unit previews its ranges and applies nothing.</summary>
@@ -347,17 +335,15 @@ namespace HexPortal.Game.Tests
             // Full board + move-attack.
             bool found = false;
             for (ulong seed = 1; seed <= 40 && !found; seed++)
-                found = PlayUntil(m, v => m.Legal.OfType<MoveAttackCommand>().GroupBy(c => (c.UnitId, c.Target)).Any(g => g.Count() > 1), seed);
+                found = PlayUntil(m, v => m.Legal.OfType<MoveAttackCommand>().Any(), seed);
             yield return Shot("03_full_board.png");
             if (found)
             {
-                var g = m.Legal.OfType<MoveAttackCommand>().GroupBy(c => (c.UnitId, c.Target)).First(x => x.Count() > 1);
-                var unit = m.View.OwnUnits.First(u => u.Id == g.Key.UnitId);
+                var g = m.Legal.OfType<MoveAttackCommand>().First();
+                var unit = m.View.OwnUnits.First(u => u.Id == g.UnitId);
                 app.Ui.TapCell(unit.Pos);
                 yield return Shot("04_unit_selected_blue_red_orange_info.png");
-                app.Ui.TapCell(g.Key.Target);
-                yield return Shot("05_approach_choice.png");
-                app.Ui.TapCell(g.First().Approach);
+                app.Ui.TapCell(g.Target); // v3.4: one tap, the engine picks the approach
                 yield return new WaitForSeconds(0.3f);
                 yield return Shot("06_fight_notices_log.png");
             }

@@ -60,6 +60,8 @@ namespace HexPortal.Game
         public const string Energy = "Enerji";
         public const string Quests = "Görevler";
         public const string Close = "Kapat";
+        public const string Quit = "Çıkış";
+        public const string MarketTitle = "Kart çek";
         public const string Tower = "Kule";
         public const string Hand = "El";
         public const string Completed = "Tamamlandı";
@@ -120,7 +122,6 @@ namespace HexPortal.Game
         public const string ReasonNotNow = "Şu an olmaz";
 
         // ---------- v3c: move-attack (T-05 v3.2), range preview (UX-10), setup budget (S-05), info panel (UX-11) ----------
-        public const string PickApproach = "İlerleme karosunu seç (mavi). Başka yere dokun: vazgeç";
         public static readonly string UnitLegend = "Mavi hareket · Kırmızı saldırı · Turuncu ilerle-saldır (" + Catalog.MoveAttackEnergy + " Enerji)";
         public const string RangePreview = "Menzil: mavi hareket · kırmızı saldırı · turuncu ilerle-saldır";
         public const string SetupMana = "Hazırlık Manası";

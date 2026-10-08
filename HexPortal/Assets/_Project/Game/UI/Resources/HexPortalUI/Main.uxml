@@ -43,6 +43,7 @@
         </ui:VisualElement>
 
         <ui:VisualElement name="right" class="side-col right-col" picking-mode="Ignore">
+            <ui:Label name="market-title" class="section-title" picking-mode="Ignore" />
             <ui:VisualElement class="market-grid" picking-mode="Ignore">
                 <ui:Button name="market-0" class="btn market" />
                 <ui:Button name="market-1" class="btn market" />
@@ -74,12 +75,20 @@
         <ui:VisualElement name="drag-card" class="card dragging" picking-mode="Ignore" />
     </ui:VisualElement>
 
+    <!-- UX-16: quests, pause and info are mutually exclusive panels with the same header layout -->
     <ui:VisualElement name="quest-panel" class="popup">
-        <ui:Label name="quest-text" class="popup-text" />
-        <ui:Button name="quest-close" class="btn" />
+        <ui:VisualElement class="popup-head">
+            <ui:Label name="quest-title" class="popup-title" />
+            <ui:Button name="quest-close" class="btn close" />
+        </ui:VisualElement>
+        <ui:ScrollView class="popup-scroll">
+            <ui:Label name="quest-text" class="popup-text" />
+        </ui:ScrollView>
     </ui:VisualElement>
     <ui:VisualElement name="pause-panel" class="popup pause-panel">
-        <ui:Label name="pause-title" class="screen-title" />
+        <ui:VisualElement class="popup-head">
+            <ui:Label name="pause-title" class="popup-title" />
+        </ui:VisualElement>
         <ui:Button name="pause-resume" class="btn big" />
         <ui:Button name="pause-timer" class="btn big" />
         <ui:Button name="pause-vibration" class="btn big" />
@@ -123,6 +132,7 @@
             <ui:Button name="menu-hotseat" class="btn big" />
             <ui:Button name="menu-timer" class="btn big" />
             <ui:Button name="menu-tutorial" class="btn big" />
+            <ui:Button name="menu-quit" class="btn big quit" />
         </ui:VisualElement>
     </ui:VisualElement>
 

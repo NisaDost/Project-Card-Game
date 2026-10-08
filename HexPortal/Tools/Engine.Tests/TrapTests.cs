@@ -12,7 +12,7 @@ namespace HexPortal.Tests
         static readonly PlayerId A = PlayerId.A, B = PlayerId.B;
         static Hex H(int q, int r) => new Hex(q, r);
         static int Hp(UnitClass c) => Catalog.Units.Single(u => u.Class == c).Health; // v3.1 full Health
-        const int Spike = 3; // C-20
+        static readonly int Spike = Catalog.SupportCards.Single(c => c.Id == "C-20").Amount; // C-20
 
         [Test]
         public void C30_TrapGoesOnEmptyZoneCell_NotPortalTowerRockOrUnit()
@@ -84,7 +84,7 @@ namespace HexPortal.Tests
             var t = ev.OfType<TrapTriggered>().Single();
             Assert.That((t.Owner, t.CardId, t.DefId, t.Cell, t.UnitId), Is.EqualTo((A, trap, "C-20", H(1, 1), guardian)));
             var dmg = ev.OfType<DamageDealt>().Single();
-            Assert.That((dmg.Kind, dmg.SourcePlayer, dmg.Amount), Is.EqualTo((DamageKind.Trap, A, 3)));
+            Assert.That((dmg.Kind, dmg.SourcePlayer, dmg.Amount), Is.EqualTo((DamageKind.Trap, A, Spike)));
             Assert.That(s.GetUnit(guardian).Health, Is.EqualTo(Hp(UnitClass.Guardian) - Spike));
             Assert.That(s.Traps, Is.Empty); // single use
         }
@@ -346,7 +346,7 @@ namespace HexPortal.Tests
         [Test]
         public void T05_C32_MoveAttack_TrapOnTheApproachKills_AttackCancelled()
         {
-            var b = new TestBoard();
+            var b = new TestBoard().Biome(H(1, 1), Biome.Desert); // v3.4: the own-biome tie-break picks (1,1) over (1,0)
             int g = b.Unit(UnitClass.Guardian, A, H(0, 1), health: Spike);
             int target = b.Unit(UnitClass.Archer, B, H(2, 0));
             b.Trap(B, "C-20", H(1, 1));
@@ -364,7 +364,7 @@ namespace HexPortal.Tests
         public void T05_C21_MoveAttack_MirrorOnTheApproach_AttackCancelled()
         {
             var keep = H(0, 6);
-            var b = FillHomeA(new TestBoard(), keep);
+            var b = FillHomeA(new TestBoard(), keep).Biome(H(1, 1), Biome.Desert); // v3.4 tie-break, as above
             int g = b.Unit(UnitClass.Guardian, A, H(0, 1));
             int target = b.Unit(UnitClass.Archer, B, H(2, 0));
             b.Trap(B, "C-21", H(1, 1));

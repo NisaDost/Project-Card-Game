@@ -15,6 +15,7 @@ namespace HexPortal.Game
         readonly GameObject[][] markers = new GameObject[Board.Cells.Count][];
         static readonly Marker[] MarkerKinds = (Marker[])System.Enum.GetValues(typeof(Marker));
         readonly GameObject[] traps = new GameObject[Board.Cells.Count];
+        readonly Renderer[] rings = new Renderer[Board.Cells.Count]; // UX-16 rune/wellspring ring on the tile edge
         static Color RuneColor => ArtCatalog.MarkerOf(Marker.RuneStone).Color;
         static Color WellColor => ArtCatalog.MarkerOf(Marker.Wellspring).Color;
         static Color HeldGlow => ArtCatalog.HeldGlow;
@@ -23,6 +24,8 @@ namespace HexPortal.Game
         Color portalColor;
         /// <summary>UX-13: cells whose rune/wellspring holds an own unit (glowing), for tests.</summary>
         public int HeldCount { get; private set; }
+        /// <summary>UX-16: rune/wellspring rings drawn (tests).</summary>
+        public int RingsShown { get; private set; }
         /// <summary>UX-14: own traps drawn (never the opponent's: PlayerView only lists own traps).</summary>
         public int TrapsShown { get; private set; }
         public bool PortalOpenShown => portalOpen;
@@ -78,6 +81,10 @@ namespace HexPortal.Game
                 }
                 markers[i] = props;
                 if (cells[i].Q == 0 && cells[i].R == 0) portalIndex = i;
+                var ring = Prop("MarkerRing", top + new Vector3(0f, 0.01f, 0f), LowPoly.MarkerRing, 0);
+                ring.transform.localRotation = Quaternion.identity;
+                ring.SetActive(false);
+                rings[i] = ring.GetComponent<Renderer>();
                 var trap = Prop("OwnTrap", top, LowPoly.Trap, i);
                 Gfx.SetColor(trap.GetComponent<Renderer>(), ArtCatalog.OwnTrapColor);
                 trap.SetActive(false);
@@ -99,7 +106,7 @@ namespace HexPortal.Game
 
         public void Render(PlayerView view)
         {
-            int heldCount = 0;
+            int heldCount = 0, ringCount = 0;
             for (int i = 0; i < view.Cells.Count; i++)
             {
                 var c = view.Cells[i];
@@ -112,6 +119,7 @@ namespace HexPortal.Game
                 {
                     clouds[i].SetActive(false);
                     for (int k = 1; k < markers[i].Length; k++) if (markers[i][k] != null) markers[i][k].SetActive(false);
+                    rings[i].gameObject.SetActive(false);
                     traps[i].SetActive(false);
                     continue;
                 }
@@ -129,9 +137,14 @@ namespace HexPortal.Game
                 if (held) { Gfx.SetColor(tiles[i], Color.Lerp(color, HeldGlow, 0.5f)); heldCount++; }
                 if (m == Marker.RuneStone) Gfx.SetColor(markers[i][(int)Marker.RuneStone].GetComponent<Renderer>(), held ? HeldGlow : RuneColor);
                 if (m == Marker.Wellspring) Gfx.SetColor(markers[i][(int)Marker.Wellspring].GetComponent<Renderer>(), held ? HeldGlow : WellColor);
+                bool special = m == Marker.RuneStone || m == Marker.Wellspring;
+                rings[i].gameObject.SetActive(special);
+                if (special) ringCount++;
+                if (special) Gfx.SetColor(rings[i], held ? HeldGlow : m == Marker.RuneStone ? RuneColor : WellColor);
                 traps[i].SetActive(false);
             }
             HeldCount = heldCount;
+            RingsShown = ringCount;
             int trapsShown = 0;
             foreach (var t in view.OwnTraps) // UX-14, C-33: own traps only
             {
