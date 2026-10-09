@@ -69,7 +69,7 @@ Kodda **yalnızca İngilizce adlar** kullanılır.
 | **B-13** | Portal | Kazanma karosu. Biyomu yoktur. Her zaman iki oyuncuya görünür (V-06) |
 | **B-14** | Dağ (Kaya) | Geçilmez, üzerine birim konamaz. Şablonlarda ve deprem olayıyla oluşur. Uçan (U-43) üstünden geçebilir |
 | **B-15** | Nehir (v4.0) | Yer birimleri için geçilmez, üzerinde durulamaz. Görüşü ve okları engellemez. Uçan (U-43) geçer ve durabilir. Yalnızca şablonlarda |
-| **B-16** | Lav (v4.0) | Geçilebilir; bir yer birimi Lav'a **girdiğinde ve Lav'da tur bitirdiğinde** 20 hasar alır. Uçan etkilenmez. Yalnızca şablonlarda |
+| **B-16** | Lav (v4.0) | Geçilebilir; bir yer birimi Lav'da **durduğunda** (hareket, itme, çıkarma) ve **sahibinin tur sonunda hâlâ Lav'daysa** 20 hasar alır; üzerinden geçmek hasar vermez. Lav ölümü Q-12'ye sayılmaz. Uçan etkilenmez. Yalnızca şablonlarda |
 
 Rün Taşı ve Kaynak, biyomun üstünde duran bir **işarettir**. Karonun biyomu korunur.
 
