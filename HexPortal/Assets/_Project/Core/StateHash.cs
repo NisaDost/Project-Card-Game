@@ -43,6 +43,9 @@ namespace HexPortal.Core
                 Add(ref h, (int)pr.LastBreathClass * 8 + (int)pr.LastBreathBiome);
                 Add(ref h, pr.WallBlocked);
                 Add(ref h, pr.PortalUnitId);
+                Add(ref h, pr.BearerId);
+                Add(ref h, pr.BearerDeathTurn);
+                Add(ref h, (pr.BearerPending ? 1 : 0) | (pr.BearerGranted ? 2 : 0));
                 foreach (var c in Board.Cells) Add(ref h, pr.GetHoldStreak(c));
                 var fog = s.GetFog(p);
                 foreach (var c in Board.Cells)
@@ -85,6 +88,7 @@ namespace HexPortal.Core
                 Add(ref h, u.MoveBonus);
                 Add(ref h, u.RevealedUntilTurn);
                 Add(ref h, u.DamagedOnOpponentTurn ? 1 : 0);
+                Add(ref h, u.TorchUsedThisTurn ? 1 : 0);
                 AddEffect(ref h, u.Buff);
                 AddEffect(ref h, u.Debuff);
             }
@@ -102,6 +106,16 @@ namespace HexPortal.Core
                 Add(ref h, t.Pos.Q);
                 Add(ref h, t.Pos.R);
                 Add(ref h, t.Card.Id);
+            }
+            Add(ref h, s.NextTorchId);
+            Add(ref h, s.MarketRefreshesThisTurn);
+            Add(ref h, s.Torches.Count);
+            foreach (var t in s.Torches)
+            {
+                Add(ref h, t.Id);
+                Add(ref h, (int)t.Owner);
+                Add(ref h, t.Pos.Q);
+                Add(ref h, t.Pos.R);
             }
             AddString(ref h, s.PendingEvent == null ? "" : s.PendingEvent.Id);
             Add(ref h, s.PendingEventRound);

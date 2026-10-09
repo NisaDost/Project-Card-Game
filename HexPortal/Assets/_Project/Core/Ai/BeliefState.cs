@@ -67,6 +67,13 @@ namespace HexPortal.Core
             s.HandList(me).AddRange(view.Hand);
             for (int i = 0; i < view.Market.Count; i++) s.SetMarket((CardPool)i, view.Market[i]);
             foreach (var t in view.OwnTraps) s.TrapList.Add(new Trap(me, t.Pos, new CardInstance(t.CardId, null, Support(t.DefId))));
+            foreach (var t in view.Torches) // V-12: own torches give sight; seen enemy torches are kept for completeness
+                s.TorchList.Add(new Torch(t.Id, t.Owner, t.Pos));
+            s.MarketRefreshesThisTurn = view.MarketRefreshesThisTurn;
+            s.GetProgress(me).BearerId = view.OwnBearerId;
+            s.GetProgress(me).BearerPending = view.OwnBearerPending;
+            s.GetProgress(me).BearerGranted = view.PortalOpen;
+            s.GetProgress(opp).BearerGranted = view.OpponentPortalOpen;
 
             var quests = new List<QuestDef>();
             foreach (var id in view.QuestChoices) quests.Add(Quest(id));
@@ -110,7 +117,7 @@ namespace HexPortal.Core
             {
                 Health = v.Health, ActedThisTurn = v.ActedThisTurn,
                 OnOverwatch = v.OnOverwatch, MoveBonus = v.MoveBonus,
-                RevealedUntilTurn = v.RevealedUntilTurn,
+                RevealedUntilTurn = v.RevealedUntilTurn, TorchUsedThisTurn = v.TorchUsedThisTurn,
             };
             if (v.BuffId != null) u.Buff = new ActiveEffect(Support(v.BuffId)) { TurnsLeft = v.BuffTurnsLeft };
             if (v.DebuffId != null) u.Debuff = new ActiveEffect(Support(v.DebuffId)) { TurnsLeft = v.DebuffTurnsLeft };

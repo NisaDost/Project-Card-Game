@@ -39,13 +39,17 @@ namespace HexPortal.Core
         // B-25: template cells of the upper half (mirrored later): permanent rock and Void, both without a biome.
         static void ApplyTemplate(GameMap map, MapTemplateDef template)
         {
-            foreach (var h in template.UpperRocks) map.Set(h, new Tile(Biome.None, Marker.Rock));
+            foreach (var h in template.UpperRocks) map.Set(h, new Tile(Biome.None, Marker.Mountain));
             foreach (var h in template.UpperVoids) map.Set(h, new Tile(Biome.None, Marker.Void));
+            foreach (var h in template.UpperRivers) map.Set(h, new Tile(Biome.None, Marker.River)); // B-15
+            foreach (var h in template.UpperLavas) map.Set(h, new Tile(Biome.None, Marker.Lava));   // B-16
         }
 
-        /// <summary>B-25: a playable, non-rock upper-half cell (gets a biome).</summary>
-        internal static bool IsUpperBiomeCell(GameMap map, Hex h) =>
-            Board.IsInUpperHalf(h) && map.Get(h).Marker != Marker.Rock && map.Get(h).Marker != Marker.Void;
+        /// <summary>B-25: an upper-half cell that gets a biome: not a template cell (Mountain, Void, River, Lava).</summary>
+        internal static bool IsUpperBiomeCell(GameMap map, Hex h) => Board.IsInUpperHalf(h) && !IsTemplateTerrain(map.Get(h).Marker);
+
+        /// <summary>B-14…B-16, B-25: the template-only terrain kinds (no biome; E-10 Mountains keep theirs).</summary>
+        internal static bool IsTemplateTerrain(Marker m) => m == Marker.Mountain || m == Marker.Void || m == Marker.River || m == Marker.Lava;
 
         // B-22, B-25: 6–8 seeds per biome (v3.3) on distinct random upper cells, then balanced growth.
         static void GenerateUpperBiomes(GameMap map, Rng rng)

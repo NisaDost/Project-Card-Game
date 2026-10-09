@@ -48,6 +48,12 @@ namespace HexPortal.Game
         readonly List<Hex> previewOnly = new List<Hex>();
         readonly Button[] market = new Button[3];
         readonly Button blindBtn, endBtn, overwatchBtn, questsConfirm, menuTimer;
+        readonly Button torchBtn, refreshBtn; // v4.0: V-12 torch, D-05 Market refresh
+        readonly Label bearerHint;            // U-44: "Taşıyıcı bekleniyor"
+        /// <summary>D-05: Market slot refresh animations started (tests).</summary>
+        public int MarketRefreshAnimations { get; private set; }
+        /// <summary>U-44: the "Taşıyıcı bekleniyor" hint is shown (tests).</summary>
+        public bool BearerHintVisible => bearerHint.style.display == DisplayStyle.Flex;
         readonly List<string> pickedQuests = new List<string>();
         readonly Dictionary<VisualElement, string> offReason = new Dictionary<VisualElement, string>();
         readonly List<string> log = new List<string>();
@@ -143,6 +149,9 @@ namespace HexPortal.Game
             blindBtn = root.Q<Button>("blind-btn"); blindBtn.text = Strings.Blind; Guard(blindBtn, () => OnDrawSlot(DrawCommand.Blind));
             endBtn = root.Q<Button>("end-btn"); Guard(endBtn, OnEnd);
             overwatchBtn = root.Q<Button>("overwatch-btn"); overwatchBtn.text = Strings.OverwatchIcon + " " + Strings.Overwatch; Guard(overwatchBtn, OnOverwatch);
+            torchBtn = root.Q<Button>("torch-btn"); torchBtn.text = Strings.TorchIcon + " " + Strings.Torch; Guard(torchBtn, OnTorch);
+            refreshBtn = root.Q<Button>("refresh-btn"); refreshBtn.text = Strings.Refresh; Guard(refreshBtn, OnRefreshMarket);
+            bearerHint = root.Q<Label>("bearer-hint"); bearerHint.text = Strings.BearerPending; bearerHint.style.display = DisplayStyle.None;
             questsConfirm = root.Q<Button>("quests-confirm"); questsConfirm.text = Strings.Confirm; Guard(questsConfirm, OnConfirmQuests);
             var questBtn = root.Q<Button>("quest-btn"); AddFace(questBtn, Strings.Quests); questBtn.clicked += OpenQuests;
             oppInfo.RegisterCallback<PointerUpEvent>(_ => OpenQuests()); // details live in the panel
@@ -237,17 +246,14 @@ namespace HexPortal.Game
         void CheckPortal(PlayerView v)
         {
             if (v.Phase != GamePhase.Playing) return;
-            int own = 0;
-            foreach (var s in v.QuestStatuses) if (s == QuestStatus.Completed) own++;
-            int opp = v.OpponentCompletedQuests.Count;
-            var o = v.Viewer.Opponent();
-            if (own >= Catalog.PortalQuestsRequired && !portalNoticed[(int)v.Viewer])
+            var o = v.Viewer.Opponent(); // W-01 (v4.0): the Core decides when a Portal is open (PlayerView), no quest counting here
+            if (v.PortalOpen && !portalNoticed[(int)v.Viewer])
             {
                 portalNoticed[(int)v.Viewer] = true;
                 board.SetPortalOpen(true, Gfx.OwnerColor(v.Viewer));
                 ShowNotice(Strings.PortalOpenedYou, false);
             }
-            if (opp >= Catalog.PortalQuestsRequired && !portalNoticed[(int)o])
+            if (v.OpponentPortalOpen && !portalNoticed[(int)o])
             {
                 portalNoticed[(int)o] = true;
                 board.SetPortalOpen(true, Gfx.OwnerColor(o));
@@ -604,6 +610,10 @@ namespace HexPortal.Game
                 SetOn(market[i], !setup && HasDraw(i), DrawReason(v, card == null));
             }
             SetOn(blindBtn, !setup && HasDraw(DrawCommand.Blind), DrawReason(v, false));
+            // D-05 (v4.0): manual refresh, also before the draw; the engine decides (legal list).
+            SetOn(refreshBtn, Find<RefreshMarketCommand>() != null, setup ? Strings.ReasonSetupNoDraw : !myTurn ? Strings.ReasonOpponentTurn
+                : v.Mana < Catalog.MarketRefreshCost ? Strings.ReasonNoMana : Strings.ReasonNotNow);
+            bearerHint.style.display = !setup && v.OwnBearerPending ? DisplayStyle.Flex : DisplayStyle.None; // U-44
             // T-04 step 4: the mandatory draw is called out and the Market/blind area glows until it is done.
             bool call = DrawCallVisible = myTurn && v.DrawPending;
             drawCall.style.display = call ? DisplayStyle.Flex : DisplayStyle.None;
@@ -834,6 +844,7 @@ namespace HexPortal.Game
             prompt.style.display = text != null ? DisplayStyle.Flex : DisplayStyle.None;
             prompt.text = text ?? "";
             overwatchBtn.style.display = selectedUnit >= 0 && FindOverwatch(selectedUnit) != null ? DisplayStyle.Flex : DisplayStyle.None;
+            torchBtn.style.display = selectedUnit >= 0 && FindTorch(selectedUnit) != null ? DisplayStyle.Flex : DisplayStyle.None; // V-12
         }
 
         // ---------- Commands from the legal list ----------
@@ -903,6 +914,37 @@ namespace HexPortal.Game
         {
             var cmd = (ICommand)Find<FinishSetupCommand>() ?? Find<EndTurnCommand>();
             if (cmd != null) ApplyCmd(cmd);
+        }
+
+        PlaceTorchCommand FindTorch(int unitId)
+        {
+            foreach (var c in match.Legal)
+                if (c is PlaceTorchCommand t && t.UnitId == unitId) return t;
+            return null;
+        }
+
+        void OnTorch()
+        {
+            var t = FindTorch(selectedUnit);
+            if (t != null) ApplyCmd(t);
+        }
+
+        void OnRefreshMarket()
+        {
+            var r = Find<RefreshMarketCommand>();
+            if (r != null) ApplyCmd(r);
+        }
+
+        /// <summary>D-05: the three slots flip (USS transition) when the Market is refreshed.</summary>
+        void AnimateMarket()
+        {
+            MarketRefreshAnimations++;
+            for (int i = 0; i < 3; i++)
+            {
+                var b = market[i];
+                b.AddToClassList("flip");
+                b.schedule.Execute(() => b.RemoveFromClassList("flip")).StartingIn(250);
+            }
         }
 
         void OnOverwatch()
@@ -1698,6 +1740,18 @@ namespace HexPortal.Game
                     return (qf.Player == v.Viewer ? Strings.QuestFailText : Strings.OppQuestFailText) + ArtCatalog.Name(qf.QuestId);
                 case PassiveRevealed pr: return Strings.PassiveOpened + ArtCatalog.Name(pr.PassiveId);
                 case MapEventResolved me: noticeText = Strings.EventHappened + ArtCatalog.Name(me.DefId); return noticeText;
+                case MarketRefreshed mr: // D-05: null = the automatic refresh at turn start
+                    AnimateMarket();
+                    return mr.Player == null ? Strings.MarketRefreshedAuto : mr.Player == v.Viewer ? Strings.MarketRefreshedYou : Strings.MarketRefreshedOpp;
+                case TorchPlaced tp: return tp.Owner == v.Viewer ? Strings.TorchPlacedText : null;
+                case TorchExtinguished te:
+                    bad = te.Owner == v.Viewer && te.Reason == TorchEndReason.EnemyStood;
+                    if (bad) noticeText = Strings.TorchOutEnemy;
+                    return te.Reason == TorchEndReason.Replaced ? Strings.TorchOutReplaced : Strings.TorchOutEnemy;
+                case BearerSpawned bs:
+                    noticeText = bs.Owner == v.Viewer ? Strings.BearerSpawnedYou : Strings.BearerSpawnedOpp;
+                    bad = bs.Owner != v.Viewer;
+                    return noticeText;
                 case TurnStarted t:
                 {
                     bool mine = t.Player == v.Viewer;

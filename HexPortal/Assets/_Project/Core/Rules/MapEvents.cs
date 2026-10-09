@@ -135,10 +135,10 @@ namespace HexPortal.Core
                         skipped.Add(cells[i + 1]);
                         continue;
                     }
-                    var marker = def.Id == "E-10" ? Marker.Rock : Marker.RuneStone;
+                    var marker = def.Id == "E-10" ? Marker.Mountain : Marker.RuneStone;
                     foreach (var h in new[] { cells[i], cells[i + 1] })
                     {
-                        if (marker == Marker.Rock) Traps.RemoveAt(state, h, events); // E-10, C-35 (owner only)
+                        if (marker == Marker.Mountain) Traps.RemoveAt(state, h, events); // E-10, C-35 (owner only)
                         state.Map.Set(h, new Tile(state.Map.Get(h).Biome, marker)); // E-12 keeps traps
                         changed.Add(h);
                     }

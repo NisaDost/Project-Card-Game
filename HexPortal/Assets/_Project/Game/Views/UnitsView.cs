@@ -127,6 +127,8 @@ namespace HexPortal.Game
         static int TowerKey(PlayerId p) => p == PlayerId.A ? TowerKeyA : TowerKeyB;
 
         public bool TryGetSeen(int unitId, out Seen s) => seen.TryGetValue(unitId, out s);
+        /// <summary>U-44 spawn effects played (tests).</summary>
+        public int BearerSpawnEffects { get; private set; }
 
         public void Render(PlayerView v)
         {
@@ -391,6 +393,7 @@ namespace HexPortal.Game
                     case DamageDealt d:
                         Float(d.Target, "-" + d.Amount, new Color(1f, 0.25f, 0.2f), true);
                         board.Flash(d.Target, d.Kind == DamageKind.Trap ? Gfx.TrapHl
+                            : d.Kind == DamageKind.Lava ? Gfx.LavaHl : d.Kind == DamageKind.Collision ? Gfx.FlashHl
                             : d.Kind == DamageKind.TowerShot || d.Kind == DamageKind.Overwatch ? Gfx.ShotHl : Gfx.AttackHl);
                         AnimateDamage(d);
                         break;
@@ -405,6 +408,13 @@ namespace HexPortal.Game
                     case TowerShot ts:
                         if (TowerCell(ts.Owner, out var shooter)) { board.Flash(shooter, Gfx.ShotHl); Float(shooter, Strings.TowerShotMark, new Color(1f, 0.85f, 0.2f), false); }
                         break;
+                    case BearerSpawned bs: // U-44: spawn burst + flash where the Bearer appears
+                        BearerSpawnEffects++;
+                        pendingPops.Add(bs.UnitId); BurstAt(bs.Cell); board.Flash(bs.Cell, ArtCatalog.MarkerOf(Marker.Portal).Color);
+                        Float(bs.Cell, ArtCatalog.UnitIcon(UnitClass.PortalBearer), Color.white, true);
+                        break;
+                    case TorchPlaced tp: board.Flash(tp.Cell, ArtCatalog.TorchColor); Float(tp.Cell, Strings.TorchIcon, ArtCatalog.TorchColor, false); break;
+                    case TorchExtinguished te: board.Flash(te.Cell, Gfx.FlashHl); break;
                     case OverwatchFired of:
                         if (seen.TryGetValue(of.UnitId, out var w)) { board.Flash(w.Pos, Gfx.ShotHl); Float(w.Pos, Strings.OverwatchMark, new Color(1f, 0.85f, 0.2f), false); }
                         break;

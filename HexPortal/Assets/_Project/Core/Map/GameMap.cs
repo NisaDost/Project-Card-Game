@@ -30,11 +30,21 @@ namespace HexPortal.Core
             return i >= 0 && tiles[i].Marker != Marker.Void;
         }
 
-        /// <summary>U-07, U-09, B-14, B-25: terrain a unit may enter (no rock, no Void). Ignores units and towers.</summary>
+        /// <summary>U-07, U-09, B-14, B-15, B-25: terrain a ground unit may enter (no Mountain, no River, no Void). Lava (B-16)
+        /// is passable. Ignores units and towers.</summary>
         public bool IsPassable(Hex h)
         {
             int i = Board.IndexOf(h);
-            return i >= 0 && tiles[i].Marker != Marker.Rock && tiles[i].Marker != Marker.Void;
+            if (i < 0) return false;
+            var m = tiles[i].Marker;
+            return m != Marker.Mountain && m != Marker.Void && m != Marker.River;
+        }
+
+        /// <summary>B-16.</summary>
+        public bool IsLava(Hex h)
+        {
+            int i = Board.IndexOf(h);
+            return i >= 0 && tiles[i].Marker == Marker.Lava;
         }
 
         /// <summary>B-25: the playable cells (not Void) in Board.Cells order. For the client (drawing, camera framing).</summary>

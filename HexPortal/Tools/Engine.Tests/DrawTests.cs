@@ -20,12 +20,15 @@ namespace HexPortal.Tests
             int g = b.Unit(UnitClass.Guardian, B, H(1, -1));
             b.Market("C-10");
             b.PoolCard("C-16");
+            b.PoolCard("C-16"); // D-05 (v4.0): the turn-start refresh puts one C-16 in the Market, one stays for a blind draw
             int rage = b.Hand(B, "C-13");
             var s = b.Build();
             Engine.Apply(s, new EndTurnCommand(A));
             Assert.That(s.IsDrawPending(B), Is.True);
-            Assert.That(Engine.GetLegalCommands(s, B),
-                Is.EqualTo(new ICommand[] { new DrawCommand(B, Buff), new DrawCommand(B, DrawCommand.Blind) }));
+            Assert.That(Engine.GetLegalCommands(s, B), Is.EqualTo(new ICommand[]
+            {
+                new DrawCommand(B, Buff), new DrawCommand(B, Debuff), new DrawCommand(B, DrawCommand.Blind), new RefreshMarketCommand(B),
+            }));
             ControlZoneTests.AssertRejected(s, new MoveCommand(B, g, H(1, 0)));
             ControlZoneTests.AssertRejected(s, new EndTurnCommand(B));
             ControlZoneTests.AssertRejected(s, new PlayCardCommand(B, rage, H(1, -1)));
@@ -53,6 +56,7 @@ namespace HexPortal.Tests
             Assert.That(Engine.GetLegalCommands(s, A), Is.EqualTo(new ICommand[]
             {
                 new DrawCommand(A, Char), new DrawCommand(A, Buff), new DrawCommand(A, Debuff), new DrawCommand(A, DrawCommand.Blind),
+                new RefreshMarketCommand(A), // D-05 (v4.0): A has 1 Mana
             }));
             Engine.Apply(s, new DrawCommand(A, Char));
             Assert.That(s.GetHand(A).Single().IsCharacter, Is.True);
@@ -85,7 +89,8 @@ namespace HexPortal.Tests
             var s = new TestBoard().Build();
             Engine.Apply(s, new EndTurnCommand(A));
             Assert.That(s.IsDrawPending(B), Is.False);
-            Assert.That(Engine.GetLegalCommands(s, B), Is.EqualTo(new ICommand[] { new EndTurnCommand(B) }));
+            // D-05 (v4.0): the paid refresh needs only Mana (B has 2).
+            Assert.That(Engine.GetLegalCommands(s, B), Is.EqualTo(new ICommand[] { new RefreshMarketCommand(B), new EndTurnCommand(B) }));
         }
 
         // T-11 KALDIRILDI (v4.0): the six pre-pick tests (waiting player's command, applied at turn start, changeable,
@@ -104,7 +109,8 @@ namespace HexPortal.Tests
             Engine.Apply(s, new EndTurnCommand(A));
             Assert.That(s.IsDrawPending(B), Is.True);                          // T-04 step 4: B chooses now
             Assert.That(s.GetHand(B), Is.Empty);
-            Assert.That(Engine.GetLegalCommands(s, B), Is.EqualTo(new ICommand[] { new DrawCommand(B, Buff), new DrawCommand(B, DrawCommand.Blind) }));
+            // D-05 (v4.0): the turn-start refresh moved the pooled C-16 into the Market; C-10 came back to the Buff slot.
+            Assert.That(Engine.GetLegalCommands(s, B), Is.EqualTo(new ICommand[] { new DrawCommand(B, Buff), new DrawCommand(B, Debuff), new RefreshMarketCommand(B) }));
             Engine.Apply(s, new DrawCommand(B, Buff));
             Assert.That(s.GetHand(B).Single().Id, Is.EqualTo(m));
         }

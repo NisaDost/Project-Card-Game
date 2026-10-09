@@ -76,5 +76,19 @@ namespace HexPortal.Game
             }
         }
 
+        /// <summary>U-44 Portal Bearer: a slim robed courier carrying a standing portal ring above its head.</summary>
+        public static void PortalBearer(LowPoly.Builder b)
+        {
+            b.Prism(6, 0.3f, 0.14f, 0f, 0.85f, Vector3.zero, 30f);            // robe
+            b.Ball(new Vector3(0f, 0.97f, 0f), new Vector3(0.15f, 0.15f, 0.15f));
+            for (int i = 0; i < 10; i++)                                        // portal ring held aloft
+            {
+                float a = Mathf.PI * 2f * i / 10f;
+                b.Box(new Vector3(Mathf.Cos(a) * 0.3f, 1.55f + Mathf.Sin(a) * 0.3f, 0f), new Vector3(0.2f, 0.07f, 0.08f),
+                    Quaternion.Euler(0f, 0f, Mathf.Rad2Deg * a + 90f));
+            }
+            b.Box(new Vector3(0.24f, 0.95f, 0f), new Vector3(0.06f, 0.6f, 0.06f));  // arms up to the ring
+            b.Box(new Vector3(-0.24f, 0.95f, 0f), new Vector3(0.06f, 0.6f, 0.06f));
+        }
     }
 }

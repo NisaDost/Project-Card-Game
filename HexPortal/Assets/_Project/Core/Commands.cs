@@ -360,3 +360,28 @@ namespace HexPortal.Core
         public override string ToString() => "EndTurn(" + Player + ")";
     }
 }
+
+namespace HexPortal.Core
+{
+    /// <summary>D-05 (v4.0): pay Catalog.MarketRefreshCost Mana to refresh all three Market slots. Own turn only, any
+    /// number of times; also legal while the turn-start draw is pending (the only moment a refresh changes what you can take).</summary>
+    public sealed class RefreshMarketCommand : ICommand
+    {
+        public PlayerId Player { get; }
+        public RefreshMarketCommand(PlayerId player) { Player = player; }
+        public override bool Equals(object obj) => obj is RefreshMarketCommand c && c.Player == Player;
+        public override int GetHashCode() => (int)Player * 397 ^ 0x6E6E;
+        public override string ToString() => "RefreshMarket(" + Player + ")";
+    }
+
+    /// <summary>V-12 (v4.0): the unit places a torch on its own cell for Catalog.TorchCost Mana. Not an action, no Energy.</summary>
+    public sealed class PlaceTorchCommand : ICommand
+    {
+        public PlayerId Player { get; }
+        public readonly int UnitId;
+        public PlaceTorchCommand(PlayerId player, int unitId) { Player = player; UnitId = unitId; }
+        public override bool Equals(object obj) => obj is PlaceTorchCommand c && c.Player == Player && c.UnitId == UnitId;
+        public override int GetHashCode() => ((int)Player * 31 + UnitId) * 397 ^ 0x7A7A;
+        public override string ToString() => "PlaceTorch(" + Player + " #" + UnitId + ")";
+    }
+}

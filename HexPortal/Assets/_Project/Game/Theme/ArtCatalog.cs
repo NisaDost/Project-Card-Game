@@ -39,7 +39,7 @@ namespace HexPortal.Game
         public sealed class BiomeArt { public string Name; public Color Color; }
 
         /// <summary>Icon: the small glyph above a unit standing on the marker (UX-16; empty = none).</summary>
-        public sealed class MarkerArt { public Color Color; public Func<Mesh> Mesh; public string Icon = ""; }
+        public sealed class MarkerArt { public Color Color; public Func<Mesh> Mesh; public string Icon = ""; public Color TileColor = Color.clear; public bool Glow; }
 
         public static readonly Dictionary<UnitClass, UnitArt> Units = new Dictionary<UnitClass, UnitArt>
         {
@@ -53,6 +53,9 @@ namespace HexPortal.Game
                 Ability = "Patlama: Hedefe komşu düşmanlar " + Catalog.MageSplashDamage + " hasar alır", Model = GrayboxModels.Mage },
             [UnitClass.Healer] = new UnitArt { Name = "Şifacı", OwnRef = "Şifacın", Letter = "Ş", Icon = "✚",
                 Ability = "Şifa: Tur başında komşu dostlar +" + Catalog.HealerHealAmount + " Can", Model = GrayboxModels.Healer },
+            // U-44 (v4.0): not a card; spawned when the Portal opens. Numbers come from Catalog.PortalBearer.
+            [UnitClass.PortalBearer] = new UnitArt { Name = "Portal Taşıyıcı", OwnRef = "Portal Taşıyıcın", Letter = "T", Icon = "◎",
+                Ability = "Portal açılınca gelir. Kart değildir, biyomu yoktur", Model = GrayboxModels.PortalBearer },
         };
 
         public static readonly UnitArt Tower = new UnitArt { Name = "Kule", Icon = "♜", Model = GrayboxModels.Tower, ModelScale = 1f,
@@ -119,12 +122,18 @@ namespace HexPortal.Game
             [Marker.RuneStone] = new MarkerArt { Color = new Color(0.55f, 0.25f, 0.85f), Mesh = () => LowPoly.Rune, Icon = Strings.EnergyIcon },
             [Marker.Wellspring] = new MarkerArt { Color = new Color(0.1f, 0.85f, 0.95f), Mesh = () => LowPoly.Wellspring, Icon = Strings.ManaIcon },
             [Marker.Portal] = new MarkerArt { Color = new Color(0.95f, 0.3f, 0.9f), Mesh = () => LowPoly.Portal },
-            [Marker.Rock] = new MarkerArt { Color = new Color(0.35f, 0.33f, 0.32f), Mesh = () => LowPoly.Rock },
+            [Marker.Mountain] = new MarkerArt { Color = new Color(0.35f, 0.33f, 0.32f), Mesh = () => LowPoly.Rock, TileColor = new Color(0.52f, 0.50f, 0.49f) },
+            // B-15 / B-16 (v4.0): no biome; the tile itself is the terrain. River = blue water, Lava = glowing orange.
+            [Marker.River] = new MarkerArt { Color = new Color(0.55f, 0.85f, 1.00f), Mesh = () => LowPoly.River, TileColor = new Color(0.12f, 0.42f, 0.90f) },
+            [Marker.Lava] = new MarkerArt { Color = new Color(1.00f, 0.85f, 0.20f), Mesh = () => LowPoly.Lava, TileColor = new Color(1.00f, 0.38f, 0.05f), Glow = true },
             [Marker.Void] = new MarkerArt { Color = Color.clear, Mesh = null }, // B-25: never drawn
         };
         public static readonly Color FogColor = new Color(0.16f, 0.17f, 0.24f); // UX-09 Hidden cloud
         public static readonly Color OwnTrapColor = new Color(0.8f, 0.3f, 1f);
         public static readonly Color HeldGlow = new Color(1f, 0.85f, 0.3f);
+        /// <summary>V-12 torch flame and its Sight radius hint.</summary>
+        public static readonly Color TorchColor = new Color(1f, 0.62f, 0.15f);
+        public static readonly Color TorchRadiusColor = new Color(1f, 0.75f, 0.3f, 0.35f);
         public static readonly Color OwnerA = new Color(0.20f, 0.45f, 1.00f);
         public static readonly Color OwnerB = new Color(0.95f, 0.20f, 0.25f);
 

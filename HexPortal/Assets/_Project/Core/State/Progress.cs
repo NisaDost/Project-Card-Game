@@ -54,6 +54,15 @@ namespace HexPortal.Core
         /// already open for this player (0 = none).</summary>
         public int PortalUnitId { get; internal set; }
 
+        /// <summary>U-44 (v4.0): id of the living Portal Bearer (0 = none).</summary>
+        public int BearerId { get; internal set; }
+        /// <summary>U-44: the Portal opened (or the Bearer died) and the Bearer waits for a free cell next to the tower.</summary>
+        public bool BearerPending { get; internal set; }
+        /// <summary>U-44: GameState.TurnIndex of the Bearer's death; the return needs a later own turn start (like P-01).</summary>
+        public int BearerDeathTurn { get; internal set; } = -1;
+        /// <summary>U-44: the Bearer has been granted (the Portal opened for this player).</summary>
+        public bool BearerGranted { get; internal set; }
+
         internal PlayerProgress Clone()
         {
             var c = new PlayerProgress
@@ -62,6 +71,7 @@ namespace HexPortal.Core
                 LastBreathUsed = LastBreathUsed, LastBreathPending = LastBreathPending, LastBreathClass = LastBreathClass,
                 LastBreathBiome = LastBreathBiome, LastBreathDeathTurn = LastBreathDeathTurn, WallBlocked = WallBlocked,
                 MerchantUsed = MerchantUsed, PortalUnitId = PortalUnitId,
+                BearerId = BearerId, BearerPending = BearerPending, BearerDeathTurn = BearerDeathTurn, BearerGranted = BearerGranted,
             };
             Array.Copy(quests, c.quests, quests.Length);
             Array.Copy(holdStreak, c.holdStreak, holdStreak.Length);

@@ -192,3 +192,12 @@ Label { color: rgb(245, 245, 250); -unity-font-style: bold; }
 .pause-panel .btn { min-height: 144px; margin: 6px 0; font-size: 36px; }
 .btn.big.quit { background-color: rgb(120, 45, 55); border-color: rgb(230, 140, 150); }
 .chip-spot { color: rgb(255, 255, 255); -unity-text-outline-width: 1px; -unity-text-outline-color: black; }
+/* v4.0: Overwatch and Torch side by side (UX-02 unit actions); D-05 Market refresh under the slots. */
+.unit-actions { flex-direction: row; }
+.unit-actions > .btn.overwatch { flex-grow: 1; flex-basis: 0; font-size: 28px; }
+.btn.torch { background-color: rgb(190, 110, 30); border-color: rgb(255, 210, 140); margin-left: 6px; }
+.btn.refresh { min-height: 64px; height: 64px; font-size: 24px; margin-top: 4px; background-color: rgb(40, 110, 140); border-color: rgb(140, 220, 255); }
+.btn.refresh.off { background-color: rgb(50, 52, 60); border-color: rgb(80, 82, 92); opacity: 0.55; }
+.bearer-hint { color: rgb(255, 160, 250); font-size: 22px; }
+.btn.market { transition-property: scale, rotate; transition-duration: 0.25s; }
+.btn.market.flip { scale: 0.2 1; }

@@ -248,10 +248,10 @@ namespace HexPortal.Tests
             Assert.That(res.Cells, Is.EqualTo(new[] { h, h.Mirror() }));
             foreach (var c in new[] { h, h.Mirror() })
             {
-                Assert.That((s.Map.Get(c).Biome, s.Map.Get(c).Marker), Is.EqualTo((Biome.Snow, Marker.Rock)));
+                Assert.That((s.Map.Get(c).Biome, s.Map.Get(c).Marker), Is.EqualTo((Biome.Snow, Marker.Mountain)));
                 Assert.That(Movement.IsEmpty(s, c), Is.False);
             }
-            Assert.That(res.Tiles.Select(t => t.Marker), Is.EqualTo(new[] { Marker.Rock, Marker.Rock }));
+            Assert.That(res.Tiles.Select(t => t.Marker), Is.EqualTo(new[] { Marker.Mountain, Marker.Mountain }));
             Assert.That(s.Traps, Is.Empty);
             Assert.That(EventFilter.For(ev, A).OfType<TrapRemoved>().Select(t => t.CardId), Is.EqualTo(new[] { trapA }));
             Assert.That(EventFilter.For(ev, B).OfType<TrapRemoved>().Select(t => t.CardId), Is.EqualTo(new[] { trapB }));
@@ -322,7 +322,7 @@ namespace HexPortal.Tests
                 End(s);
                 var seen = s.GetFog(B).GetLastSeen(h);
                 Assert.That(s.GetFog(B).Get(h), Is.EqualTo(CellVisibility.Explored), type);
-                Assert.That(seen.Tile.Marker, Is.EqualTo(type == "E-10" ? Marker.Rock : Marker.RuneStone), type);
+                Assert.That(seen.Tile.Marker, Is.EqualTo(type == "E-10" ? Marker.Mountain : Marker.RuneStone), type);
                 Assert.That(seen.HasUnit, Is.False, type); // v2.10: the event proves the cell empty
                 Assert.That(PlayerView.For(s, B).Cells.Single(c => c.Cell == h).Unit, Is.Null, type);
             }

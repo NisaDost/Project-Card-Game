@@ -53,6 +53,19 @@ namespace HexPortal.Game
         public const string EndTurn = "Turu Bitir";
         public const string Overwatch = "Nöbet";
         public const string Blind = "Kör çek";
+        // v4.0: D-05 Market refresh, V-12 torch, U-44 Portal Bearer, B-16 lava, C-18 collision.
+        public static readonly string Refresh = "Yenile (" + HexPortal.Core.Data.Catalog.MarketRefreshCost + " Mana)";
+        public const string Torch = "Meşale";
+        public const string TorchIcon = "✹";
+        public const string MarketRefreshedYou = "Pazarı yeniledin";
+        public const string MarketRefreshedOpp = "Rakip Pazarı yeniledi";
+        public const string MarketRefreshedAuto = "Pazar yenilendi";
+        public const string TorchPlacedText = "Meşale yakıldı";
+        public const string TorchOutReplaced = "En eski meşale söndü";
+        public const string TorchOutEnemy = "Meşale söndürüldü";
+        public const string BearerSpawnedYou = "Portal Taşıyıcın geldi!";
+        public const string BearerSpawnedOpp = "Rakibin Portal Taşıyıcısı geldi!";
+        public const string BearerPending = "Taşıyıcı bekleniyor";
         public const string DrawFirst = "Önce kart çek: Pazar veya kör çekme";
         public const string OpponentTurn = "Rakibin turu";
         public const string YourTurn = "Senin turun";
@@ -104,7 +117,6 @@ namespace HexPortal.Game
         public const string ReasonOpponentTurn = "Rakibin turu";
         public const string ReasonDrawFirst = "Önce kart çek";
         public const string ReasonNoEnergy = "Enerji yok";
-        public const string ReasonNoMana = "Mana yetmiyor";
         public const string ReasonActed = "Bu birim bu tur aksiyonunu kullandı";
         public const string ReasonNoAction = "Bu birim şu an bir şey yapamaz";
         public const string ReasonNoTarget = "Geçerli hedef yok";
@@ -126,6 +138,7 @@ namespace HexPortal.Game
         public static readonly string ReasonMoveAttackEnergy = "Enerji yetmiyor (" + Catalog.MoveAttackEnergy + " gerekir)";
         public const string ReasonPickThree = "3 görev seç";
         public const string ReasonNotNow = "Şu an olmaz";
+        public const string ReasonNoMana = "Mana yetmiyor";
 
         // ---------- v3c: move-attack (T-05 v3.2), range preview (UX-10), setup budget (S-05), info panel (UX-11) ----------
         public static readonly string UnitLegend = "Mavi hareket · Kırmızı saldırı · Turuncu ilerle-saldır (" + Catalog.MoveAttackEnergy + " Enerji)";
@@ -199,6 +212,8 @@ namespace HexPortal.Game
                 case DamageKind.Trap: return "tuzak";
                 case DamageKind.Poison: return "zehir";
                 case DamageKind.PortalWarden: return "portal";
+                case DamageKind.Collision: return "çarpma";
+                case DamageKind.Lava: return "lav";
                 default: return "saldırı";
             }
         }

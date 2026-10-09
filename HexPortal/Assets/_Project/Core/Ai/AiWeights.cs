@@ -39,6 +39,7 @@ namespace HexPortal.Core
         public const int PortalLeadOneQuest = 40;   // same with 1 quest done
         public const int PortalLeadOpen = 120;      // same with the Portal open
         public const int PortalHoldOpen = 5000;     // own unit on the open Portal
+        public const int OwnBlockerOnOpenPortal = 2000; // v4.0: an own non-Bearer on the own open Portal blocks the Bearer (W-01)
         public const int EnemyOnOpenPortal = 4000;  // enemy unit on the Portal while it is open for the enemy
         public const int EnemyWaiterHealth = 150;   // per Health of that enemy unit (damaging the waiter counts)
         public const int BlockOpenEnemyPortal = 3500; // own unit on the Portal while it is open for the enemy (W-01 block)
@@ -52,6 +53,8 @@ namespace HexPortal.Core
         public const int Biome = 30;                // own unit on its own biome (U-20)
         public const int Wellspring = 80;           // own unit on a Wellspring (T-03)
         public const int Explore = 12;              // per Hidden cell now Visible
+        public const int TorchForward = 30;         // V-12: per own torch away from the own tower and other own torches
+        public const int TorchMinTowerDistance = 4; // V-12: "forward" = at least this far from the own tower
 
         // ---- Efficiency (unspent Mana and Energy are lost at the turn end, T-01, T-05) ----
         public const int ManaSpent = 20;

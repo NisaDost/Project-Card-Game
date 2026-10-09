@@ -127,6 +127,55 @@ namespace HexPortal.Game
         public static Mesh Rock => Cached(205, MakeRock);
         public static Mesh Trap => Cached(206, MakeTrap);
         public static Mesh MarkerRing => Cached(207, MakeMarkerRing);
+        public static Mesh River => Cached(208, MakeRiver);
+        public static Mesh Lava => Cached(209, MakeLava);
+        public static Mesh Torch => Cached(210, MakeTorch);
+        public static Mesh TorchRadius => Cached(211, MakeTorchRadius);
+
+        /// <summary>B-15 river: low ripple bars on the water tile.</summary>
+        static Mesh MakeRiver()
+        {
+            var b = new Builder();
+            for (int i = 0; i < 3; i++)
+                b.Box(new Vector3((i - 1) * 0.12f, 0.02f, (i - 1) * 0.3f), new Vector3(0.55f, 0.04f, 0.07f), Quaternion.Euler(0f, 15f, 0f));
+            return b.Build("River");
+        }
+
+        /// <summary>B-16 lava: glowing bubbles and a crust crack.</summary>
+        static Mesh MakeLava()
+        {
+            var b = new Builder();
+            b.Ball(new Vector3(0.2f, 0.04f, 0.15f), new Vector3(0.14f, 0.1f, 0.14f), 5, 3);
+            b.Ball(new Vector3(-0.25f, 0.03f, -0.1f), new Vector3(0.1f, 0.08f, 0.1f), 5, 3);
+            b.Ball(new Vector3(0.05f, 0.03f, -0.35f), new Vector3(0.08f, 0.06f, 0.08f), 5, 3);
+            b.Box(new Vector3(-0.05f, 0.02f, 0.2f), new Vector3(0.5f, 0.03f, 0.06f), Quaternion.Euler(0f, -35f, 0f));
+            return b.Build("Lava");
+        }
+
+        /// <summary>V-12 torch: a pole with a flame on top, off-centre so a unit can stand next to it.</summary>
+        static Mesh MakeTorch()
+        {
+            var b = new Builder();
+            var at = new Vector3(0.55f, 0f, 0.3f);
+            b.Prism(4, 0.07f, 0.07f, 0f, 1.1f, at, 45f);
+            b.Prism(6, 0.18f, 0.11f, 1.1f, 1.22f, at, 30f);
+            b.Prism(5, 0.17f, 0f, 1.22f, 1.65f, at);
+            return b.Build("Torch");
+        }
+
+        /// <summary>V-12 light hint: a thin ring around the cells within Catalog.TorchSight (radius in world units = hint only).</summary>
+        static Mesh MakeTorchRadius()
+        {
+            var b = new Builder();
+            float apo = Catalog.TorchSight * 1.5f + 0.75f;
+            for (int i = 0; i < 6; i++)
+            {
+                float a = Mathf.Deg2Rad * (30f + 60f * i);
+                b.Box(new Vector3(Mathf.Cos(a) * apo, 0.02f, Mathf.Sin(a) * apo), new Vector3(apo * 1.155f, 0.03f, 0.1f),
+                    Quaternion.Euler(0f, 90f - (30f + 60f * i), 0f));
+            }
+            return b.Build("TorchRadius");
+        }
 
         /// <summary>UX-16: a flat hex ring on the tile edge (outer radius ~0.9), visible around any unit standing on the tile.</summary>
         static Mesh MakeMarkerRing()

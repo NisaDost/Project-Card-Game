@@ -84,6 +84,12 @@ namespace HexPortal.Tests
             if (common.Count == 0 || (groups.Count > common.Count && rng.NextInt(5) == 0))
                 return groups.First(g => rare.Contains(g[0].GetType()))[0];
             var group = common[rng.NextInt(common.Count)];
+            // v4.0: torches (V-12) and the paid refresh (D-05) are always legal with Mana; sampled less often so random
+            // games still deploy and fight. Every command stays one of the legal list.
+            var seldom = new[] { typeof(PlaceTorchCommand), typeof(RefreshMarketCommand) };
+            var others = common.Where(g => !seldom.Contains(g[0].GetType())).ToList();
+            if (seldom.Contains(group[0].GetType()) && others.Count > 0 && rng.NextInt(4) != 0)
+                group = others[rng.NextInt(others.Count)];
             return group[rng.NextInt(group.Count)];
         }
 

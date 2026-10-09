@@ -31,8 +31,8 @@ namespace HexPortal.Core
                 Visibility.UpdateMemory(state);
                 return events.Items;
             }
-            // T-04 step 4: the draw comes first and is mandatory.
-            if (state.IsDrawPending(command.Player) != (command is DrawCommand))
+            // T-04 step 4: the draw comes first and is mandatory. D-05 (v4.0): a paid Market refresh is allowed before it.
+            if (!(command is RefreshMarketCommand) && state.IsDrawPending(command.Player) != (command is DrawCommand))
                 throw new IllegalCommandException((command is DrawCommand ? "No draw pending: " : "Draw first: ") + command);
 
             switch (command)
@@ -44,6 +44,8 @@ namespace HexPortal.Core
                 case OverwatchCommand o: Overwatch(state, o, events); break;
                 case DeployCommand dep: Deploy.Apply(state, dep, events); break;
                 case PlayCardCommand pc: Cards.Apply(state, pc, events); break;
+                case RefreshMarketCommand rm: Pools.ApplyRefresh(state, rm, events); break;
+                case PlaceTorchCommand pt: Torches.Apply(state, pt, events); break;
                 case EndTurnCommand _:
                     state.SetConsecutiveTimeouts(command.Player, 0); // T-09: only automatic ends in a row count
                     Turn.EndTurn(state, events);
@@ -56,8 +58,8 @@ namespace HexPortal.Core
 
         /// <summary>All legal commands for the player, in a fixed order. Empty when the game is over.
         /// Setup: the player's options at their setup step (Setup.AddLegal). Waiting player: nothing (T-11 removed in v4.0).
-        /// Active player with a pending draw: draw options only (T-04).
-        /// Otherwise: units by id (moves, attacks, overwatch), deploys, card plays, then EndTurn.
+        /// Active player with a pending draw: draw options, then the paid refresh (T-04, D-05).
+        /// Otherwise: units by id (moves, attacks, overwatch), deploys, card plays, torches (V-12), refresh (D-05), then EndTurn.
         /// Clock commands (SetupTimeoutCommand, TurnTimeoutCommand) are never listed; the client sends them.</summary>
         public static List<ICommand> GetLegalCommands(GameState state, PlayerId player)
         {
@@ -72,6 +74,7 @@ namespace HexPortal.Core
             if (state.IsDrawPending(player))
             {
                 foreach (int slot in Pools.DrawOptions(state)) list.Add(new DrawCommand(player, slot));
+                if (Pools.CanRefresh(state, player)) list.Add(new RefreshMarketCommand(player)); // D-05 (v4.0)
                 return list;
             }
             var visible = Visibility.VisibleCells(state, player);
@@ -89,6 +92,8 @@ namespace HexPortal.Core
             var zone = ControlZone.Cells(state, player);
             Deploy.AddLegal(state, player, visible, zone, list);
             Cards.AddLegal(state, player, visible, zone, list);
+            Torches.AddLegal(state, player, list);                                           // V-12 (v4.0)
+            if (Pools.CanRefresh(state, player)) list.Add(new RefreshMarketCommand(player)); // D-05 (v4.0)
             list.Add(new EndTurnCommand(player));
             return list;
         }

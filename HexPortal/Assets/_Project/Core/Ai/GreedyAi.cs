@@ -83,7 +83,8 @@ namespace HexPortal.Core
                     var target = belief.UnitAt(hit.Value);
                     cand.Lethal = target != null && target.Owner == ctx.Opp && sim.GetUnit(target.Id) == null;
                 }
-                cand.PortalStep = c is MoveCommand m && m.Dest == Board.Portal && ctx.PortalOpen;
+                cand.PortalStep = c is MoveCommand m && m.Dest == Board.Portal && ctx.PortalOpen
+                    && belief.GetUnit(m.UnitId) != null && belief.GetUnit(m.UnitId).Class == UnitClass.PortalBearer; // W-01 v4.0
             }
             list.Sort((x, y) =>
             {
@@ -158,8 +159,17 @@ namespace HexPortal.Core
         {
             ICommand best = null;
             int bestValue = int.MinValue;
+            // D-05 (v4.0): one paid refresh per turn when no Market card beats a blind draw and Mana stays for a play.
+            var refresh = new RefreshMarketCommand(view.Viewer);
+            if (view.MarketRefreshesThisTurn == 0 && view.Mana >= Catalog.MarketRefreshCost + 1 && HasCommand(legal, refresh))
+            {
+                int blind = BlindValue(view), market = int.MinValue;
+                foreach (var card in view.Market) market = Math.Max(market, CardValue(view, card));
+                if (market < blind) return refresh;
+            }
             foreach (var c in legal)
             {
+                if (!(c is DrawCommand)) continue;
                 int slot = ((DrawCommand)c).Slot;
                 int value = slot == DrawCommand.Blind ? BlindValue(view) : CardValue(view, view.Market[slot]);
                 if (value > bestValue)
@@ -169,6 +179,13 @@ namespace HexPortal.Core
                 }
             }
             return best ?? legal[0];
+        }
+
+        static bool HasCommand(IReadOnlyList<ICommand> legal, ICommand c)
+        {
+            foreach (var x in legal)
+                if (x.Equals(c)) return true;
+            return false;
         }
 
         static int CardValue(PlayerView view, CardInstance card)
@@ -286,23 +303,37 @@ namespace HexPortal.Core
 
             score += QuestScore(s, ctx, own, progress);
 
-            // W-01: the Portal.
-            int lead = int.MaxValue;
+            // W-01 (v4.0): only the Portal Bearer (U-44) wins on the Portal. Open: pull the Bearer in; closed: the old lead.
+            int lead = int.MaxValue, bearerDist = int.MaxValue;
             foreach (var u in own)
             {
                 int d = Hex.Distance(u.Pos, Board.Portal);
                 score -= AiWeights.PortalDistanceAll * d;
-                lead = Math.Min(lead, d);
+                if (u.Class == UnitClass.PortalBearer) bearerDist = d;
+                else lead = Math.Min(lead, d);
             }
-            if (lead != int.MaxValue)
-                score -= lead * (ctx.PortalOpen ? AiWeights.PortalLeadOpen : ctx.Completed > 0 ? AiWeights.PortalLeadOneQuest : AiWeights.PortalLead);
+            if (ctx.PortalOpen)
+            {
+                if (bearerDist != int.MaxValue) score -= bearerDist * AiWeights.PortalLeadOpen;
+            }
+            else if (lead != int.MaxValue)
+                score -= lead * (ctx.Completed > 0 ? AiWeights.PortalLeadOneQuest : AiWeights.PortalLead);
             var onPortal = s.UnitAt(Board.Portal);
-            if (onPortal != null && onPortal.Owner == me && ctx.PortalOpen) score += AiWeights.PortalHoldOpen;
+            if (onPortal != null && onPortal.Owner == me && ctx.PortalOpen)
+                score += onPortal.Class == UnitClass.PortalBearer ? AiWeights.PortalHoldOpen : -AiWeights.OwnBlockerOnOpenPortal;
+            foreach (var t in s.Torches) // V-12: a few forward torches, spread out
+            {
+                if (t.Owner != me || !ownTower.IsPlaced || Hex.Distance(t.Pos, ownTower.Pos) < AiWeights.TorchMinTowerDistance) continue;
+                bool crowded = false;
+                foreach (var o in s.Torches)
+                    crowded |= o.Owner == me && o.Id != t.Id && Hex.Distance(o.Pos, t.Pos) <= Catalog.TorchSight;
+                if (!crowded) score += AiWeights.TorchForward;
+            }
             if (ctx.EnemyPortalOpen)
             {
                 // Stop the opponent's Portal win: block the Portal, hit or remove a unit waiting on it, keep others away.
                 if (onPortal != null && onPortal.Owner == me) score += AiWeights.BlockOpenEnemyPortal;
-                if (onPortal != null && onPortal.Owner != me)
+                if (onPortal != null && onPortal.Owner != me && onPortal.Class == UnitClass.PortalBearer) // v4.0: only a Bearer threatens
                     score -= AiWeights.EnemyOnOpenPortal + AiWeights.EnemyWaiterHealth * onPortal.Health;
                 foreach (var e in enemies)
                 {

@@ -122,7 +122,7 @@ namespace HexPortal.Core
                     Traps.Teleport(state, u, cmd.Dest.Value, events);
                     break;
                 case EffectKind.Push:
-                    Push(state, u, cmd.Direction, d.Amount, events);
+                    Push(state, p, u, cmd.Direction, d.Amount, events);
                     break;
                 default: // C-20, C-21
                     Traps.Place(state, p, card, cmd.Target, events);
@@ -143,21 +143,29 @@ namespace HexPortal.Core
         }
 
         /// <summary>C-18: up to <paramref name="cells"/> steps in one straight direction, stopping before a unit (even one
-        /// the pusher cannot see: V-11 physical collision), a tower, rock or the board edge. The Portal is fine.
-        /// No damage. A push that moves the unit breaks its overwatch (U-28) and fires a trap on the stop cell (C-32);
-        /// it never triggers tower or overwatch shots (U-27). A 0-cell push is still a played card.</summary>
-        static void Push(GameState state, Unit u, int dir, int cells, EventLog events)
+        /// the pusher cannot see: V-11 physical collision), a tower, Mountain, River, Void or the board edge. The Portal is fine.
+        /// v4.0: a push stopped by such an obstacle deals PushCollisionDamage to the pushed unit (U-20: Shield applies),
+        /// also when it is blocked at once (0 cells, interim: the GDD names no exception). A push that moves the unit breaks
+        /// its overwatch (U-28) and resolves the stop cell (torch, trap C-32, Lava B-16); it never triggers tower or overwatch
+        /// shots (U-27). A 0-cell push is still a played card.</summary>
+        static void Push(GameState state, PlayerId pusher, Unit u, int dir, int cells, EventLog events)
         {
             var from = u.Pos;
             var pos = from;
+            bool hit = false;
             for (int k = 0; k < cells; k++)
             {
                 var next = pos.Neighbor(dir);
-                if (!Movement.IsEmpty(state, next)) break;
+                if (!Movement.IsEmpty(state, next)) { hit = true; break; }
                 pos = next;
             }
             u.Pos = pos; // before the event: the filter expects the unit on its stop cell (From == To for 0 cells)
             events.Add(new UnitPushed(u.Id, from, pos));
+            if (hit)
+            {
+                Combat.DealDamage(state, pusher, DamageDealt.NoUnit, pos, Catalog.PushCollisionDamage, DamageKind.Collision, events);
+                if (state.IsOver || state.GetUnit(u.Id) == null) return;
+            }
             if (pos == from) return; // interim: a unit that did not move was not pushed (no overwatch break, no trap)
             Defense.BreakOverwatch(state, u, events);
             Traps.ResolveArrival(state, u, events);

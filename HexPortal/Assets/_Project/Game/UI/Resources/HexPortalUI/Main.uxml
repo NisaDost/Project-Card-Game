@@ -10,6 +10,7 @@
         <ui:VisualElement name="top-left" class="corner top-left" picking-mode="Ignore">
             <ui:Label name="own-tower" class="chip-stat own" />
             <ui:Label name="round" class="chip-stat" />
+            <ui:Label name="bearer-hint" class="chip-stat bearer-hint" picking-mode="Ignore" />
             <ui:Label name="timer" class="chip-stat timer" />
             <ui:Label name="timer-bank" class="chip-stat timer bank" />
         </ui:VisualElement>
@@ -45,7 +46,10 @@
         </ui:VisualElement>
 
         <ui:VisualElement name="right" class="corner bottom-right" picking-mode="Ignore">
-            <ui:Button name="overwatch-btn" class="btn overwatch" />
+            <ui:VisualElement name="unit-actions" class="unit-actions" picking-mode="Ignore">
+                <ui:Button name="overwatch-btn" class="btn overwatch" />
+                <ui:Button name="torch-btn" class="btn overwatch torch" />
+            </ui:VisualElement>
             <ui:Label name="draw-call" class="draw-call" picking-mode="Ignore" />
             <ui:VisualElement name="market-box" class="market-box" picking-mode="Ignore">
                 <ui:Label name="market-title" class="section-title" picking-mode="Ignore" />
@@ -55,6 +59,7 @@
                     <ui:Button name="market-2" class="btn market" />
                     <ui:Button name="blind-btn" class="btn market blind" />
                 </ui:VisualElement>
+                <ui:Button name="refresh-btn" class="btn refresh" />
             </ui:VisualElement>
             <ui:Button name="end-btn" class="btn end" />
         </ui:VisualElement>

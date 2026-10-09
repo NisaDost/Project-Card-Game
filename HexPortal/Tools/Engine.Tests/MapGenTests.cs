@@ -54,7 +54,7 @@ namespace HexPortal.Tests
 
         /// <summary>B-25: playable non-rock upper-half cells of the map's template (biome cells).</summary>
         static bool IsUpperBiomeCell(GameMap m, Hex h) =>
-            Board.IsInUpperHalf(h) && m.Get(h).Marker != Marker.Void && m.Get(h).Marker != Marker.Rock;
+            Board.IsInUpperHalf(h) && !MapGenerator.IsTemplateTerrain(m.Get(h).Marker); // B-14…B-16, B-25 (v4.0: River, Lava)
 
         static int N(GameMap m) => Board.Cells.Count(h => IsUpperBiomeCell(m, h));
 
@@ -173,11 +173,11 @@ namespace HexPortal.Tests
                 Assert.That(m.Get(Board.Portal).Biome, Is.EqualTo(Biome.None));
                 Assert.That(m.Get(Board.Portal).Marker, Is.EqualTo(Marker.Portal));
                 Assert.That(Find(m, Marker.Portal, false), Is.EqualTo(new[] { Board.Portal }));
-                // B-25: template rock and Void cells have no biome; every other cell has one.
+                // B-25: template Mountain, Void, River and Lava cells have no biome; every other cell has one.
                 foreach (var h in Board.Cells.Where(h => h != Board.Portal))
                 {
                     var t = m.Get(h);
-                    bool templateCell = t.Marker == Marker.Rock || t.Marker == Marker.Void;
+                    bool templateCell = MapGenerator.IsTemplateTerrain(t.Marker); // v4.0: River and Lava too
                     Assert.That(t.Biome == Biome.None, Is.EqualTo(templateCell), "seed " + m.RequestedSeed + " " + h);
                 }
             }
@@ -191,7 +191,7 @@ namespace HexPortal.Tests
                 var def = Catalog.MapTemplates[m.TemplateId];
                 var rocks = def.UpperRocks.Concat(def.UpperRocks.Select(h => h.Mirror()));
                 var voids = def.UpperVoids.Concat(def.UpperVoids.Select(h => h.Mirror()));
-                Assert.That(Find(m, Marker.Rock, false), Is.EquivalentTo(rocks), "seed " + m.RequestedSeed);
+                Assert.That(Find(m, Marker.Mountain, false), Is.EquivalentTo(rocks), "seed " + m.RequestedSeed);
                 Assert.That(Find(m, Marker.Void, false), Is.EquivalentTo(voids), "seed " + m.RequestedSeed);
             }
         }
@@ -274,7 +274,7 @@ namespace HexPortal.Tests
                 foreach (var b in Biomes)
                     Assert.That(Board.Cells.Count(h => Board.IsInUpperHalf(h) && m.Get(h).Biome == b),
                         Is.GreaterThanOrEqualTo(Catalog.MinCellsPerBiome(N(m))), "seed " + m.RequestedSeed + " " + b);
-            Assert.That(maps.Select(N).Distinct().OrderBy(x => x), Is.EqualTo(new[] { 75, 80, 84 }));
+            Assert.That(maps.Select(N).Distinct().OrderBy(x => x), Is.EqualTo(new[] { 73, 75, 78, 84 })); // v4.0: TwoCorridors -2 River, RockyRing -2 Lava
         }
 
         [Test]
@@ -471,7 +471,7 @@ namespace HexPortal.Tests
         {
             var m = MapGenerator.Generate(1);
             var h = Board.Cells.First(c => Board.IsInUpperHalf(c) && m.Get(c).Marker == Marker.None);
-            SetPair(m, h, new Tile(m.Get(h).Biome, Marker.Rock));
+            SetPair(m, h, new Tile(m.Get(h).Biome, Marker.Mountain));
             Assert.That(MapValidator.Validate(m), Has.All.StartsWith("Rock:").And.Not.Empty);
 
             var m2 = MapGenerator.Generate(1);
@@ -500,7 +500,7 @@ namespace HexPortal.Tests
         {
             var m = MapGenerator.Generate(1); // template 1: close the ring gaps (0,-2), (2,-2) and their mirrors
             foreach (var h in new[] { new Hex(0, -2), new Hex(2, -2) })
-                SetPair(m, h, new Tile(m.Get(h).Biome, Marker.Rock));
+                SetPair(m, h, new Tile(m.Get(h).Biome, Marker.Mountain));
             Assert.That(MapValidator.Validate(m), Has.Some.StartsWith("Reachability:"));
         }
     }

@@ -442,8 +442,11 @@ namespace HexPortal.Tests
                 // Q-02: the actor's position quests (Q-10, Q-11, Q-15, Q-18, Q-19) are judged at its turn end.
                 MoveUnits = !mapResolve && !(turnEnd && HasActiveQuest(before, actor, PositionQuests)),
                 UnitState = !roundLimit,
-                KeepUnit = u => keepUnits.Contains(u.Id) || Home(u.Pos) || pushLine.Contains(u.Pos) || Splash(u.Pos),
-                NoEntry = h => Home(h) || pushLine.Contains(h) || Splash(h),
+                // B-16 (v4.0): an actor unit ending its turn on Lava takes damage; a hidden death there is public through the
+                // U-23 draw (hand count) and the Rng it uses, like the accepted splash-kill inference (M4a). Keep those units.
+                KeepUnit = u => keepUnits.Contains(u.Id) || Home(u.Pos) || pushLine.Contains(u.Pos) || Splash(u.Pos)
+                    || (turnEnd && before.Map.IsLava(u.Pos)),
+                NoEntry = h => Home(h) || pushLine.Contains(h) || Splash(h) || (turnEnd && before.Map.IsLava(h)),
                 KeepCards = CardsOf(c),
             };
             bool done = false;
@@ -633,7 +636,7 @@ namespace HexPortal.Tests
                 Engine.Apply(s1, c);
             }
             Assert.That(commands.OfType<FinishSetupCommand>().Count() + commands.OfType<SetupTimeoutCommand>().Count(), Is.GreaterThanOrEqualTo(2));
-            Assert.That(commands.OfType<AttackCommand>().Count(), Is.GreaterThan(0));
+            Assert.That(commands.Count(c => c is AttackCommand || c is MoveAttackCommand), Is.GreaterThan(0)); // v3.2: move-attacks count
             var s2 = Match.Create(seed);
             foreach (var c in commands) Engine.Apply(s2, c);
             Assert.That(StateHash.Compute(s2), Is.EqualTo(StateHash.Compute(s1)));

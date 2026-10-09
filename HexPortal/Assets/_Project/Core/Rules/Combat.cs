@@ -143,7 +143,8 @@ namespace HexPortal.Core
                     events.Add(died); // tagged while the unit is still on its cell
                     state.RemoveUnit(u);
                     Quests.OnUnitDied(state, u, sourcePlayer, died.ViewFor(sourcePlayer) != null); // Q-12, Q-16 (hidden until judged)
-                    Passives.OnUnitDied(state, u);                     // P-01
+                    if (u.Class == UnitClass.PortalBearer) Win.OnBearerDied(state, u); // U-44
+                    else Passives.OnUnitDied(state, u);                                // P-01 (interim: never the Bearer)
                     Pools.DeathDraw(state, u.Owner, events);
                 }
                 return;

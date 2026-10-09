@@ -23,7 +23,7 @@ namespace HexPortal.Tests
         public void W01_UnitOnThePortalAtTurnEndAndStillThereAtTheNextTurnStartWins()
         {
             var b = TwoQuestsDone(new TestBoard().Round(3), A);
-            b.Unit(UnitClass.Guardian, A, Board.Portal);
+            b.Unit(UnitClass.PortalBearer, A, Board.Portal);
             var s = b.Build();
             var ev = End(s);
             Assert.That(s.IsOver, Is.False);
@@ -41,7 +41,7 @@ namespace HexPortal.Tests
         public void W01_WorksForB()
         {
             var b = TwoQuestsDone(new TestBoard().Round(3).Active(B), B);
-            b.Unit(UnitClass.Archer, B, Board.Portal);
+            b.Unit(UnitClass.PortalBearer, B, Board.Portal);
             var s = b.Build();
             End(s);
             End(s);
@@ -52,7 +52,7 @@ namespace HexPortal.Tests
         public void W01_ASecondQuestCompletedAtTheSameTurnEndCounts()
         {
             var b = new TestBoard().Round(3).Quests(A, "Q-11", "Q-19").QuestStatus(A, "Q-11", QuestStatus.Completed);
-            b.Unit(UnitClass.Guardian, A, Board.Portal);
+            b.Unit(UnitClass.PortalBearer, A, Board.Portal);
             b.Unit(UnitClass.Archer, A, H(0, -6)); // B's home zone (r ≤ -6)
             b.Unit(UnitClass.Archer, A, H(-1, -6));
             var s = b.Build();
@@ -66,7 +66,7 @@ namespace HexPortal.Tests
         {
             // v2.10: the Portal must be open at the end of the turn the unit stands on it.
             var b = new TestBoard().Round(8).Quests(A, "Q-12", "Q-16").QuestStatus(A, "Q-12", QuestStatus.Completed);
-            b.Unit(UnitClass.Guardian, A, Board.Portal);
+            b.Unit(UnitClass.PortalBearer, A, Board.Portal);
             var s = b.Build();
             End(s); // A's turn end: 1 quest, closed
             var ev = End(s); // end of round 8 (v3.1): Q-16 completes -> open, then A's turn start
@@ -82,7 +82,7 @@ namespace HexPortal.Tests
         public void W01_OneQuestIsNotEnough()
         {
             var b = new TestBoard().Round(3).Quests(A, "Q-12", "Q-13").QuestStatus(A, "Q-12", QuestStatus.Completed);
-            b.Unit(UnitClass.Guardian, A, Board.Portal);
+            b.Unit(UnitClass.PortalBearer, A, Board.Portal);
             var s = b.Build();
             End(s);
             End(s);
@@ -93,7 +93,7 @@ namespace HexPortal.Tests
         public void W01_APoisonDeathAtTurnStartPreventsTheWin()
         {
             var b = TwoQuestsDone(new TestBoard().Round(3), A);
-            int u = b.Unit(UnitClass.Guardian, A, Board.Portal, health: 1);
+            int u = b.Unit(UnitClass.PortalBearer, A, Board.Portal, health: 1);
             b.Effect(u, "C-17");
             var s = b.Build();
             End(s);
@@ -106,7 +106,7 @@ namespace HexPortal.Tests
         public void W01_TheUnitMustStillBeThere()
         {
             var b = TwoQuestsDone(new TestBoard().Round(3), A);
-            int u = b.Unit(UnitClass.Guardian, A, Board.Portal);
+            int u = b.Unit(UnitClass.PortalBearer, A, Board.Portal);
             b.Unit(UnitClass.Archer, B, H(0, -1));
             int push = b.Hand(B, "C-18");
             var s = b.Build();
@@ -121,7 +121,7 @@ namespace HexPortal.Tests
         public void W01_ReachingThePortalDuringTheTurnIsNotEnough_ItMustBeThereAtTheTurnEnd()
         {
             var b = TwoQuestsDone(new TestBoard().Round(3).Active(B), A);
-            b.Unit(UnitClass.Guardian, A, Board.Portal); // placed during B's turn: A's last turn end did not see it there
+            b.Unit(UnitClass.PortalBearer, A, Board.Portal); // placed during B's turn: A's last turn end did not see it there
             var s = b.Build();
             End(s); // A's turn start
             Assert.That(s.IsOver, Is.False);

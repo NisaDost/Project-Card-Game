@@ -64,7 +64,24 @@ namespace HexPortal.Tests
 
         public TestBoard Rock(Hex h)
         {
-            map.Set(h, new Tile(map.Get(h).Biome, Marker.Rock));
+            map.Set(h, new Tile(map.Get(h).Biome, Marker.Mountain));
+            return this;
+        }
+
+        /// <summary>B-14 (v4.0) name.</summary>
+        public TestBoard Mountain(Hex h) => Rock(h);
+
+        /// <summary>B-15 (v4.0): a template River cell (no biome).</summary>
+        public TestBoard River(Hex h)
+        {
+            map.Set(h, new Tile(Core.Data.Biome.None, Marker.River));
+            return this;
+        }
+
+        /// <summary>B-16 (v4.0): a template Lava cell (no biome).</summary>
+        public TestBoard Lava(Hex h)
+        {
+            map.Set(h, new Tile(Core.Data.Biome.None, Marker.Lava));
             return this;
         }
 
@@ -132,6 +149,11 @@ namespace HexPortal.Tests
         {
             var u = State.AddUnit(owner, cls, biome, pos);
             if (health >= 0) u.Health = health;
+            if (cls == UnitClass.PortalBearer) // U-44: a placed Bearer is the granted, living one
+            {
+                State.GetProgress(owner).BearerGranted = true;
+                State.GetProgress(owner).BearerId = u.Id;
+            }
             return u.Id;
         }
 

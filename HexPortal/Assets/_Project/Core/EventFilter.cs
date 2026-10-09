@@ -47,6 +47,9 @@ namespace HexPortal.Core
                 case OverwatchFired x: return Sees(s, x.UnitId, p, vis) ? e : null; // the shooter is revealed first (V-08)
                 case UnitDeployed x: return Sees(s, x.UnitId, p, vis) ? e : null;
                 case UnitRevived x: return Sees(s, x.UnitId, p, vis) ? e : null;   // P-01: like a deploy
+                case BearerSpawned x: return Sees(s, x.UnitId, p, vis) ? e : null; // U-44: like a deploy
+                case TorchPlaced x: return x.Owner == p || vis.Contains(x.Cell) ? e : null;       // V-12
+                case TorchExtinguished x: return x.Owner == p || vis.Contains(x.Cell) ? e : null; // V-12
                 case TowerShot x: return x.Owner == p || vis.Contains(s.GetTower(x.Owner).Pos) ? e : null;
                 case CardDrawn d: // V-09: hand counts are public; a Market card was public already
                     return d.Player == p || d.Source == DrawSource.Market ? e : new CardDrawn(d.Player, 0, d.Source);
@@ -65,6 +68,7 @@ namespace HexPortal.Core
                 case TowerPlaced x: return x.Player == p ? e : null;
                 case TurnStarted _:
                 case MarketRefilled _:  // D-05, V-09: the Market is public
+                case MarketRefreshed _: // D-05 (v4.0): public
                 case TowerDestroyed _:  // V-09: tower Health is public
                 case GameOver _:
                 case SetupFinished _:

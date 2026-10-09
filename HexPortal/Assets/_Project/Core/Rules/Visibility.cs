@@ -8,12 +8,14 @@ namespace HexPortal.Core
     public static class Visibility
     {
         /// <summary>V-02, B-25: playable (never Void) cells within Sight of any own unit or the own (placed) tower (nothing blocks sight),
-        /// plus the Portal (V-06), plus the cells of enemy units and the enemy tower revealed by an attack (V-08).</summary>
+        /// plus own torches (V-12), plus the Portal (V-06), plus the cells of enemy units and the enemy tower revealed by an attack (V-08).</summary>
         public static HashSet<Hex> VisibleCells(GameState state, PlayerId player)
         {
             var visible = new HashSet<Hex> { Board.Portal };
             var tower = state.GetTower(player);
             if (tower.IsPlaced) AddWithin(visible, tower.Pos, Catalog.Tower.Sight, state.Map);
+            foreach (var t in state.Torches) // V-12 (v4.0)
+                if (t.Owner == player) AddWithin(visible, t.Pos, Catalog.TorchSight, state.Map);
             foreach (var u in state.Units)
             {
                 if (u.Owner == player) AddWithin(visible, u.Pos, u.Def.Sight, state.Map);

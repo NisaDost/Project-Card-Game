@@ -30,12 +30,16 @@ namespace HexPortal.Core
         {
             var p = state.ActivePlayer;
             var opp = p.Opponent();
+            Traps.LavaTurnEnd(state, p, events); // B-16 (v4.0)
+            if (state.IsOver) return;
             Cards.EndOfTurn(state, p, events); // C-04, C-14
             Quests.EndOfTurn(state, p, events); // Q-02
+            Win.OnQuestsChecked(state, events); // W-01, U-44 (v4.0): the Portal opened: Bearer
             Win.RecordPortal(state, p);         // W-01
             if (p == PlayerId.B)
             {
                 Quests.EndOfRound(state, events); // Q-14, Q-16
+                Win.OnQuestsChecked(state, events);
                 Win.CheckRoundLimit(state, events); // W-03
                 if (state.IsOver) return;
             }
@@ -62,13 +66,15 @@ namespace HexPortal.Core
             state.SetEnergy(p, Mana.TurnStartEnergy(state, p)); // T-05 + B-11 rune bonus
             state.SetTowerShotAvailable(p.Opponent(), true); // U-27: once per opponent turn
             foreach (var u in state.Units)
-                if (u.Owner == p) u.ActedThisTurn = false;
+                if (u.Owner == p) { u.ActedThisTurn = false; u.TorchUsedThisTurn = false; }
+            state.MarketRefreshesThisTurn = 0;
             events.Add(new TurnStarted(p, state.Round));
             if (quickStart > 0) Passives.QuickStartApplied(state, p, events); // P-00
             Heal(state, p, events);
             Rest(state, p, events);
             Cards.PoisonTicks(state, p, events);
             Passives.LastBreath(state, p, events);
+            Win.SpawnBearer(state, p, events); // U-44: a pending Bearer (Portal opened earlier, or it died) returns
             Win.CheckPortal(state, p, events);
             if (!state.IsOver) Pools.TurnStartDraw(state, p, events);
         }

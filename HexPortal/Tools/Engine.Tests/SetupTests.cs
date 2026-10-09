@@ -324,7 +324,7 @@ namespace HexPortal.Tests
             Assert.That(s.GetMana(B), Is.EqualTo(0));
             Assert.That(s.IsDrawPending(A), Is.True);
             Assert.That(ev.OfType<TurnStarted>().Single().Player, Is.EqualTo(A));
-            Assert.That(Engine.GetLegalCommands(s, A).All(c => c is DrawCommand), Is.True);
+            Assert.That(Engine.GetLegalCommands(s, A).All(c => c is DrawCommand || c is RefreshMarketCommand), Is.True); // D-05 (v4.0) refresh allowed before the draw
             Assert.That(s.Units.Count(u => u.Owner == A), Is.EqualTo(3));
         }
 

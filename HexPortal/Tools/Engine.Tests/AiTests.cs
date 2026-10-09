@@ -166,7 +166,7 @@ namespace HexPortal.Tests
         {
             var tb = new TestBoard();
             tb.Quests(A, "Q-10", "Q-11", "Q-12").QuestStatus(A, "Q-10", QuestStatus.Completed).QuestStatus(A, "Q-11", QuestStatus.Completed);
-            int guardian = tb.Unit(UnitClass.Guardian, A, D(5, 5));
+            int guardian = tb.Unit(UnitClass.PortalBearer, A, D(5, 5));
             var s = tb.Build();
             Assert.That(Choose(s, A, AiLevel.Normal), Is.EqualTo(new MoveCommand(A, guardian, Board.Portal)));
         }
@@ -205,7 +205,7 @@ namespace HexPortal.Tests
         {
             var tb = new TestBoard();
             int guardian = tb.Unit(UnitClass.Guardian, A, D(6, 6));
-            tb.Energy(A, 0); // no action possible
+            tb.Energy(A, 0).Mana(A, 0); // no action possible (v4.0: no Mana for a torch or refresh)
             var s = tb.Build();
             Assert.That(Engine.GetLegalCommands(s, A), Is.EqualTo(new ICommand[] { new EndTurnCommand(A) }));
             Assert.That(Choose(s, A, AiLevel.Normal), Is.EqualTo(new EndTurnCommand(A)));
@@ -276,7 +276,7 @@ namespace HexPortal.Tests
             var tb = new TestBoard();
             tb.Quests(B, "Q-10", "Q-11", "Q-12").QuestStatus(B, "Q-10", QuestStatus.Completed).QuestStatus(B, "Q-11", QuestStatus.Completed);
             int mage = tb.Unit(UnitClass.Mage, A, D(6, 6));      // range 2 to both Guardians, non-lethal hits
-            tb.Unit(UnitClass.Guardian, B, Board.Portal);
+            tb.Unit(UnitClass.PortalBearer, B, Board.Portal);
             tb.Unit(UnitClass.Guardian, B, D(10, 6));
             var s = tb.Build();
             Assert.That(HitTarget(Choose(s, A, AiLevel.Normal), mage), Is.EqualTo(Board.Portal)); // plain or move-attack (v3.2)
@@ -317,6 +317,8 @@ namespace HexPortal.Tests
                     case DeployCommand d: return new DeployCommand(B, d.CardId, d.Cell.Mirror());
                     case PlayCardCommand pc when pc.Direction >= 0: // Mirror negates a direction: index + 3 (Hex.Directions)
                         return new PlayCardCommand(B, pc.CardId, pc.Target.Mirror(), (pc.Direction + 3) % 6);
+                    case PlaceTorchCommand t: return new PlaceTorchCommand(B, t.UnitId); // V-12 (v4.0)
+                    case RefreshMarketCommand _: return new RefreshMarketCommand(B);   // D-05 (v4.0)
                     case EndTurnCommand _: return new EndTurnCommand(B);
                     default: throw new InvalidOperationException(c.ToString());
                 }
@@ -346,6 +348,7 @@ namespace HexPortal.Tests
             guardian = tb.Unit(UnitClass.Guardian, A, D(6, 6));
             foreach (var r in new[] { D(4, 6), D(8, 6), D(5, 7), D(7, 7) }) tb.Rock(r);
             tb.Biome(D(7, 5), Biome.Desert);
+            tb.Mana(A, 0); // v4.0: keep torches (V-12) and the refresh (D-05) out of the list
             var s = tb.Build();
             ExploreAll(s, A);
             return s;
@@ -376,6 +379,7 @@ namespace HexPortal.Tests
             int guardian = tb.Unit(UnitClass.Guardian, A, D(6, 6));           // Attack 2
             tb.Unit(UnitClass.Archer, B, D(5, 5), health: 2);
             foreach (var r in new[] { D(4, 6), D(8, 6), D(5, 7), D(7, 7), D(7, 5) }) tb.Rock(r);
+            tb.Mana(A, 0); // v4.0: keep torches (V-12) and the refresh (D-05) out of the list
             var s = tb.Build();
             var legal = Engine.GetLegalCommands(s, A);
             Assert.That(legal.Count, Is.EqualTo(3)); // attack, overwatch, EndTurn: EndTurn is in the top 3
@@ -392,11 +396,12 @@ namespace HexPortal.Tests
         {
             var tb = new TestBoard();
             tb.Quests(A, "Q-10", "Q-11", "Q-12").QuestStatus(A, "Q-10", QuestStatus.Completed).QuestStatus(A, "Q-11", QuestStatus.Completed);
-            tb.Unit(UnitClass.Guardian, A, D(5, 5));
+            int bearer = tb.Unit(UnitClass.PortalBearer, A, D(5, 5)); // v4.0: only the Bearer uses the Portal (W-01)
+            tb.Mana(A, 0);
             foreach (var r in new[] { D(7, 5), D(4, 4), D(3, 5), D(4, 6), D(6, 6) }) tb.Rock(r);
             var s = tb.Build();
-            Assert.That(Engine.GetLegalCommands(s, A).Count, Is.EqualTo(3)); // portal move, overwatch, EndTurn
-            Assert.That(Rank(s, A).Single(c => c.Command is MoveCommand).PortalStep, Is.True);
+            Assert.That(Engine.GetLegalCommands(s, A), Does.Contain(new MoveCommand(A, bearer, Board.Portal)));
+            Assert.That(Rank(s, A).Single(c => c.Command.Equals(new MoveCommand(A, bearer, Board.Portal))).PortalStep, Is.True);
             for (ulong seed = 1; seed <= 60; seed++)
                 foreach (var level in new[] { AiLevel.Easy, AiLevel.Normal })
                     Assert.That(Choose(s, A, level, seed), Is.Not.InstanceOf<EndTurnCommand>(), level + " seed " + seed);
@@ -579,6 +584,58 @@ namespace HexPortal.Tests
             foreach (var k in new[] { typeof(MoveCommand), typeof(AttackCommand), typeof(DeployCommand), typeof(PlayCardCommand),
                          typeof(DrawCommand), typeof(EndTurnCommand), typeof(PlaceTowerCommand) })
                 Assert.That(kinds, Does.Contain(k), k.Name + " never chosen");
+        }
+    }
+}
+
+namespace HexPortal.Tests
+{
+    // v4.0 AI use of the Portal Bearer (U-44, W-01), torches (V-12) and the Market refresh (D-05).
+    public class AiV4Tests
+    {
+        static readonly PlayerId A = PlayerId.A, B = PlayerId.B;
+        static Hex H(int q, int r) => new Hex(q, r);
+
+        static ICommand Choose(GameState s, PlayerId p) =>
+            GreedyAi.Choose(PlayerView.For(s, p), Engine.GetLegalCommands(s, p), AiLevel.Normal, new Rng(1));
+
+        [Test]
+        public void AI02_MovesTheBearerTowardTheOpenPortal()
+        {
+            var tb = new TestBoard().Energy(A, 1);
+            tb.Quests(A, "Q-10", "Q-11", "Q-12").QuestStatus(A, "Q-10", QuestStatus.Completed).QuestStatus(A, "Q-11", QuestStatus.Completed);
+            int bearer = tb.Unit(UnitClass.PortalBearer, A, H(0, 4));
+            tb.Unit(UnitClass.Guardian, A, H(-2, 4));
+            var s = tb.Build();
+            var c = Choose(s, A) as MoveCommand;
+            Assert.That(c, Is.Not.Null);
+            Assert.That((c.UnitId, Hex.Distance(c.Dest, Board.Portal)), Is.EqualTo((bearer, 2)));
+        }
+
+        [Test]
+        public void AI02_DoesNotParkANonBearerOnItsOwnOpenPortal()
+        {
+            var tb = new TestBoard();
+            tb.Quests(A, "Q-10", "Q-11", "Q-12").QuestStatus(A, "Q-10", QuestStatus.Completed).QuestStatus(A, "Q-11", QuestStatus.Completed);
+            int guardian = tb.Unit(UnitClass.Guardian, A, H(0, 1));
+            var s = tb.Build();
+            Assert.That(Choose(s, A), Is.Not.EqualTo(new MoveCommand(A, guardian, Board.Portal)));
+        }
+
+        [Test]
+        public void AI02_RefreshesAPoorMarketOnceBeforeTheDraw()
+        {
+            var tb = new TestBoard().FullPools().Mana(A, 3);
+            var s = tb.Build();
+            // A Market of cards the AI values below a blind draw: empty slots count as worthless.
+            s.SetDrawPending(A, true);
+            for (int slot = 0; slot < 3; slot++) { var c = s.GetMarket((CardPool)slot); if (c != null) s.PoolList((CardPool)slot).Add(c); s.SetMarket((CardPool)slot, null); }
+            s.SetMarket(CardPool.Buff, s.PoolList(CardPool.Buff).First(c => c.Support.Id == "C-14"));
+            s.PoolList(CardPool.Buff).Remove(s.GetMarket(CardPool.Buff));
+            var first = Choose(s, A);
+            Assert.That(first, Is.EqualTo(new RefreshMarketCommand(A)));
+            Engine.Apply(s, first);
+            Assert.That(Choose(s, A), Is.InstanceOf<DrawCommand>(), "only once per turn");
         }
     }
 }

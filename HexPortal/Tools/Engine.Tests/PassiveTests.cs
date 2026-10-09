@@ -401,8 +401,9 @@ namespace HexPortal.Tests
             var ev = Engine.Apply(s, new PlayCardCommand(A, push, H(0, 1), 2)); // direction 2 = (0,-1)
             Assert.That(ev.OfType<UnitPushed>().Single().To, Is.EqualTo(Board.Portal));
             AssertRevealed(ev, A, "P-06", s);
-            Assert.That(ev.OfType<DamageDealt>().Single().Kind, Is.EqualTo(DamageKind.PortalWarden));
-            Assert.That(s.GetUnit(target).Health, Is.EqualTo(MaxHp(UnitClass.Guardian) - PAmount("P-06")));
+            // C-18 (v4.0): the Guardian behind stops the push, so the collision damage comes first, then P-06 on the stop.
+            Assert.That(ev.OfType<DamageDealt>().Select(d => d.Kind), Is.EqualTo(new[] { DamageKind.Collision, DamageKind.PortalWarden }));
+            Assert.That(s.GetUnit(target).Health, Is.EqualTo(MaxHp(UnitClass.Guardian) - Catalog.PushCollisionDamage - PAmount("P-06")));
         }
 
         [Test]

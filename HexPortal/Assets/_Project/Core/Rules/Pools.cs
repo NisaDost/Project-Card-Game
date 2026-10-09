@@ -76,6 +76,31 @@ namespace HexPortal.Core
             events.Add(new MarketRefilled(slot, card == null ? 0 : card.Id));
         }
 
+        /// <summary>D-05 (v4.0): every Market card goes back into its own pool, then each slot is refilled from its pool
+        /// (match Rng; the old card may come back). <paramref name="payer"/> null = the automatic turn-start refresh.</summary>
+        internal static void RefreshMarket(GameState state, PlayerId? payer, EventLog events)
+        {
+            events.Add(new MarketRefreshed(payer));
+            foreach (var slot in Slots)
+            {
+                var old = state.GetMarket(slot);
+                if (old != null) state.PoolList(slot).Add(old);
+                state.SetMarket(slot, null);
+            }
+            foreach (var slot in Slots) Refill(state, slot, events);
+        }
+
+        /// <summary>D-05 (v4.0): a manual refresh needs only the Mana (own turn is checked by Engine).</summary>
+        internal static bool CanRefresh(GameState state, PlayerId p) => state.GetMana(p) >= Catalog.MarketRefreshCost;
+
+        internal static void ApplyRefresh(GameState state, RefreshMarketCommand cmd, EventLog events)
+        {
+            if (!CanRefresh(state, cmd.Player)) throw new IllegalCommandException("Not enough Mana: " + cmd);
+            Mana.Spend(state, cmd.Player, Catalog.MarketRefreshCost);
+            state.MarketRefreshesThisTurn++;
+            RefreshMarket(state, cmd.Player, events);
+        }
+
         public static bool CanBlindDraw(GameState state)
         {
             foreach (var slot in Slots)
@@ -137,6 +162,7 @@ namespace HexPortal.Core
         /// to draw (D-07). T-11 pre-pick removed in v4.0.</summary>
         internal static void TurnStartDraw(GameState state, PlayerId p, EventLog events)
         {
+            RefreshMarket(state, null, events); // D-05 (v4.0), T-04 step 4: right before the draw
             state.SetDrawPending(p, !IsHandFull(state, p) && DrawOptions(state).Count > 0);
         }
 

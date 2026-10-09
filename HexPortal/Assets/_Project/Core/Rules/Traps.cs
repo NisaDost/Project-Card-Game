@@ -34,14 +34,33 @@ namespace HexPortal.Core
             events.Add(new TrapPlaced(owner, card.Id, h));
         }
 
-        /// <summary>The unit has stopped on its cell (move, push, teleport incl. Mirror Trap, deploy, P-01 return):
-        /// the trap there (C-32), then P-06 if the unit is still alive on that cell. Passing through never calls this.</summary>
+        /// <summary>The unit has stopped on its cell (move, push, teleport incl. Mirror Trap, deploy, P-01 return, U-44 spawn): V-12 enemy torch out,
+        /// the trap there (C-32), then B-16 Lava and P-06 if the unit is still alive on that cell. Passing through never calls this
+        /// (interim: Lava damages only the stop cell).</summary>
         internal static void ResolveArrival(GameState state, Unit unit, EventLog events)
         {
             if (state.IsOver || state.GetUnit(unit.Id) == null) return;
             var cell = unit.Pos;
+            Torches.OnArrival(state, unit, events); // V-12 (v4.0): an enemy torch here goes out
             TriggerTrap(state, unit, events);
-            if (!state.IsOver && state.GetUnit(unit.Id) != null && unit.Pos == cell) Passives.PortalWarden(state, unit, events);
+            if (state.IsOver || state.GetUnit(unit.Id) == null || unit.Pos != cell) return;
+            if (state.Map.IsLava(cell)) // B-16 (v4.0), C-18: entering Lava. No killer credit (the owner is the source).
+            {
+                Combat.DealDamage(state, unit.Owner, DamageDealt.NoUnit, cell, Catalog.LavaDamage, DamageKind.Lava, events);
+                if (state.IsOver || state.GetUnit(unit.Id) == null) return;
+            }
+            Passives.PortalWarden(state, unit, events);
+        }
+
+        /// <summary>B-16 (v4.0), T-08: each own unit ending the own turn on Lava takes LavaDamage.</summary>
+        internal static void LavaTurnEnd(GameState state, PlayerId p, EventLog events)
+        {
+            var burning = new List<Unit>();
+            foreach (var u in state.Units)
+                if (u.Owner == p && state.Map.IsLava(u.Pos)) burning.Add(u);
+            foreach (var u in burning)
+                if (!state.IsOver && state.GetUnit(u.Id) != null)
+                    Combat.DealDamage(state, p, DamageDealt.NoUnit, u.Pos, Catalog.LavaDamage, DamageKind.Lava, events);
         }
 
         // C-32: only an opponent's trap fires (C-34); it is used up.

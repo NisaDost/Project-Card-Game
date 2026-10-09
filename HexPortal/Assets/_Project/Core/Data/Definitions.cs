@@ -1,6 +1,7 @@
 namespace HexPortal.Core.Data
 {
-    public enum UnitClass { Guardian, Rider, Archer, Mage, Healer }
+    /// <summary>PortalBearer (U-44, v4.0) is not a card class: Catalog.PortalBearer, never in Catalog.Units.</summary>
+    public enum UnitClass { Guardian, Rider, Archer, Mage, Healer, PortalBearer }
 
     public enum Biome { None, Forest, Desert, Snow }
 
@@ -166,11 +167,16 @@ namespace HexPortal.Core.Data
         public readonly string Name;
         public readonly System.Collections.Generic.IReadOnlyList<Hex> UpperRocks;
         public readonly System.Collections.Generic.IReadOnlyList<Hex> UpperVoids;
+        /// <summary>B-15 (v4.0): River cells of the upper half.</summary>
+        public readonly System.Collections.Generic.IReadOnlyList<Hex> UpperRivers;
+        /// <summary>B-16 (v4.0): Lava cells of the upper half.</summary>
+        public readonly System.Collections.Generic.IReadOnlyList<Hex> UpperLavas;
 
-        /// <summary>Cells as flat axial pairs (q0, r0, q1, r1, ...).</summary>
-        public MapTemplateDef(int id, string name, int[] rocks, int[] voids)
+        /// <summary>Cells as flat axial pairs (q0, r0, q1, r1, ...). UpperRocks are Mountains (B-14).</summary>
+        public MapTemplateDef(int id, string name, int[] rocks, int[] voids, int[] rivers = null, int[] lavas = null)
         {
             Id = id; Name = name; UpperRocks = ToHexes(rocks); UpperVoids = ToHexes(voids);
+            UpperRivers = ToHexes(rivers ?? new int[0]); UpperLavas = ToHexes(lavas ?? new int[0]);
         }
 
         static Hex[] ToHexes(int[] qr)

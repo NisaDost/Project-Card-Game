@@ -152,6 +152,7 @@ namespace HexPortal.Tests
             var u = s.GetUnit(a);
             Assert.That(u.OnOverwatch, Is.True);
             Assert.That(u.ActedThisTurn, Is.True);
+            s.SetMana(A, 0); // v4.0: no torch (V-12) or Market refresh (D-05) in the list
             Assert.That(Engine.GetLegalCommands(s, A), Is.EqualTo(new ICommand[] { new EndTurnCommand(A) }));
             Assert.Throws<IllegalCommandException>(() => Engine.Apply(s, new AttackCommand(A, a, H(1, 0))));
         }

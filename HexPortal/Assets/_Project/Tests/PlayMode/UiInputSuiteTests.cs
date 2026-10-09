@@ -608,5 +608,106 @@ namespace HexPortal.Game.Tests
             Assert.That(board.RingsShown, Is.GreaterThan(0), "rings on the tile edge");
             Assert.That(GameApp.Instance.Units.SpotIconsShown, Is.GreaterThan(0), "icon above the unit");
         }
+
+        // ---------- GDD v4.0 phase 2: D-05 refresh, V-12 torch, B-15 river, U-44 Portal Bearer ----------
+
+        static BoardView BoardV => Object.FindAnyObjectByType<BoardView>(FindObjectsInactive.Include);
+
+        /// <summary>D-05: "Yenile (1 Mana)" by tap spends Mana and replaces the Market slots (with the slot animation).</summary>
+        [UnityTest]
+        public IEnumerator V40_RefreshMarketByTap()
+        {
+            yield return FastForwardOrIgnore(v => M.Legal.OfType<RefreshMarketCommand>().Any(), "market refresh", false, 3, 13, 23);
+            var v0 = M.View;
+            int mana = v0.Mana, refreshes = v0.MarketRefreshesThisTurn, anims = Ui.MarketRefreshAnimations;
+            var before = v0.Market.Select(c => c == null ? -1 : c.Id).ToList();
+            Assert.That(Ui.IsOn(Q("refresh-btn")), Is.True, "refresh button is on");
+            yield return drv.TapElement(Q("refresh-btn"));
+            var v = M.View;
+            Assert.That(v.Mana, Is.EqualTo(mana - Catalog.MarketRefreshCost), "Mana spent " + drv.Log);
+            Assert.That(v.MarketRefreshesThisTurn, Is.EqualTo(refreshes + 1));
+            Assert.That(v.Market.Select(c => c == null ? -1 : c.Id).ToList(), Is.Not.EqualTo(before), "slots changed");
+            Assert.That(Ui.MarketRefreshAnimations, Is.GreaterThan(anims), "slot animation played");
+            Assert.That(Ui.Mode, Is.EqualTo(GameUi.InputMode.Idle));
+        }
+
+        /// <summary>V-12: select an own unit, tap "Meşale": a torch is on its cell and drawn.</summary>
+        [UnityTest]
+        public IEnumerator V40_PlaceTorchFromSelectedUnit()
+        {
+            yield return FastForwardOrIgnore(v => M.Legal.OfType<PlaceTorchCommand>().Any(t => Tappable(OwnUnit(t.UnitId).Pos)), "torch", false, 4, 14, 24);
+            var t = M.Legal.OfType<PlaceTorchCommand>().First(c => Tappable(OwnUnit(c.UnitId).Pos));
+            var cell = OwnUnit(t.UnitId).Pos;
+            int torches = M.View.Torches.Count;
+            yield return drv.TapCell(cell);
+            Assert.That(Ui.Mode, Is.EqualTo(GameUi.InputMode.UnitSelected), "unit selected " + drv.Log);
+            Assert.That(Q("torch-btn").resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex), "Meşale button shown");
+            yield return drv.TapElement(Q("torch-btn"));
+            Assert.That(M.View.Torches.Count, Is.EqualTo(torches + 1), "torch placed by tap " + drv.Log);
+            Assert.That(M.View.Torches.Any(x => x.Pos == cell && x.Owner == M.Viewer), Is.True);
+            Assert.That(BoardV.TorchesShown, Is.EqualTo(M.View.Torches.Count), "torch props drawn");
+            Assert.That(OwnUnit(t.UnitId).TorchUsedThisTurn, Is.True);
+        }
+
+        static bool RiverVisible(PlayerView v) => v.Cells.Any(c => c.TerrainKnown && c.Tile.Marker == Marker.River);
+
+        /// <summary>B-15: a river cell is never highlighted as a move destination, for any selected own unit.</summary>
+        [UnityTest]
+        public IEnumerator V40_RiverNeverMoveHighlighted()
+        {
+            yield return FastForwardOrIgnore(v => RiverVisible(v) && M.Legal.OfType<MoveCommand>().Any(c => Tappable(OwnUnit(c.UnitId).Pos)),
+                "river + move", false, 3, 7, 11, 15, 19, 23); // TwoCorridors (seed % 4 == 3) has rivers
+            var rivers = M.View.Cells.Where(c => c.TerrainKnown && c.Tile.Marker == Marker.River).Select(c => c.Cell).ToList();
+            Assert.That(BoardV.RiversShown, Is.EqualTo(rivers.Count), "river tiles drawn");
+            var movers = M.Legal.OfType<MoveCommand>().Select(c => c.UnitId).Distinct().Where(id => Tappable(OwnUnit(id).Pos)).ToList();
+            foreach (var id in movers)
+            {
+                yield return drv.TapCell(OwnUnit(id).Pos);
+                Assert.That(Ui.Mode, Is.EqualTo(GameUi.InputMode.UnitSelected), "unit selected " + drv.Log);
+                Assert.That(Ui.HighlightCount, Is.GreaterThan(0), "moves highlighted");
+                foreach (var r in rivers)
+                {
+                    var hl = Ui.HighlightAt(r);
+                    Assert.That(hl == Gfx.MoveHl || hl == Gfx.PreviewMoveHl, Is.False, "river " + r + " highlighted as a move");
+                }
+                yield return drv.TapCell(OwnUnit(id).Pos); // deselect
+                yield return Settle();
+            }
+        }
+
+        /// <summary>U-44 / UX-14: both seats play GreedyAi (legal commands via MatchController) until A's Portal opens;
+        /// the Bearer spawns (the "Taşıyıcı bekleniyor" hint follows OwnBearerPending) with its effect and the Portal glows.</summary>
+        [UnityTest]
+        public IEnumerator V40_BearerAppearsAfterPortalOpens()
+        {
+            int effects = GameApp.Instance.Units.BearerSpawnEffects;
+            bool staged = false, pendingSeen = false, hintSeen = false;
+            foreach (ulong seed in new ulong[] { 1, 2, 3, 4, 5, 6 })
+            {
+                M.NewAiMatch(seed, PlayerId.A, AiLevel.Normal, timer: false);
+                var rng = new Rng(seed + 77);
+                for (int i = 0; i < 6000 && !M.IsOver; i++)
+                {
+                    var v = M.View;
+                    if (v.OwnBearerPending && v.Phase == GamePhase.Playing) { pendingSeen = true; hintSeen |= Ui.BearerHintVisible; }
+                    if (v.OwnBearerId != 0 && v.OwnUnits.Any(u => u.Id == v.OwnBearerId)) { staged = true; break; }
+                    if (M.AiToAct) { M.StepAi(); continue; }
+                    var legal = M.Legal;
+                    if (legal.Count == 0) break;
+                    M.Apply(GreedyAi.Choose(v, legal, AiLevel.Normal, rng));
+                }
+                if (staged) break;
+            }
+            if (!staged) Assert.Ignore("no Portal opening for A in the sampled seeds");
+            yield return Settle();
+            var view = M.View;
+            Assert.That(view.PortalOpen, Is.True);
+            // U-44 spawns at once when the Portal opens; "pending" only happens after a death or a blocked tower side.
+            if (pendingSeen) Assert.That(hintSeen, Is.True, "Taşıyıcı bekleniyor shown while pending");
+            Assert.That(Ui.BearerHintVisible, Is.False, "hint gone once the Bearer is on the board");
+            Assert.That(BoardV.PortalOpenShown, Is.True, "UX-14 follows PlayerView.PortalOpen");
+            Assert.That(GameApp.Instance.Units.BearerSpawnEffects, Is.GreaterThan(effects), "spawn effect played");
+            Assert.That(GameApp.Instance.Units.TryGetSeen(view.OwnBearerId, out var s) && s.Class == UnitClass.PortalBearer, Is.True, "Bearer drawn");
+        }
     }
 }

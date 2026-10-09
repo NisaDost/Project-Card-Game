@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace HexPortal.Core.Data
 {
     /// <summary>
-    /// All game numbers. Must match docs/GDD.md (v3.4) exactly; change only with the user's approval.
+    /// All game numbers. Must match docs/GDD.md (v4.0) exactly; change only with the user's approval.
     /// </summary>
     public static class Catalog
     {
@@ -21,6 +21,7 @@ namespace HexPortal.Core.Data
         public const int SpecialTileRowMin = 3;      // B-25 (v3.3), GDD rows (1-based) of the upper half: axial r = -5
         public const int SpecialTileRowMax = 5;      // B-25 (v3.3): axial r = -3
         public const int BiomeAttackBonus = 5;       // B-10, U-20
+        public const int LavaDamage = 20;            // B-16 (v4.0): entering Lava and ending the own turn on it
 
         /// <summary>B-25: biome minimum for a template with <paramref name="playableUpperCells"/> playable non-rock upper cells.</summary>
         public static int MinCellsPerBiome(int playableUpperCells) => playableUpperCells * BiomeMinPercent / 100;
@@ -31,14 +32,16 @@ namespace HexPortal.Core.Data
         {
             new MapTemplateDef(0, "Plain", new int[0], new int[0]),
             // Rocky ring at distance 2 from the Portal, 8 rocks and 4 gaps ((0,-2), (2,-2) and their mirrors).
-            new MapTemplateDef(1, "RockyRing", new[] { 1, -2, 2, -1, -1, -1, -2, 0 }, new int[0]),
+            // B-16 (v4.0): two Lava cells outside the ring, (-3,0) and (3,-2) (+ mirrors).
+            new MapTemplateDef(1, "RockyRing", new[] { 1, -2, 2, -1, -1, -1, -2, 0 }, new int[0], null, new[] { -3, 0, 3, -2 }),
             // Void notches: every cell within distance 2 of the two side corners (-7,0) and (7,0). The four other corners
             // lie in the home zones, which stay complete (B-25).
             new MapTemplateDef(2, "IndentedEdges", new int[0],
                 new[] { -5, -2, -6, -1, -5, -1, -7, 0, -6, 0, -5, 0, 7, -1, 6, -1, 7, -2 }),
             // Two corridors: a rock wall across row r = -2 (and its mirror r = 2) with two 2-cell gaps (q = -2,-1 and 3,4).
+            // B-15 (v4.0): a 2-cell River below the left wall, (-4,-1) and (-3,-1) (+ mirrors).
             new MapTemplateDef(3, "TwoCorridors",
-                new[] { -5, -2, -4, -2, -3, -2, 0, -2, 1, -2, 2, -2, 5, -2, 6, -2, 7, -2 }, new int[0]),
+                new[] { -5, -2, -4, -2, -3, -2, 0, -2, 1, -2, 2, -2, 5, -2, 6, -2, 7, -2 }, new int[0], new[] { -4, -1, -3, -1 }),
         };
 
         // ---------- Units (U) ----------
@@ -57,6 +60,10 @@ namespace HexPortal.Core.Data
         public const int HealerHealAmount = 15;       // U-05 Şifa (v3.4)
         public const int DeathDrawCount = 1;         // U-23
         public const int RestHealAmount = 10;         // U-31 Dinlenme (v4.0)
+
+        /// <summary>U-44 (v4.0) Portal Bearer: not a card (no Cost, no biome), not in Units/CharacterCards.</summary>
+        public static readonly UnitDef PortalBearer =
+            new UnitDef("U-44", UnitClass.PortalBearer, 0, 10, 80, 2, 2, RangeKind.Adjacent, 1, 1);
 
         //                                        hp  atk min max sight move
         public static readonly TowerDef Tower = new TowerDef(250, 30, 1, 2, 2, 0); // U-06 (v3.4)
@@ -91,6 +98,7 @@ namespace HexPortal.Core.Data
         public const int MaxBuffsPerUnit = 1;        // C-05
         public const int MaxDebuffsPerUnit = 1;      // C-05
         public const int MaxActiveTraps = 2;         // C-31
+        public const int PushCollisionDamage = 20;   // C-18 (v4.0): the pushed unit hits an obstacle
 
         // ---------- Pools, dealing, market (D) ----------
         public const int DealCharactersPerClass = 1; // D-03
@@ -98,6 +106,7 @@ namespace HexPortal.Core.Data
         public const int DealRareSupport = 1;        // D-04
         public const int MarketSlots = 3;            // D-05
         public const int HandLimit = 6;              // D-07
+        public const int MarketRefreshCost = 1;      // D-05 (v4.0): Mana per manual Market refresh, any number per own turn
 
         /// <summary>D-04: common and rare support cards are dealt; epics are only drawn from the pool.</summary>
         public static bool IsSupportDealtAtSetup(SupportCardDef card) =>
@@ -123,6 +132,12 @@ namespace HexPortal.Core.Data
         public const int EnergyPerAction = 1;        // T-05
         public const int ActionsPerUnitPerTurn = 1;  // T-05
         public const int MoveAttackEnergy = 2;       // T-05 (v3.2): move-attack, one action
+
+        // ---------- Torch (V-12, v4.0) ----------
+        public const int TorchCost = 1;              // V-12: Mana; no action, no Energy
+        public const int TorchesPerUnitPerTurn = 1;  // V-12
+        public const int TorchSight = 2;             // V-12: cells around the torch kept Visible
+        public const int MaxTorchesPerPlayer = 3;    // V-12: the 4th puts out the oldest
 
         // ---------- Turn: timers (T-09) ----------
         public const int TurnSeconds = 30;

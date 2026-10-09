@@ -31,6 +31,7 @@ namespace HexPortal.Game
         public static readonly Color ShotHl = new Color(1.00f, 0.80f, 0.10f, 0.9f);
         public static readonly Color TrapHl = new Color(0.80f, 0.30f, 1.00f, 0.9f);
         public static readonly Color DeathHl = new Color(1.00f, 0.10f, 0.10f, 0.9f);
+        public static readonly Color LavaHl = new Color(1.00f, 0.45f, 0.05f, 0.9f);
 
         // Biome and owner palettes live in the theme (ArtCatalog); these forward for the views.
         public static Color BiomeColor(Biome b) => ArtCatalog.BiomeColor(b);

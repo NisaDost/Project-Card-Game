@@ -32,6 +32,9 @@ namespace HexPortal.Core
         /// <summary>U-31: lost Health while the opponent was the active player (since the owner's last turn start).</summary>
         public bool DamagedOnOpponentTurn { get; internal set; }
 
+        /// <summary>V-12 (v4.0): placed a torch this own turn (TorchesPerUnitPerTurn).</summary>
+        public bool TorchUsedThisTurn { get; internal set; }
+
         /// <summary>C-19: cannot move (may still attack or go on overwatch).</summary>
         public bool IsRooted => Debuff != null && Debuff.Kind == EffectKind.Root;
 
@@ -51,10 +54,12 @@ namespace HexPortal.Core
             Health = Health, ActedThisTurn = ActedThisTurn,
             OnOverwatch = OnOverwatch, Buff = Buff == null ? null : Buff.Clone(), Debuff = Debuff == null ? null : Debuff.Clone(),
             MoveBonus = MoveBonus, RevealedUntilTurn = RevealedUntilTurn, DamagedOnOpponentTurn = DamagedOnOpponentTurn,
+            TorchUsedThisTurn = TorchUsedThisTurn,
         };
 
         public static UnitDef DefOf(UnitClass cls)
         {
+            if (cls == UnitClass.PortalBearer) return Catalog.PortalBearer; // U-44
             foreach (var d in Catalog.Units)
                 if (d.Class == cls) return d;
             throw new ArgumentOutOfRangeException(nameof(cls), "No UnitDef for " + cls);

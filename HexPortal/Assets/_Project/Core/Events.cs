@@ -49,7 +49,8 @@ namespace HexPortal.Core
         }
     }
 
-    public enum DamageKind { Attack, Splash, TowerShot, Overwatch, Trap, Poison, PortalWarden }
+    /// <summary>Collision: C-18 (v4.0) push into an obstacle. Lava: B-16 (v4.0).</summary>
+    public enum DamageKind { Attack, Splash, TowerShot, Overwatch, Trap, Poison, PortalWarden, Collision, Lava }
 
     public sealed class UnitMoved : GameEvent
     {
@@ -416,5 +417,53 @@ namespace HexPortal.Core
         public readonly PlayerId Owner;
         public readonly int Health;
         public TowerHealthChanged(PlayerId owner, int health) { Owner = owner; Health = health; }
+    }
+}
+
+namespace HexPortal.Core
+{
+    /// <summary>D-05 (v4.0): all three Market slots were refreshed (old cards back into their pools); the MarketRefilled
+    /// events of the new cards follow. Player = who paid for a manual refresh, null = the automatic turn-start refresh.
+    /// Public (the Market is public, V-09).</summary>
+    public sealed class MarketRefreshed : GameEvent
+    {
+        public readonly PlayerId? Player;
+        public MarketRefreshed(PlayerId? player) { Player = player; }
+    }
+
+    /// <summary>V-12 (v4.0): a torch was placed. The owner sees it; the opponent only if the cell is Visible to them.</summary>
+    public sealed class TorchPlaced : GameEvent
+    {
+        public readonly PlayerId Owner;
+        public readonly int TorchId;
+        public readonly int UnitId;
+        public readonly Hex Cell;
+        public TorchPlaced(PlayerId owner, int torchId, int unitId, Hex cell) { Owner = owner; TorchId = torchId; UnitId = unitId; Cell = cell; }
+    }
+
+    public enum TorchEndReason { Replaced, EnemyStood }
+
+    /// <summary>V-12 (v4.0): a torch went out (the owner placed a 4th one, or an enemy unit stopped on it). The owner sees
+    /// it; the opponent only if the cell is Visible to them.</summary>
+    public sealed class TorchExtinguished : GameEvent
+    {
+        public readonly PlayerId Owner;
+        public readonly int TorchId;
+        public readonly Hex Cell;
+        public readonly TorchEndReason Reason;
+        public TorchExtinguished(PlayerId owner, int torchId, Hex cell, TorchEndReason reason)
+        {
+            Owner = owner; TorchId = torchId; Cell = cell; Reason = reason;
+        }
+    }
+
+    /// <summary>W-01, U-44 (v4.0): the Portal Bearer appeared next to its tower (Portal opened, or a return after its death).
+    /// Seen like a deploy (owner, or the cell is Visible). The Portal opening itself is public through QuestCompleted.</summary>
+    public sealed class BearerSpawned : GameEvent
+    {
+        public readonly int UnitId;
+        public readonly PlayerId Owner;
+        public readonly Hex Cell;
+        public BearerSpawned(int unitId, PlayerId owner, Hex cell) { UnitId = unitId; Owner = owner; Cell = cell; }
     }
 }

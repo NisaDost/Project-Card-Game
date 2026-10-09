@@ -25,6 +25,7 @@ namespace HexPortal.Core
         readonly CardInstance[] market = new CardInstance[Catalog.MarketSlots]; // D-05, index = (int)CardPool
         readonly List<CardInstance>[] hands = { new List<CardInstance>(), new List<CardInstance>() };
         readonly List<Trap> traps = new List<Trap>();
+        readonly List<Torch> torches = new List<Torch>(); // V-12, placement order
         readonly List<QuestDef>[] questOffer = { new List<QuestDef>(), new List<QuestDef>() };     // S-03
         readonly List<QuestDef>[] questChoices = { new List<QuestDef>(), new List<QuestDef>() };   // S-03, empty = not chosen
         readonly List<PassiveDef>[] passiveOffer = { new List<PassiveDef>(), new List<PassiveDef>() }; // S-04
@@ -109,6 +110,9 @@ namespace HexPortal.Core
             for (int i = 0; i < pools.Length; i++) pools[i].AddRange(o.pools[i]); // card instances are immutable
             Array.Copy(o.market, market, market.Length);
             traps.AddRange(o.traps);                                              // traps are immutable
+            torches.AddRange(o.torches);                                          // torches are immutable
+            NextTorchId = o.NextTorchId;
+            MarketRefreshesThisTurn = o.MarketRefreshesThisTurn;
             for (int p = 0; p < 2; p++)
             {
                 hands[p].AddRange(o.hands[p]);
@@ -206,6 +210,15 @@ namespace HexPortal.Core
         /// <summary>Active traps of both players, in placement order.</summary>
         public IReadOnlyList<Trap> Traps => traps;
         internal List<Trap> TrapList => traps;
+
+        /// <summary>V-12 (v4.0): active torches of both players, in placement order.</summary>
+        public IReadOnlyList<Torch> Torches => torches;
+        internal List<Torch> TorchList => torches;
+        /// <summary>The id the next torch will get (sequential, never reused).</summary>
+        public int NextTorchId { get; internal set; } = 1;
+
+        /// <summary>D-05 (v4.0): manual Market refreshes by the active player this turn (public).</summary>
+        public int MarketRefreshesThisTurn { get; internal set; }
 
         /// <summary>S-03: the 5 offered quests, in Catalog order.</summary>
         public IReadOnlyList<QuestDef> GetQuestOffer(PlayerId p) => questOffer[(int)p];

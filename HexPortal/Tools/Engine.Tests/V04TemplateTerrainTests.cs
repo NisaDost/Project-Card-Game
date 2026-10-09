@@ -55,7 +55,7 @@ namespace HexPortal.Tests
             var s = new TestBoard().Round(2).Active(B).PendingEvent("E-10", 3, h, h.Mirror()).Build();
             Assert.That(s.GetFog(A).Get(h), Is.EqualTo(CellVisibility.Hidden));
             Engine.Apply(s, new EndTurnCommand(B)); // round 3 starts: the earthquake happens
-            Assert.That(s.Map.Get(h).Marker, Is.EqualTo(Marker.Rock));
+            Assert.That(s.Map.Get(h).Marker, Is.EqualTo(Marker.Mountain));
             Assert.That(s.GetFog(A).Get(h), Is.EqualTo(CellVisibility.Hidden));
             var c = PlayerView.For(s, A).Cells[Board.IndexOf(h)];
             Assert.That((c.TerrainKnown, c.Unit, c.HasTower), Is.EqualTo((false, (UnitView)null, false)));

@@ -118,11 +118,14 @@ namespace HexPortal.Tests
         public void D05_TakenSlotRefillsFromSamePool_EmptyWhenPoolEmpty()
         {
             var b = new TestBoard();
-            int first = b.Market("C-10");
-            int next = b.PoolCard("C-12");
+            b.Market("C-10");
+            b.PoolCard("C-12");
             for (int i = 0; i < Catalog.HandLimit; i++) b.Hand(A, "C-13"); // A's hand is full: A never draws here
             var s = b.Build();
             Engine.Apply(s, new EndTurnCommand(A));
+            // D-05 (v4.0): the turn-start refresh put C-10 back and drew one of the two Buff cards; the other stays pooled.
+            int first = s.GetMarket(CardPool.Buff).Id;
+            int next = s.GetPool(CardPool.Buff).Single().Id;
             var ev = Engine.Apply(s, new DrawCommand(B, (int)CardPool.Buff));
             Assert.That(s.GetHand(B).Single().Id, Is.EqualTo(first));
             Assert.That(ev.OfType<CardDrawn>().Single().Source, Is.EqualTo(DrawSource.Market));
@@ -143,11 +146,15 @@ namespace HexPortal.Tests
         {
             var b = new TestBoard();
             int m = b.Market("C-10");
-            int pooled = b.PoolCard("C-20");
+            b.PoolCard("C-20");
+            b.PoolCard("C-20"); // D-05 (v4.0): the turn-start refresh shows one of them; the other stays pooled
             var s = b.Build();
             Engine.Apply(s, new EndTurnCommand(A));
+            int pooled = s.GetPool(CardPool.DebuffTrap).Single().Id;
+            int shown = s.GetMarket(CardPool.DebuffTrap).Id;
             var ev = Engine.Apply(s, new DrawCommand(B, DrawCommand.Blind));
             Assert.That(s.GetHand(B).Single().Id, Is.EqualTo(pooled));
+            Assert.That(s.GetMarket(CardPool.DebuffTrap).Id, Is.EqualTo(shown));
             Assert.That(ev.OfType<CardDrawn>().Single().Source, Is.EqualTo(DrawSource.Blind));
             Assert.That(s.GetMarket(CardPool.Buff).Id, Is.EqualTo(m));
             Assert.That(ev.OfType<MarketRefilled>(), Is.Empty);
@@ -160,12 +167,12 @@ namespace HexPortal.Tests
             for (ulong seed = 0; seed < 40; seed++)
             {
                 var b = new TestBoard(seed: seed);
-                b.PoolCard("U-05-Snow");
-                b.PoolCard("C-14");
-                b.PoolCard("C-19");
+                // D-05 (v4.0): two of each, so after the turn-start refresh fills the Market every pool still holds one.
+                foreach (var id in new[] { "U-05-Snow", "C-14", "C-19" }) { b.PoolCard(id); b.PoolCard(id); }
                 var s = b.Build();
                 Engine.Apply(s, new EndTurnCommand(A));
-                Assert.That(Engine.GetLegalCommands(s, B), Is.EqualTo(new ICommand[] { new DrawCommand(B, DrawCommand.Blind) }));
+                Assert.That(Engine.GetLegalCommands(s, B), Does.Contain(new DrawCommand(B, DrawCommand.Blind)));
+                Assert.That(s.GetPool(CardPool.Character).Count + s.GetPool(CardPool.Buff).Count + s.GetPool(CardPool.DebuffTrap).Count, Is.EqualTo(3));
                 Engine.Apply(s, new DrawCommand(B, DrawCommand.Blind));
                 seen.Add(s.GetHand(B).Single().DefId);
             }

@@ -30,6 +30,8 @@ namespace HexPortal.Core
         public bool ActedThisTurn { get; private set; }
         public int MoveBonus { get; private set; }
         public int RevealedUntilTurn { get; private set; } = -1;
+        /// <summary>V-12 (v4.0): placed a torch this turn. Own units only.</summary>
+        public bool TorchUsedThisTurn { get; private set; }
 
         internal static UnitView Live(GameState s, Unit u, bool own)
         {
@@ -47,6 +49,7 @@ namespace HexPortal.Core
                 v.ActedThisTurn = u.ActedThisTurn;
                 v.MoveBonus = u.MoveBonus;
                 v.RevealedUntilTurn = u.RevealedUntilTurn;
+                v.TorchUsedThisTurn = u.TorchUsedThisTurn;
             }
             return v;
         }
@@ -86,6 +89,14 @@ namespace HexPortal.Core
         public int Target { get; internal set; }
         public int Round { get; internal set; }
         public Hex? Cell { get; internal set; }
+    }
+
+    /// <summary>V-12 (v4.0): a torch the viewer may see (all own torches; enemy torches on Visible cells only).</summary>
+    public sealed class TorchView
+    {
+        public int Id { get; internal set; }
+        public PlayerId Owner { get; internal set; }
+        public Hex Pos { get; internal set; }
     }
 
     /// <summary>An own face-down trap.</summary>
@@ -179,6 +190,17 @@ namespace HexPortal.Core
         public int OwnConsecutiveTimeouts { get; private set; }
         /// <summary>Public: every automatic turn end is announced (TurnTimedOut).</summary>
         public int OpponentConsecutiveTimeouts { get; private set; }
+        /// <summary>V-12 (v4.0): own torches, then enemy torches on Visible cells, each in placement order.</summary>
+        public IReadOnlyList<TorchView> Torches { get; private set; }
+        /// <summary>D-05 (v4.0): manual refreshes by the active player this turn. Public.</summary>
+        public int MarketRefreshesThisTurn { get; private set; }
+        /// <summary>W-01 (v4.0): the Portal is open for the viewer / the opponent (public: completed quests, Q-03).</summary>
+        public bool PortalOpen { get; private set; }
+        public bool OpponentPortalOpen { get; private set; }
+        /// <summary>U-44: id of the viewer's living Portal Bearer (0 = none); it is also in OwnUnits.</summary>
+        public int OwnBearerId { get; private set; }
+        /// <summary>U-44: the viewer's Bearer waits to appear (Portal opened without a free cell, or it died).</summary>
+        public bool OwnBearerPending { get; private set; }
 
         static readonly CardPool[] Slots = { CardPool.Character, CardPool.Buff, CardPool.DebuffTrap };
 
@@ -230,6 +252,12 @@ namespace HexPortal.Core
             var own = new List<UnitView>();
             foreach (var u in s.Units)
                 if (u.Owner == p) own.Add(UnitView.Live(s,u, true));
+
+            var torches = new List<TorchView>();
+            foreach (var t in s.Torches)
+                if (t.Owner == p) torches.Add(new TorchView { Id = t.Id, Owner = t.Owner, Pos = t.Pos });
+            foreach (var t in s.Torches)
+                if (t.Owner == o && fog.Get(t.Pos) == CellVisibility.Visible) torches.Add(new TorchView { Id = t.Id, Owner = t.Owner, Pos = t.Pos });
 
             var traps = new List<TrapView>();
             foreach (var t in s.Traps)
@@ -298,6 +326,9 @@ namespace HexPortal.Core
                 AnnouncedEventCells = new List<Hex>(s.PendingEventCells),
                 OwnTraps = traps, ControlZone = zone,OpponentHandCount = setup ? s.GetDealtHandCount(o) : s.GetHand(o).Count, Market = market, PoolCounts = counts,
                 OwnConsecutiveTimeouts = s.GetConsecutiveTimeouts(p), OpponentConsecutiveTimeouts = s.GetConsecutiveTimeouts(o),
+                Torches = torches, MarketRefreshesThisTurn = s.MarketRefreshesThisTurn,
+                PortalOpen = Win.IsPortalOpen(s, p), OpponentPortalOpen = Win.IsPortalOpen(s, o),
+                OwnBearerId = s.GetProgress(p).BearerId, OwnBearerPending = s.GetProgress(p).BearerPending,
             };
         }
 

@@ -142,10 +142,10 @@ namespace HexPortal.Tests
                     var legal = Engine.GetLegalCommands(s, s.ActivePlayer);
                     Assert.That(legal, Is.Not.Empty);
                     // T-04: a pending draw means draw options only; otherwise EndTurn closes the list.
-                    if (s.IsDrawPending(s.ActivePlayer)) Assert.That(legal.All(x => x is DrawCommand), Is.True);
+                    if (s.IsDrawPending(s.ActivePlayer)) Assert.That(legal.All(x => x is DrawCommand || x is RefreshMarketCommand), Is.True); // D-05 (v4.0)
                     else Assert.That(legal.Last(), Is.InstanceOf<EndTurnCommand>());
-                    var c = Choose(legal, rng);
-                    if (c is AttackCommand) attacks++;
+                    var c = MatchHelper.Advance(s, legal, Choose(legal, rng), rng); // v4.0: biased toward contact like NextRandom (still a legal command)
+                    if (c is AttackCommand || c is MoveAttackCommand) attacks++; // v3.2: a move-attack is an attack too
                     Count(c);
                     if (c is PlayCardCommand pc) playedCards.Add(s.FindInHand(pc.Player, pc.CardId).DefId);
                     Assert.DoesNotThrow(() => Engine.Apply(s, c), "seed " + seed + " step " + steps + ": " + c);
@@ -171,7 +171,7 @@ namespace HexPortal.Tests
                 Assert.That(u.Health, Is.InRange(1, u.Def.Health));
                 Assert.That(Board.IsOnBoard(u.Pos), Is.True);
                 Assert.That(cells.Add(u.Pos), Is.True, "two units on " + u.Pos);
-                Assert.That(s.Map.Get(u.Pos).Marker, Is.Not.EqualTo(Marker.Rock));
+                Assert.That(s.Map.Get(u.Pos).Marker, Is.Not.EqualTo(Marker.Mountain));
                 Assert.That(u.Pos, Is.Not.EqualTo(s.GetTower(A).Pos).And.Not.EqualTo(s.GetTower(B).Pos));
                 if (u.Buff != null) Assert.That(u.Buff.Def.Pool, Is.EqualTo(SupportPool.Buff));
                 if (u.Debuff != null) Assert.That(u.Debuff.Def.Pool, Is.EqualTo(SupportPool.DebuffTrap));
@@ -198,7 +198,7 @@ namespace HexPortal.Tests
             {
                 Assert.That(ids.Add(t.Card.Id), Is.True);
                 Assert.That(t.Card.Support.Category, Is.EqualTo(CardCategory.Trap));
-                Assert.That(s.Map.Get(t.Pos).Marker, Is.Not.EqualTo(Marker.Rock).And.Not.EqualTo(Marker.Portal));
+                Assert.That(s.Map.Get(t.Pos).Marker, Is.Not.EqualTo(Marker.Mountain).And.Not.EqualTo(Marker.Portal));
             }
         }
 
@@ -325,7 +325,7 @@ namespace HexPortal.Tests
                 s => s.GetUnit(1).ActedThisTurn = true,
                 s => s.GetUnit(1).OnOverwatch = true,
                 s => s.Map.Set(new Hex(1, 1), new Tile(Biome.Snow, Marker.None)),
-                s => s.Map.Set(new Hex(1, 1), new Tile(Biome.Forest, Marker.Rock)),
+                s => s.Map.Set(new Hex(1, 1), new Tile(Biome.Forest, Marker.Mountain)),
                 s => s.AddUnit(B, UnitClass.Mage, Biome.Snow, new Hex(3, -3)),
                 s => s.SetMana(A, 2),
                 s => s.SetMana(B, 1),

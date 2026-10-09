@@ -26,7 +26,7 @@ namespace HexPortal.Tests
             var zone = ControlZone.Cells(s, A);
             var cells = Engine.GetLegalCommands(s, A).OfType<PlayCardCommand>().Where(c => c.CardId == t1).Select(c => c.Target);
             Assert.That(cells, Is.EquivalentTo(Board.Cells.Where(h => zone.Contains(h) && h != Board.Portal
-                && s.UnitAt(h) == null && s.TowerAt(h) == null && s.Map.Get(h).Marker != Marker.Rock)));
+                && s.UnitAt(h) == null && s.TowerAt(h) == null && s.Map.Get(h).Marker != Marker.Mountain)));
             foreach (var bad in new[] { Board.Portal, H(1, 0), H(0, 1), H(1, 1), H(-1, 1), H(2, -1), TestBoard.DefaultTowerA })
                 ControlZoneTests.AssertRejected(s, new PlayCardCommand(A, t1, bad));
 

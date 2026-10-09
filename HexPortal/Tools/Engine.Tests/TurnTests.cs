@@ -30,6 +30,7 @@ namespace HexPortal.Tests
             Assert.That(s.GetEnergy(A), Is.EqualTo(0));
 
             // Acted units can do nothing else; u4 has not acted but there is no Energy left.
+            s.SetMana(A, 0); // v4.0: no torch (V-12) or Market refresh (D-05) in the list
             Assert.That(Engine.GetLegalCommands(s, A), Is.EqualTo(new ICommand[] { new EndTurnCommand(A) }));
             Assert.Throws<IllegalCommandException>(() => Engine.Apply(s, new MoveCommand(A, u4, H(-1, -1))));
             Assert.Throws<IllegalCommandException>(() => Engine.Apply(s, new MoveCommand(A, u1, H(-1, 0))));

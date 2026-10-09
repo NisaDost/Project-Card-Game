@@ -19,6 +19,10 @@ namespace HexPortal.Core
             var templateVoid = new HashSet<Hex>();
             foreach (var h in template.UpperRocks) { templateRock.Add(h); templateRock.Add(h.Mirror()); }
             foreach (var h in template.UpperVoids) { templateVoid.Add(h); templateVoid.Add(h.Mirror()); }
+            var templateRiver = new HashSet<Hex>();
+            var templateLava = new HashSet<Hex>();
+            foreach (var h in template.UpperRivers) { templateRiver.Add(h); templateRiver.Add(h.Mirror()); }
+            foreach (var h in template.UpperLavas) { templateLava.Add(h); templateLava.Add(h.Mirror()); }
 
             foreach (var h in Board.Cells)
             {
@@ -39,15 +43,20 @@ namespace HexPortal.Core
             {
                 if (h == Board.Portal) continue;
                 var t = map.Get(h);
-                bool isRock = t.Marker == Marker.Rock, isVoid = t.Marker == Marker.Void;
+                bool isRock = t.Marker == Marker.Mountain, isVoid = t.Marker == Marker.Void;
                 if (t.Marker == Marker.Portal) errors.Add("Portal: extra Portal at " + h);
                 if (isRock && !templateRock.Contains(h)) errors.Add("Rock: " + h + " (only map events and the template create rock)");
                 if (!isRock && templateRock.Contains(h)) errors.Add("Template: " + h + " must be rock, is " + t);
                 if (isVoid != templateVoid.Contains(h)) errors.Add("Template: " + h + (isVoid ? " is Void outside the template" : " must be Void, is " + t));
                 if (isRock && templateRock.Contains(h) && t.Biome != Biome.None) errors.Add("Template: rock " + h + " has a biome");
-                if (!isRock && !isVoid && t.Biome == Biome.None) errors.Add("No biome: " + h);
+                if (!MapGenerator.IsTemplateTerrain(t.Marker) && t.Biome == Biome.None) errors.Add("No biome: " + h);
                 if (isVoid && t.Biome != Biome.None) errors.Add("Template: Void " + h + " has a biome");
-                if (Board.IsInUpperHalf(h) && !isRock && !isVoid) playableUpper++;
+                // B-15, B-16: River and Lava exist only where the template puts them, without a biome.
+                bool isRiver = t.Marker == Marker.River, isLava = t.Marker == Marker.Lava;
+                if (isRiver != templateRiver.Contains(h)) errors.Add("Template: " + h + (isRiver ? " is River outside the template" : " must be River, is " + t));
+                if (isLava != templateLava.Contains(h)) errors.Add("Template: " + h + (isLava ? " is Lava outside the template" : " must be Lava, is " + t));
+                if ((isRiver || isLava) && t.Biome != Biome.None) errors.Add("Template: " + t.Marker + " " + h + " has a biome");
+                if (Board.IsInUpperHalf(h) && !isRock && !isVoid && !isRiver && !isLava) playableUpper++;
                 if (t.Marker == Marker.RuneStone) runes.Add(h);
                 if (t.Marker == Marker.RuneStone || t.Marker == Marker.Wellspring) specials.Add(h);
             }
