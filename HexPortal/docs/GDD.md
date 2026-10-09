@@ -139,11 +139,11 @@ Altıgen tahtada her karonun 6 komşusu vardır, yani birimler zaten her yöne g
 |---|---|---|---|---|---|---|---|---|
 | **U-40** | Toplayıcı | 2 | 10 | 70 | 2 | 2 | Komşu | **Toplama:** Kaynak toplayabilen tek sınıftır. Rün Taşı üzerinde durdukça tur başında +1 Mana, Kaynak üzerinde +1 Enerji (B-11, B-12) |
 | **U-41** | Kuşatmacı | 3 | 10 (kuleye 50) | 110 | 1 | 2 | Komşu | **Kuşatma:** Kuleye saldırısı 50 hasar verir, birimlere yalnızca 10 |
-| **U-42** | Suikastçı | 3 | 40 | 50 | 2 | 3 | Mesafe 1–4 | **Suikast:** Saldırısı hedefi öldürürse yerinde kalır. Öldüremezse hedefin yanındaki en yakın boş karoya atılır (varış; tuzak, kule ve nöbet tetiklenir). Yer yoksa yerinde kalır |
-| **U-43** | Uçan | 2 | 15 | 60 | 3 | 3 | Komşu | **Uçuş:** Dağ, Nehir, Lav ve birimlerin üstünden geçer; Nehir'de durabilir; Lav'dan ve tuzaklardan etkilenmez. **Yakın dövüş saldırılarından hasar almaz** (yalnızca menzilli saldırılar, Patlama, kule, Suikastçı ve kartlar). Başka birimlerin yolunu kesmez: yer birimleri onun karosundan geçebilir ama duramaz |
+| **U-42** | Suikastçı | 3 | 40 | 50 | 2 | 3 | Atılma 1–4 (yakın dövüş) | **Suikast:** Atik bir **yakın dövüşçüdür**. Saldırırken 4 karoya kadar uzaktaki hedefe **atılır** ve vurur. Hedefi öldürürse **kendi karosuna geri döner**; öldüremezse hedefin yanındaki en yakın boş karoda kalır (varış; tuzak, kule ve nöbet tetiklenir; yer yoksa kendi karosunda kalır). Yakın dövüş olduğu için Uçan'a vuramaz |
+| **U-43** | Uçan | 2 | 15 | 60 | 3 | 3 | Komşu | **Uçuş:** Dağ, Nehir, Lav ve birimlerin üstünden geçer; Nehir'de durabilir; Lav'dan ve tuzaklardan etkilenmez. **Yakın dövüş saldırılarından hasar almaz** (yalnızca menzilli saldırılar, Patlama, kule ve kartlar; Suikastçı da yakın dövüşçüdür). Başka birimlerin yolunu kesmez: yer birimleri onun karosundan geçebilir ama duramaz |
 | **U-44** | Portal Taşıyıcısı | – | 10 | 80 | 2 | 2 | Komşu | Kart değildir. Portal açılınca kulenin yanında belirir; Portal'ı yalnızca o kullanır (W-01). Ölürse sahibinin sonraki tur başında kulenin yanında yeniden belirir. Çıktığı tur aksiyon yapamaz |
 
-"Yakın dövüş" = menzili Komşu olan sınıfların saldırısı. U-30'un en düşük Can'ı artık 50'dir (Suikastçı); en yüksek buff'sız vuruş (45) bunun altında kalır.
+"Yakın dövüş" = menzili Komşu olan sınıfların ve Suikastçı'nın saldırısı. U-30'un en düşük Can'ı artık 50'dir (Suikastçı); en yüksek buff'sız vuruş (45) bunun altında kalır.
 
 - **V-12 Meşale:** Bir birim, kendi turunda **1 Mana** ödeyerek bulunduğu karoya meşale dikebilir. Birimin aksiyonunu ve Enerjisini kullanmaz; birim başına turda en fazla 1. Meşale dikildiği karonun **2 karo** çevresini, orada dost birim olmasa da Görünür tutar. Oyuncu başına en fazla **3** meşale: dördüncüsü dikilince en eskisi söner. Rakip bir yer birimi meşale karosunda durursa meşale söner. Meşale, karo rakibe Görünürse rakibe de görünür.
 
