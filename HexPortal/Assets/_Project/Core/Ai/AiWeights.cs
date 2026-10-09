@@ -66,7 +66,7 @@ namespace HexPortal.Core
         public const int EnemyTowerRange = 30;      // own unit inside the known enemy tower's range
         public const int HiddenNeighbour = 8;       // caution: per Hidden cell next to an own unit
 
-        // ---- Cards (draw, pre-pick and setup values; AI-06) ----
+        // ---- Cards (draw and setup values) ----
         public const int CharacterCard = 350;
         public const int CharacterCardShort = 150;  // extra while fewer than ShortUnits units are on the board and in hand
         public const int ShortUnits = 3;

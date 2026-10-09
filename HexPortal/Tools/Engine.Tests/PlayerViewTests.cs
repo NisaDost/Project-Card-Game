@@ -62,7 +62,7 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void V10_OwnTurnResourcesDrawAndPrePick()
+        public void V10_OwnTurnResourcesAndDraw()
         {
             // v3.0: at most 3 characters fit the setup budget; one support card less so that A must draw (hand < 6).
             var s = Match.Create(32);
@@ -72,10 +72,8 @@ namespace HexPortal.Tests
             SetupPlayer(s, B, 3);
             var a = PlayerView.For(s, A);
             Assert.That((a.Mana, a.Energy, a.DrawPending, a.ActivePlayer, a.Round), Is.EqualTo((1, Catalog.EnergyPerTurn, true, A, 1)));
-            Engine.Apply(s, new PrePickCommand(B, DrawCommand.Blind));
             var b = PlayerView.For(s, B);
-            Assert.That((b.PrePickSlot, b.Mana, b.Energy, b.DrawPending), Is.EqualTo((DrawCommand.Blind, 0, 0, false)));
-            Assert.That(PlayerView.For(s, A).PrePickSlot, Is.EqualTo(PrePickCommand.None)); // A's own (none), not B's
+            Assert.That((b.Mana, b.Energy, b.DrawPending), Is.EqualTo((0, 0, false)));
         }
 
         [Test]

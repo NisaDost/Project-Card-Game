@@ -39,6 +39,8 @@ namespace HexPortal.Game.Tests
         {
             drv?.Dispose();
             drv = null;
+            GameUi.SafeAreaOverride = null;
+            if (GameApp.Instance != null) M.Paused = false;
             if (GameApp.Instance != null && M.HasMatch) M.Close();
         }
 
@@ -71,7 +73,7 @@ namespace HexPortal.Game.Tests
             Assert.That(Ui.Current, Is.EqualTo(GameUi.Screen.Quests), "menu button started the match " + drv.Log);
             foreach (var o in Q("quest-options").Children().Take(3).ToList()) yield return drv.TapElement(o);
             yield return drv.TapElement(Q("quests-confirm"));
-            Assert.That(Ui.Current, Is.EqualTo(GameUi.Screen.Passive), "quests confirmed by tap");
+            Assert.That(Ui.Current, Is.EqualTo(GameUi.Screen.Passive), "quests confirmed by tap " + Ui.LastReason + " " + drv.Log);
             yield return drv.TapElement(Q("passive-options").Children().First());
             Assert.That(Ui.Current, Is.EqualTo(GameUi.Screen.Board), "passive chosen by tap");
             Assert.That(M.View.SetupStep, Is.EqualTo(SetupStep.Tower));
@@ -168,7 +170,7 @@ namespace HexPortal.Game.Tests
             var tap = FirstTappable(M.Legal.OfType<PlaceUnitCommand>(), c => c.Cell);
             Assert.That(tap, Is.Not.Null, "a placement cell is reachable");
             yield return drv.TapElement(Ui.CardElement(tap.CardId));
-            Assert.That(Ui.Mode, Is.EqualTo(GameUi.InputMode.CardSelected));
+            Assert.That(Ui.Mode, Is.EqualTo(GameUi.InputMode.CardSelected), "card tap " + drv.Log);
             yield return Settle(); // the hand slides down (UX-12)
             Assert.That(Tappable(tap.Cell), Is.True, "the target is not under the hand");
             yield return drv.TapCell(tap.Cell);
@@ -428,6 +430,170 @@ namespace HexPortal.Game.Tests
                 yield return drv.TapElement(Q("blind-btn"));
                 Assert.That(M.View.DrawPending, Is.False, "input works on the next own turn");
             }
+        }
+
+        // ---------- v4.0 phase 1: draw call (T-04), no draw on the opponent's turn (T-11 removed), blocked paths, safe area ----------
+
+        static bool HasClass(string name, string cls) => Q(name).ClassListContains(cls);
+
+        /// <summary>T-04: while the mandatory draw is pending the "Kart çek" call and the Market glow are shown; the draw clears them.</summary>
+        [UnityTest]
+        public IEnumerator Draw_CallVisibleThenClearedAfterDraw()
+        {
+            yield return FastForwardOrIgnore(v => v.Round >= 2 && v.Hand.Count < Catalog.HandLimit, "pending draw", true, true, 7, 8, 9);
+            Assert.That(M.View.DrawPending, Is.True);
+            Assert.That(Ui.DrawCallVisible, Is.True, "draw call on");
+            Assert.That(Q("draw-call").resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex), "the call label is shown");
+            Assert.That(HasClass("market-box", "call"), Is.True, "Market and blind draw highlighted");
+            Assert.That(Ui.IsOn(Q("blind-btn")), Is.True);
+            yield return drv.TapElement(Q("blind-btn"));
+            yield return null;
+            Assert.That(M.View.DrawPending, Is.False, "drawn by tap");
+            Assert.That(Ui.DrawCallVisible, Is.False, "draw call cleared");
+            Assert.That(Q("draw-call").resolvedStyle.display, Is.EqualTo(DisplayStyle.None));
+            Assert.That(HasClass("market-box", "call"), Is.False, "glow cleared");
+        }
+
+        /// <summary>T-11 removed (v4.0): on the opponent's turn the Market and blind draw are off and a tap changes nothing.</summary>
+        [UnityTest]
+        public IEnumerator Draw_MarketOffOnOpponentTurn()
+        {
+            yield return FastForwardOrIgnore(v => M.Legal.OfType<EndTurnCommand>().Any(), "end turn", false, 9, 10);
+            yield return drv.TapElement(Q("end-btn"));
+            Assert.That(M.View.ActivePlayer, Is.Not.EqualTo(M.View.Viewer), "the AI's turn");
+            M.Paused = true; // freeze the AI loop so the check runs on the opponent's turn (pause panel not opened)
+            yield return null;
+            int hand = M.View.Hand.Count;
+            foreach (var n in new[] { "market-0", "market-1", "market-2", "blind-btn" })
+            {
+                Assert.That(Ui.IsOn(Q(n)), Is.False, n + " is off on the opponent's turn");
+                Assert.That(HasClass(n, "off"), Is.True, n + " looks off");
+            }
+            Assert.That(Ui.DrawCallVisible, Is.False);
+            Assert.That(M.Legal.OfType<DrawCommand>().Any(), Is.False, "no draw command for the waiting player");
+            yield return drv.TapElement(Q("blind-btn"));
+            yield return drv.TapElement(Q("market-0"));
+            Assert.That(M.View.Hand.Count, Is.EqualTo(hand), "a tap draws nothing");
+            Assert.That(Ui.LastReason, Is.EqualTo(Strings.ReasonOpponentTurn), "the tap explains why");
+            M.Paused = false;
+        }
+
+        /// <summary>Cells a unit that cannot pass units (U-07) reaches in its Move steps through Visible, empty cells
+        /// (U-12), computed independently from the view. Superset of the legal moves (ignores extra terrain rules).</summary>
+        static HashSet<Hex> Reach(PlayerView v, UnitView u)
+        {
+            int steps = Unit.DefOf(u.Class).Move + u.MoveBonus;
+            var seen = new HashSet<Hex> { u.Pos };
+            var frontier = new List<Hex> { u.Pos };
+            for (int s = 0; s < steps; s++)
+            {
+                var next = new List<Hex>();
+                foreach (var h in frontier)
+                    for (int d = 0; d < 6; d++)
+                    {
+                        var n = h.Neighbor(d);
+                        int i = Board.IndexOf(n);
+                        if (i < 0 || seen.Contains(n)) continue;
+                        var c = v.Cells[i];
+                        if (c.Visibility != CellVisibility.Visible || c.Unit != null || c.HasTower
+                            || c.Tile.Marker == Marker.Rock || c.Tile.Marker == Marker.Void) continue;
+                        seen.Add(n);
+                        next.Add(n);
+                    }
+                frontier = next;
+            }
+            return seen;
+        }
+
+        static bool Blocked(PlayerView v, UnitView u)
+        {
+            if (u.Class != UnitClass.Guardian && u.Class != UnitClass.Archer) return false;
+            for (int d = 0; d < 6; d++)
+            {
+                int i = Board.IndexOf(u.Pos.Neighbor(d));
+                if (i >= 0 && v.Cells[i].Unit != null && !v.Cells[i].Unit.IsGhost) return true;
+            }
+            return false;
+        }
+
+        /// <summary>UX-02 / U-07: a Guardian or Archer next to a unit gets no blue cell (move) or orange target
+        /// (move-attack) that is only reachable by passing through the obstacle.</summary>
+        [UnityTest]
+        public IEnumerator Highlights_BlockedPathHasNoCellsBeyondObstacle()
+        {
+            System.Func<PlayerView, bool> found = v => v.OwnUnits.Any(u => Blocked(v, u) && Tappable(u.Pos)
+                && M.Legal.OfType<MoveCommand>().Any(m => m.UnitId == u.Id));
+            yield return FastForwardOrIgnore(found, "a blocked Guardian/Archer", false, 11, 12, 13, 14, 15, 16, 17, 18);
+            var v = M.View;
+            var unit = v.OwnUnits.First(u => Blocked(v, u) && Tappable(u.Pos) && M.Legal.OfType<MoveCommand>().Any(m => m.UnitId == u.Id));
+            yield return drv.TapCell(unit.Pos);
+            Assert.That(Ui.SelectedUnit, Is.EqualTo(unit.Id), "unit selected by tap");
+            var reach = Reach(v, unit);
+            int maxRange = Unit.DefOf(unit.Class).MaxRange;
+            int blue = 0;
+            foreach (var cell in v.PlayableCells)
+            {
+                var col = Ui.HighlightAt(cell);
+                if (col == Gfx.MoveHl)
+                {
+                    blue++;
+                    Assert.That(reach.Contains(cell), Is.True, "blue cell " + cell + " is only reachable through a unit");
+                }
+                else if (col == Gfx.MoveAttackHl || col == Gfx.MoveAttackOffHl)
+                    Assert.That(reach.Any(r => Hex.Distance(r, cell) <= maxRange), Is.True,
+                        "move-attack target " + cell + " needs a path through a unit");
+            }
+            Assert.That(blue, Is.GreaterThan(0), "the unit has highlighted moves");
+            // The cell straight behind each adjacent unit (distance 2 along that direction) is never blue unless reachable around it.
+            for (int d = 0; d < 6; d++)
+            {
+                int i = Board.IndexOf(unit.Pos.Neighbor(d));
+                if (i < 0 || v.Cells[i].Unit == null) continue;
+                var behind = unit.Pos.Neighbor(d).Neighbor(d);
+                if (!reach.Contains(behind)) Assert.That(Ui.HighlightAt(behind), Is.Not.EqualTo(Gfx.MoveHl), "no blue cell behind the obstacle at " + behind);
+            }
+        }
+
+        /// <summary>The HUD root insets by the safe area (notch / punch-hole): every HUD control stays inside a reduced
+        /// safe area, keeps a >= 48 dp target (144 units), and the inset goes back when the safe area changes again.</summary>
+        [UnityTest]
+        public IEnumerator Hud_FitsInsideReducedSafeArea()
+        {
+            yield return FastForwardOrIgnore(v => M.Legal.OfType<EndTurnCommand>().Any(), "own turn", false, 9, 10);
+            float sw = Screen.width, sh = Screen.height;
+            GameUi.SafeAreaOverride = new Rect(sw * 0.07f, sh * 0.05f, sw * 0.86f, sh * 0.90f); // notch left and right, bars top/bottom
+            yield return null;
+            yield return Settle();
+            var size = Ui.Root.layout.size;
+            var safe = new Rect(0.07f * size.x, 0.05f * size.y, 0.86f * size.x, 0.90f * size.y);
+            var hud = Q("hud");
+            Assert.That(hud.worldBound.xMin, Is.EqualTo(safe.xMin).Within(1f), "HUD inset left");
+            Assert.That(hud.worldBound.yMax, Is.EqualTo(safe.yMax).Within(1f), "HUD inset bottom");
+            var names = new[] { "own-tower", "round", "turn-banner", "opp-info", "pause-btn", "quest-btn", "mana-text", "energy-text",
+                "market-0", "market-1", "market-2", "blind-btn", "end-btn", "hand" };
+            foreach (var n in names)
+            {
+                var b = Q(n).worldBound;
+                Assert.That(b.width, Is.GreaterThan(0f), n + " laid out");
+                Assert.That(b.xMin >= safe.xMin - 1f && b.xMax <= safe.xMax + 1f && b.yMin >= safe.yMin - 1f && b.yMax <= safe.yMax + 1f,
+                    Is.True, n + " " + b + " inside the safe area " + safe);
+            }
+            foreach (var n in new[] { "pause-btn", "quest-btn", "opp-info", "market-0", "market-1", "market-2", "blind-btn", "end-btn" })
+            {
+                var b = Q(n).worldBound;
+                Assert.That(Mathf.Min(b.width, b.height), Is.GreaterThanOrEqualTo(143.5f), n + " touch target >= 48 dp");
+            }
+            // UX-01 thumb zones: draw and End Turn in the bottom-right, quests in the bottom-left.
+            foreach (var n in new[] { "end-btn", "blind-btn", "market-0" })
+                Assert.That(Q(n).worldBound.center.x > size.x * 0.66f && Q(n).worldBound.center.y > size.y * 0.4f, Is.True, n + " in the right thumb zone");
+            Assert.That(Q("quest-btn").worldBound.center.x < size.x * 0.34f && Q("quest-btn").worldBound.center.y > size.y * 0.4f, Is.True, "quests in the left thumb zone");
+            // A safe-area change (e.g. rotating to the other landscape side) re-applies the inset.
+            GameUi.SafeAreaOverride = new Rect(0f, 0f, sw, sh);
+            yield return null;
+            yield return null;
+            Assert.That(hud.worldBound.xMin, Is.EqualTo(0f).Within(1f), "inset removed with a full safe area");
+            // Buttons still work after the change.
+            Assert.That(Ui.IsOn(Q("end-btn")), Is.True);
         }
 
         // ---------- UX-16 markers ----------

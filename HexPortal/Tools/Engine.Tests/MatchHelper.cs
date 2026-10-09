@@ -28,7 +28,6 @@ namespace HexPortal.Tests
         public int MinMana;             // scrambled Mana is in [MinMana, MinMana + 8)
         public int MinEnergy;           // scrambled Energy is in [MinEnergy, EnergyPerTurn]
         public int MinSetupMana;        // scrambled setup Mana (S-05) is in [MinSetupMana, SetupMana]
-        public bool PrePick = true;
         public bool MoveUnits = true;   // hidden enemy units
         public bool UnitState = true;   // Health, buff, debuff of hidden enemy units
         public bool Overwatch = true;   // overwatch flag of hidden enemy units
@@ -89,7 +88,7 @@ namespace HexPortal.Tests
         }
 
         /// <summary>The next command of a random game: setup commands of either player (sometimes a setup timeout),
-        /// else the waiting player's pre-pick (sometimes), a turn timeout (rarely) or the active player's choice.</summary>
+        /// else a turn timeout (rarely) or the active player's choice.</summary>
         public static ICommand NextRandom(GameState s, Rng rng)
         {
             if (s.Phase == GamePhase.Setup)
@@ -98,12 +97,6 @@ namespace HexPortal.Tests
                 var p = open[rng.NextInt(open.Count)];
                 if (rng.NextInt(10) == 0) return new SetupTimeoutCommand(p);
                 return Choose(Engine.GetLegalCommands(s, p), rng);
-            }
-            var waiting = s.ActivePlayer.Opponent();
-            if (rng.NextInt(6) == 0)
-            {
-                var pre = Engine.GetLegalCommands(s, waiting);
-                return pre[rng.NextInt(pre.Count)];
             }
             if (rng.NextInt(40) == 0) return new TurnTimeoutCommand(s.ActivePlayer);
             var legal = Engine.GetLegalCommands(s, s.ActivePlayer);
@@ -124,7 +117,7 @@ namespace HexPortal.Tests
         }
 
         /// <summary>Full-match play: a command chosen uniformly from GetLegalCommands of a player who may act (setup: either
-        /// open player; play: the active player, sometimes the waiting player's pre-pick), with occasional clock commands.</summary>
+        /// open player; play: the active player), with occasional clock commands.</summary>
         public static ICommand NextUniform(GameState s, Rng rng)
         {
             if (s.Phase == GamePhase.Setup)
@@ -134,11 +127,6 @@ namespace HexPortal.Tests
                 if (rng.NextInt(40) == 0) return new SetupTimeoutCommand(p);
                 var setupLegal = Engine.GetLegalCommands(s, p);
                 return setupLegal[rng.NextInt(setupLegal.Count)];
-            }
-            if (rng.NextInt(10) == 0)
-            {
-                var pre = Engine.GetLegalCommands(s, s.ActivePlayer.Opponent());
-                return pre[rng.NextInt(pre.Count)];
             }
             if (rng.NextInt(50) == 0) return new TurnTimeoutCommand(s.ActivePlayer);
             var legal = Engine.GetLegalCommands(s, s.ActivePlayer);
@@ -168,8 +156,7 @@ namespace HexPortal.Tests
             sb.Append("enemyTower=").Append(v.EnemyTowerPos).Append(' ').Append(v.EnemyTowerHealth).Append(' ').Append(v.EnemyTowerShotAvailable).Append('\n');
             sb.Append("hand=").Append(string.Join(",", v.Hand.Select(c => c.Id + ":" + c.DefId))).Append('\n');
             sb.Append("mana=").Append(v.Mana).Append(" energy=").Append(v.Energy)
-              .Append(" manaBonus=").Append(v.TurnStartManaBonus).Append(" energyBonus=").Append(v.TurnStartEnergyBonus).Append(" pending=").Append(v.DrawPending)
-              .Append(" prepick=").Append(v.PrePickSlot).Append('/').Append(v.PrePickCardId).Append('\n');
+              .Append(" manaBonus=").Append(v.TurnStartManaBonus).Append(" energyBonus=").Append(v.TurnStartEnergyBonus).Append(" pending=").Append(v.DrawPending).Append('\n');
             sb.Append("setup=").Append(v.SetupStep).Append(" oppFinished=").Append(v.OpponentSetupFinished).Append('\n');
             sb.Append("quests=").Append(string.Join(",", v.QuestOffer)).Append(" chosen=").Append(string.Join(",", v.QuestChoices)).Append('\n');
             sb.Append("passives=").Append(string.Join(",", v.PassiveOffer)).Append(" chosen=").Append(v.PassiveChoice).Append('\n');
@@ -234,7 +221,7 @@ namespace HexPortal.Tests
         public static GameState Scramble(GameState original, PlayerId p, Rng rng) => Scramble(original, p, rng, new ScrambleSpec());
 
         /// <summary>Clone the state and change only what <paramref name="p"/> may not know, as allowed by the spec:
-        /// opponent hand contents, quest/passive offers and choices, pool order and Rng, opponent Mana/Energy/pre-pick,
+        /// opponent hand contents, quest/passive offers and choices, pool order and Rng, opponent Mana/Energy,
         /// action flags of enemy units, and position, Health, effects and overwatch of enemy units (and the enemy tower)
         /// on cells not Visible to p, enemy untriggered traps. Scrambled positions stay legal: empty, not rock, not Visible
         /// to p, not on p's traps; during setup inside the opponent's home zone (units, tower) or half (traps).</summary>
@@ -311,12 +298,6 @@ namespace HexPortal.Tests
                 s.SetMana(o, rng.NextInt(spec.MinMana, spec.MinMana + 8));
                 s.SetEnergy(o, rng.NextInt(spec.MinEnergy, Catalog.EnergyPerTurn + 1));
                 s.SetSetupMana(o, rng.NextInt(Math.Min(spec.MinSetupMana, Catalog.SetupMana), Catalog.SetupMana + 1));
-            }
-            if (spec.PrePick && !setup)
-            {
-                var pre = Pools.PrePickOptions(s);
-                int slot = pre[rng.NextInt(pre.Count)];
-                s.SetPrePick(o, slot, slot >= 0 && s.GetMarket((CardPool)slot) != null ? s.GetMarket((CardPool)slot).Id : 0);
             }
 
             bool Free(Hex h) =>

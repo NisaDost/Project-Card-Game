@@ -370,9 +370,9 @@ namespace HexPortal.Tests
             Assert.That((dmg.Kind, dmg.SourcePlayer, dmg.SourceUnitId, dmg.Amount), Is.EqualTo((DamageKind.Poison, A, DamageDealt.NoUnit, tick)));
             Assert.That(s.GetUnit(g).Health, Is.EqualTo(hp - tick));
             EndRound(s);
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(hp - 2 * tick));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(hp - 2 * tick + Catalog.RestHealAmount)); // U-31: poison on the own turn start is not damage on the opponent's turn
             EndRound(s);
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(hp - 2 * tick));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(hp - 2 * tick + 2 * Catalog.RestHealAmount));
             Assert.That(s.GetUnit(g).Debuff, Is.Null);
         }
 

@@ -13,7 +13,7 @@ namespace HexPortal.Game
     /// events, never the state; the AI gets PlayerView.For(aiSeat) and its legal list, never the state (AI-01).
     /// Hotseat (S-08): setup A → handoff → setup B → handoff → turns, a handoff between every turn.
     /// Vs AI: the human is always the viewer, no handoff; the AI sets up at once, acts one command per StepAi call
-    /// (the caller paces it, AI-05) and pre-picks during the human's turn (AI-06).
+    /// (the caller paces it, AI-05). Nobody acts during the other side's turn (T-11 removed in GDD v4.0).
     /// T-09 client clock: setup 45 s, turn 30 s + 60 s bank; it runs only while a human must act.
     /// </summary>
     public sealed class MatchController
@@ -23,7 +23,6 @@ namespace HexPortal.Game
         List<ICommand> legal = new List<ICommand>();
         readonly float[] bank = new float[2];
         Rng aiRng;
-        int aiPrePickTurn = -1;
 
         /// <summary>Increments for every new match (views reset per-match UI such as the event log).</summary>
         public int MatchNumber { get; private set; }
@@ -87,7 +86,6 @@ namespace HexPortal.Game
             Mode = mode;
             TimerEnabled = timer;
             bank[0] = bank[1] = Catalog.TimeBankSeconds;
-            aiPrePickTurn = -1;
             LastError = null;
             ResetClock();
         }
@@ -173,28 +171,12 @@ namespace HexPortal.Game
             }
             else
             {
-                foreach (var e in all)
-                    if (e is MarketRefilled) aiPrePickTurn = -1; // the Market changed: the AI re-evaluates its pre-pick
-                mine.AddRange(AiPrePick());
                 Refresh();
                 if (view.TurnIndex != turnBefore) ResetClock();
                 EventsApplied?.Invoke(mine);
             }
             Changed?.Invoke();
             return true;
-        }
-
-        /// <summary>AI-06: once per human turn, the waiting AI sets its pre-pick (T-11).</summary>
-        List<GameEvent> AiPrePick()
-        {
-            var none = new List<GameEvent>();
-            if (state.IsOver || state.Phase != GamePhase.Playing || state.ActivePlayer == AiSeat || aiPrePickTurn == state.TurnIndex) return none;
-            aiPrePickTurn = state.TurnIndex;
-            var aiLegal = Engine.GetLegalCommands(state, AiSeat);
-            if (aiLegal.Count == 0) return none;
-            var c = GreedyAi.Choose(PlayerView.For(state, AiSeat), aiLegal, AiLevel, aiRng);
-            try { return EventFilter.For(Engine.Apply(state, c), Viewer); } // PrePickSet is owner-only: normally empty
-            catch (IllegalCommandException e) { Debug.LogWarning("[MatchController] AI pre-pick rejected: " + e.Message); return none; }
         }
 
         /// <summary>T-09 / S-06 clock. Call once per frame with the frame time.</summary>

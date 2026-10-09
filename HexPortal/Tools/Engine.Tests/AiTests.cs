@@ -8,7 +8,7 @@ using static HexPortal.Tests.MatchHelper;
 
 namespace HexPortal.Tests
 {
-    // §13 greedy AI (AI-01…AI-06): legality, PlayerView-only proofs, tactical scenarios, setup, pre-pick, AI-vs-AI matches.
+    // §13 greedy AI (AI-01…AI-06): legality, PlayerView-only proofs, tactical scenarios, setup, draws, AI-vs-AI matches.
     public class AiTests
     {
         static Hex D(int x, int y) => TestBoard.D59(x, y);
@@ -90,7 +90,7 @@ namespace HexPortal.Tests
         }
 
         /// <summary>The AI's choice is a function of (PlayerView, legal list, level, AI Rng): scrambling everything hidden
-        /// from the deciding player (opponent hand, quests, passive, Mana/Energy, pre-pick, hidden units, tower, traps,
+        /// from the deciding player (opponent hand, quests, passive, Mana/Energy, hidden units, tower, traps,
         /// pools, match Rng) never changes the command it picks.</summary>
         [Test]
         public void AI01_ChoiceIsTheSameWhenHiddenDataIsScrambled()
@@ -106,7 +106,7 @@ namespace HexPortal.Tests
                 Assert.That(c2, Is.EqualTo(chosen), "the AI's choice changed with hidden data scrambled, " + p + " round " + before.Round);
                 compares++;
                 if (before.Phase == GamePhase.Setup) setupCompares++;
-                else if (chosen is DrawCommand || chosen is PrePickCommand) drawCompares++;
+                else if (chosen is DrawCommand) drawCompares++;
                 else actionCompares++;
             }
 
@@ -138,7 +138,7 @@ namespace HexPortal.Tests
                     Engine.Apply(s, NextUniform(s, rng));
                 }
             }
-            TestContext.Out.WriteLine("compares " + compares + " (setup " + setupCompares + ", draw/pre-pick " + drawCompares
+            TestContext.Out.WriteLine("compares " + compares + " (setup " + setupCompares + ", draw " + drawCompares
                 + ", actions " + actionCompares + ")");
             Assert.That(compares, Is.GreaterThan(300));
             Assert.That(setupCompares, Is.GreaterThan(10));
@@ -498,10 +498,10 @@ namespace HexPortal.Tests
                 }
         }
 
-        // ---------- AI-06 / T-04: draws and pre-picks ----------
+        // ---------- T-04: draws (AI-06 pre-pick removed with T-11 in v4.0) ----------
 
         [Test]
-        public void AI06_PrePicksTheSameSlotItWouldDraw()
+        public void AI02_DrawsTheMostValuableMarketSlot()
         {
             var tb = new TestBoard();
             tb.Unit(UnitClass.Guardian, A, D(6, 6));
@@ -510,16 +510,13 @@ namespace HexPortal.Tests
             tb.Market("C-14");
             for (int i = 0; i < 4; i++) tb.PoolCard("C-14");
             var s = tb.Build();
-            var pre = Choose(s, B, AiLevel.Normal); // A is active: B pre-picks
-            Assert.That(pre, Is.EqualTo(new PrePickCommand(B, (int)CardPool.Character)));
-
             s.SetDrawPending(A, true);
             Assert.That(Choose(s, A, AiLevel.Normal), Is.EqualTo(new DrawCommand(A, (int)CardPool.Character)));
             Assert.That(Choose(s, A, AiLevel.Easy), Is.EqualTo(new DrawCommand(A, (int)CardPool.Character)));
         }
 
         [Test]
-        public void AI06_BlindDrawWhenThePoolsAreWorthMoreThanTheMarket()
+        public void AI02_BlindDrawWhenThePoolsAreWorthMoreThanTheMarket()
         {
             var tb = new TestBoard();
             tb.Unit(UnitClass.Guardian, A, D(6, 6));
@@ -528,7 +525,6 @@ namespace HexPortal.Tests
             var s = tb.Build();
             s.SetDrawPending(A, true);
             Assert.That(Choose(s, A, AiLevel.Normal), Is.EqualTo(new DrawCommand(A, DrawCommand.Blind)));
-            Assert.That(Choose(s, B, AiLevel.Normal), Is.EqualTo(new PrePickCommand(B, DrawCommand.Blind)));
         }
 
         // ---------- AI-01…AI-06: whole matches ----------
@@ -581,7 +577,7 @@ namespace HexPortal.Tests
             TestContext.Out.WriteLine("command kinds: " + string.Join(",", kinds.Select(t => t.Name).OrderBy(x => x)));
             Assert.That(results.Values.Sum(), Is.EqualTo(50));
             foreach (var k in new[] { typeof(MoveCommand), typeof(AttackCommand), typeof(DeployCommand), typeof(PlayCardCommand),
-                         typeof(DrawCommand), typeof(PrePickCommand), typeof(EndTurnCommand), typeof(PlaceTowerCommand) })
+                         typeof(DrawCommand), typeof(EndTurnCommand), typeof(PlaceTowerCommand) })
                 Assert.That(kinds, Does.Contain(k), k.Name + " never chosen");
         }
     }

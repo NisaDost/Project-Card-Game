@@ -35,6 +35,7 @@ namespace HexPortal.Game
         readonly float[] flashUntil = new float[Board.Cells.Count];
         readonly Color[] flashColor = new Color[Board.Cells.Count];
         readonly bool[] voidCell = new bool[Board.Cells.Count];
+        readonly bool[] playable = new bool[Board.Cells.Count];
         bool anyEvent, flashing;
 
         public int HighlightCount { get; private set; }
@@ -107,12 +108,15 @@ namespace HexPortal.Game
         public void Render(PlayerView view)
         {
             int heldCount = 0, ringCount = 0;
+            // B-25: Void comes from the public PlayableCells (v4.0 fog: Cells no longer mark Void, they read Hidden).
+            for (int i = 0; i < playable.Length; i++) playable[i] = false;
+            foreach (var h in view.PlayableCells) { int pi = Board.IndexOf(h); if (pi >= 0) playable[pi] = true; }
             for (int i = 0; i < view.Cells.Count; i++)
             {
                 var c = view.Cells[i];
                 bool known = c.TerrainKnown;
                 // B-25: Void cells are not part of the board: no tile, cloud, marker, trap or highlight.
-                bool isVoid = known && c.Tile.Marker == Marker.Void;
+                bool isVoid = !playable[i] || (known && c.Tile.Marker == Marker.Void);
                 voidCell[i] = isVoid;
                 tiles[i].gameObject.SetActive(!isVoid);
                 if (isVoid)
@@ -161,6 +165,13 @@ namespace HexPortal.Game
                     if (i >= 0 && !voidCell[i]) { eventCell[i] = true; anyEvent = true; }
                 }
             ApplyHighlights();
+        }
+
+        /// <summary>The highlight colour of a cell (clear when none); tests read the UX-02 highlights through it.</summary>
+        public Color HighlightAt(Hex h)
+        {
+            int i = Board.IndexOf(h);
+            return i < 0 ? Color.clear : highlightColor[i];
         }
 
         public void ClearHighlights()

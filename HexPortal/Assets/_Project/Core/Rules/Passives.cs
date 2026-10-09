@@ -90,7 +90,7 @@ namespace HexPortal.Core
             return amount - blocked;
         }
 
-        /// <summary>P-05 Merchant: the first Market buy (incl. via pre-pick or timeout) gives one extra blind draw (D-07
+        /// <summary>P-05 Merchant: the first Market buy (incl. via timeout) gives one extra blind draw (D-07
         /// applies). The first buy uses the passive up even when the hand is full and the draw is skipped (v2.9).</summary>
         internal static void OnMarketBuy(GameState state, PlayerId player, EventLog events)
         {

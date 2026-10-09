@@ -24,14 +24,6 @@ namespace HexPortal.Core
                 return events.Items;
             }
             if (Setup.IsSetupCommand(command)) throw new IllegalCommandException("Setup is over: " + command);
-            if (command is PrePickCommand pre) // T-11: the only command of the waiting player
-            {
-                if (pre.Player == state.ActivePlayer || !Pools.PrePickOptions(state).Contains(pre.Slot))
-                    throw new IllegalCommandException("Illegal pre-pick: " + command);
-                Pools.SetPrePick(state, pre.Player, pre.Slot);
-                events.Add(new PrePickSet(pre.Player, pre.Slot));
-                return events.Items;
-            }
             if (command.Player != state.ActivePlayer) throw new IllegalCommandException("Not your turn: " + command);
             if (command is TurnTimeoutCommand)
             {
@@ -63,7 +55,7 @@ namespace HexPortal.Core
         }
 
         /// <summary>All legal commands for the player, in a fixed order. Empty when the game is over.
-        /// Setup: the player's options at their setup step (Setup.AddLegal). Waiting player: pre-pick options only (T-11).
+        /// Setup: the player's options at their setup step (Setup.AddLegal). Waiting player: nothing (T-11 removed in v4.0).
         /// Active player with a pending draw: draw options only (T-04).
         /// Otherwise: units by id (moves, attacks, overwatch), deploys, card plays, then EndTurn.
         /// Clock commands (SetupTimeoutCommand, TurnTimeoutCommand) are never listed; the client sends them.</summary>
@@ -76,11 +68,7 @@ namespace HexPortal.Core
                 Setup.AddLegal(state, player, list);
                 return list;
             }
-            if (player != state.ActivePlayer)
-            {
-                foreach (int slot in Pools.PrePickOptions(state)) list.Add(new PrePickCommand(player, slot));
-                return list;
-            }
+            if (player != state.ActivePlayer) return list; // T-11 KALDIRILDI (v4.0): the waiting player has no command
             if (state.IsDrawPending(player))
             {
                 foreach (int slot in Pools.DrawOptions(state)) list.Add(new DrawCommand(player, slot));

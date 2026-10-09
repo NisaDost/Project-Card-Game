@@ -7,7 +7,7 @@ namespace HexPortal.Core
     /// <summary>
     /// The whole match state. Read freely; change only through Engine.Apply (mutators are internal).
     /// Units are kept in ascending id order, so every iteration over Units is deterministic.
-    /// Hidden information (redacted by PlayerView): hands, pool order, traps, pre-picks, active quests and quest progress,
+    /// Hidden information (redacted by PlayerView): hands, pool order, traps, active quests and quest progress,
     /// unrevealed passives and their state, Mana/Energy of the opponent, units outside the viewer's sight, the match Rng.
     /// Public: completed/failed quests, revealed passives, the announced map event (V-09, E-05).
     /// </summary>
@@ -21,8 +21,6 @@ namespace HexPortal.Core
         readonly int[] setupMana = new int[2];               // S-05 (v3.0): the setup budget, not carried into the match
         readonly bool[] towerShotAvailable = { true, true }; // U-27, per tower owner
         readonly bool[] drawPending = new bool[2];           // T-04 step 4
-        readonly int[] prePickSlot = { PrePickCommand.None, PrePickCommand.None }; // T-11
-        readonly int[] prePickCardId = new int[2];           // T-11: the Market card seen when pre-picking
         readonly List<CardInstance>[] pools = { new List<CardInstance>(), new List<CardInstance>(), new List<CardInstance>() };
         readonly CardInstance[] market = new CardInstance[Catalog.MarketSlots]; // D-05, index = (int)CardPool
         readonly List<CardInstance>[] hands = { new List<CardInstance>(), new List<CardInstance>() };
@@ -108,8 +106,6 @@ namespace HexPortal.Core
             Array.Copy(o.setupMana, setupMana, 2);
             Array.Copy(o.towerShotAvailable, towerShotAvailable, 2);
             Array.Copy(o.drawPending, drawPending, 2);
-            Array.Copy(o.prePickSlot, prePickSlot, 2);
-            Array.Copy(o.prePickCardId, prePickCardId, 2);
             for (int i = 0; i < pools.Length; i++) pools[i].AddRange(o.pools[i]); // card instances are immutable
             Array.Copy(o.market, market, market.Length);
             traps.AddRange(o.traps);                                              // traps are immutable
@@ -189,15 +185,6 @@ namespace HexPortal.Core
         public bool IsDrawPending(PlayerId p) => drawPending[(int)p];
         internal void SetDrawPending(PlayerId p, bool value) => drawPending[(int)p] = value;
 
-        /// <summary>T-11: a Market slot index ((int)CardPool), DrawCommand.Blind, or PrePickCommand.None.</summary>
-        public int GetPrePickSlot(PlayerId p) => prePickSlot[(int)p];
-        /// <summary>T-11: id of the card that was in the pre-picked Market slot at the time of the pick (0 otherwise).</summary>
-        public int GetPrePickCardId(PlayerId p) => prePickCardId[(int)p];
-        internal void SetPrePick(PlayerId p, int slot, int cardId)
-        {
-            prePickSlot[(int)p] = slot;
-            prePickCardId[(int)p] = cardId;
-        }
 
         public IReadOnlyList<CardInstance> GetPool(CardPool pool) => pools[(int)pool];
         internal List<CardInstance> PoolList(CardPool pool) => pools[(int)pool];

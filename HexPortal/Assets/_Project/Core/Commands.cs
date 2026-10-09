@@ -114,27 +114,6 @@ namespace HexPortal.Core
         public override string ToString() => "Draw(" + Player + " " + (Slot == Blind ? "Blind" : ((CardPool)Slot).ToString()) + ")";
     }
 
-    /// <summary>T-11: issued by the waiting (non-active) player during the opponent's turn.
-    /// Slot = a Market slot, DrawCommand.Blind, or None (clear the pre-pick).</summary>
-    public sealed class PrePickCommand : ICommand
-    {
-        public const int None = -2;
-
-        public PlayerId Player { get; }
-        public readonly int Slot;
-
-        public PrePickCommand(PlayerId player, int slot)
-        {
-            Player = player;
-            Slot = slot;
-        }
-
-        public override bool Equals(object obj) => obj is PrePickCommand c && c.Player == Player && c.Slot == Slot;
-        public override int GetHashCode() => ((int)Player * 31 + Slot) * 397 ^ 0x2E2E;
-        public override string ToString() =>
-            "PrePick(" + Player + " " + (Slot == None ? "None" : Slot == DrawCommand.Blind ? "Blind" : ((CardPool)Slot).ToString()) + ")";
-    }
-
     /// <summary>T-07: put a character card from the hand on a cell.</summary>
     public sealed class DeployCommand : ICommand
     {

@@ -24,7 +24,7 @@ namespace HexPortal.Sim
         public SortedDictionary<string, int> CardsPlayed = new SortedDictionary<string, int>(); // support cards (incl. setup traps)
         public SortedDictionary<string, int> Deployed = new SortedDictionary<string, int>();    // character classes deployed in play
         public List<string> SetupPlaced = new List<string>(); // S-05: classes placed in setup (plus "Trap C-xx"), in order
-        // Turn-start draws (T-04): "explicit <slot>" (a DrawCommand) or "pre-picked <slot>" (a valid T-11 pre-pick applied).
+        // Turn-start draws (T-04): "explicit <slot>" (a DrawCommand) (T-11 pre-pick removed in v4.0).
         public SortedDictionary<string, int> Draws = new SortedDictionary<string, int>();
         public int PortalOpenRound;           // W-01: round of the turn end that completed the 2nd quest; 0 = never
         public List<string> Quests = new List<string>();
@@ -88,7 +88,6 @@ namespace HexPortal.Sim
             var killed = new bool[2];
             var pushed = new bool[2];
             var sw = new Stopwatch();
-            int prePickedTurn = -1;
             var hits = new Dictionary<int, int>();         // unit id → damaging events so far (lookup only, never iterated)
             var towerHits = new int[2];                    // per tower owner (A = 0, B = 1)
             var unitClass = new Dictionary<int, string>(); // unit id → class (lookup only)
@@ -106,7 +105,7 @@ namespace HexPortal.Sim
                     sw.Stop();
                     double ms = sw.Elapsed.TotalMilliseconds;
                     rec.DecisionMs.Add(ms);
-                    if (s.Phase == GamePhase.Playing && !(c is DrawCommand) && !(c is PrePickCommand)) rec.ActionDecisionMs.Add(ms);
+                    if (s.Phase == GamePhase.Playing && !(c is DrawCommand)) rec.ActionDecisionMs.Add(ms);
                 }
                 if (!legal.Contains(c)) throw new System.InvalidOperationException("AI chose an illegal command: " + c);
 
@@ -132,22 +131,11 @@ namespace HexPortal.Sim
                 foreach (var u in s.Units) unitClass[u.Id] = u.Class.ToString();
                 var events = Engine.Apply(s, c);
                 rec.Commands++;
-                int turnStarter = -1;      // T-04: the player whose turn start is running in this command
-                GameEvent prev = null;
                 foreach (var e in events)
                 {
                     Add(rec.Events, e.GetType().Name);
                     switch (e)
                     {
-                        case TurnStarted ts: turnStarter = (int)ts.Player; break;
-                        case CardDrawn cd when (int)cd.Player == turnStarter && !IsDeathOrMerchantDraw(prev, cd.Player):
-                            // T-04 step 4 applied a valid pre-pick (T-11): no DrawCommand follows. Death draws (U-23) and the
-                            // Merchant's extra draw (P-05) in the same turn start are told apart by the event just before them.
-                            var drawn = FindCard(s, cd.Player, cd.CardId);
-                            Add(rec.Seats[turnStarter].Draws, "pre-picked " + (cd.Source == DrawSource.Blind ? "Blind"
-                                : drawn != null ? drawn.Pool.ToString() : "Market"));
-                            turnStarter = -1;
-                            break;
                         case TowerShot _: rec.TowerShots++; break;
                         case OverwatchFired _: rec.OverwatchShots++; break;
                         case QuestCompleted q:
@@ -182,7 +170,6 @@ namespace HexPortal.Sim
                             for (int w = 0; w < 2; w++) if (pending[w] == u.UnitId && u.To != Board.Portal) pushed[w] = true;
                             break;
                     }
-                    prev = e;
                 }
                 foreach (var u in s.Units) rec.Seats[(int)u.Owner].Classes.Add(u.Class.ToString());
 
@@ -219,12 +206,6 @@ namespace HexPortal.Sim
                     if (s.Phase == GamePhase.Setup && !s.IsSetupFinished(p)) Decide(p);
             while (!s.IsOver && rec.Commands < MaxCommands)
             {
-                if (prePickedTurn != s.TurnIndex)
-                {
-                    prePickedTurn = s.TurnIndex;
-                    var waiting = s.ActivePlayer.Opponent();
-                    if (Engine.GetLegalCommands(s, waiting).Count > 0) Decide(waiting);
-                }
                 Decide(s.ActivePlayer);
             }
             if (!s.IsOver) throw new System.InvalidOperationException("Game " + spec.Seed + " did not end in " + MaxCommands + " commands");
@@ -243,18 +224,6 @@ namespace HexPortal.Sim
             rec.WinnerConfig = s.Result.Winner.HasValue ? rec.Seats[(int)s.Result.Winner.Value].Config : null;
             if (s.Result.Reason == WinReason.Portal) rec.PortalWinRound = s.Round;
             return rec;
-        }
-
-        // U-23: a death draw directly follows its UnitDied; P-05: the Merchant's extra draw directly follows its first
-        // PassiveRevealed (the passive works once, at that moment).
-        static bool IsDeathOrMerchantDraw(GameEvent prev, PlayerId p) =>
-            prev is UnitDied d && d.Owner == p || prev is PassiveRevealed r && r.Player == p && r.PassiveId == "P-05";
-
-        static CardInstance FindCard(GameState s, PlayerId p, int id)
-        {
-            foreach (var c in s.GetHand(p))
-                if (c.Id == id) return c;
-            return null;
         }
 
         static void Add(SortedDictionary<string, int> d, string key) => d[key] = d.TryGetValue(key, out int n) ? n + 1 : 1;

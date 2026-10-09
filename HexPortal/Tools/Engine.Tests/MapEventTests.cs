@@ -341,6 +341,8 @@ namespace HexPortal.Tests
             s.GetFog(B).Set(ghostCell, CellVisibility.Explored, ghost);
             var fogB = s.GetFog(B);
             var unitCell = s.GetUnit(hiddenA).Pos;
+            // V-04 (v4.0): only the home zone starts Explored; B saw this cell earlier (empty at the time).
+            fogB.Set(unitCell, CellVisibility.Explored, new LastSeen(s.Map.Get(unitCell)));
             Assert.That(Visibility.VisibleCells(s, B).Contains(unitCell), Is.False);
             Assert.That(fogB.Get(center.Mirror()), Is.EqualTo(CellVisibility.Hidden));
 

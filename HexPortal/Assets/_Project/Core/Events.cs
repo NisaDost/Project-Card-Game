@@ -296,14 +296,6 @@ namespace HexPortal.Core
 
     // ---------- Turn (T) ----------
 
-    /// <summary>T-11: the waiting player's pre-pick. Owner only.</summary>
-    public sealed class PrePickSet : GameEvent
-    {
-        public readonly PlayerId Player;
-        public readonly int Slot;
-        public PrePickSet(PlayerId player, int slot) { Player = player; Slot = slot; }
-    }
-
     /// <summary>T-09: an automatic turn end; Count = consecutive automatic ends (W-04). Public.</summary>
     public sealed class TurnTimedOut : GameEvent
     {

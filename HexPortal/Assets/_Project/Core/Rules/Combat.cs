@@ -135,6 +135,7 @@ namespace HexPortal.Core
                     return;
                 }
                 u.Health = Math.Max(0, u.Health - amount);
+                if (amount > 0 && u.Owner != state.ActivePlayer) u.DamagedOnOpponentTurn = true; // U-31 (a Shield block is not damage)
                 events.Add(new DamageDealt(sourcePlayer, sourceUnitId, target, u.Id, amount, kind));
                 if (u.Health == 0)
                 {

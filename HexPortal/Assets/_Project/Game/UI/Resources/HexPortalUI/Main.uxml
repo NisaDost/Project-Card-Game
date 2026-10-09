@@ -1,57 +1,61 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <!-- Landscape layout, reference 1920x1080 matched by height (GDD UX-04). Phones are ~360-430 dp tall, so
-         1 unit ~ 0.33-0.4 dp: touch targets are >= 173 units (~64 dp). Text is filled in from Strings.cs. -->
+    <!-- Landscape, reference 1920x1080 matched by height (GDD UX-04). A 360-430 dp tall phone gives 2.5-3 units per dp,
+         so a 48 dp touch target (UX-01) is >= 144 units (.hit / .btn min size). Text is filled in from Strings.cs. -->
     <ui:VisualElement name="board-hit" class="fill" />
     <ui:VisualElement name="overlay" class="fill" picking-mode="Ignore" />
 
+    <!-- v4.0 compact HUD (PROGRESS "HUD layout (v4.0)"): small read-only gauges in the four corners, the touch controls
+         in the bottom thumb zones. "hud" is inset by Screen.safeArea from code (GameUi.ApplySafeArea). -->
     <ui:VisualElement name="hud" class="fill" picking-mode="Ignore">
-        <ui:VisualElement name="top" class="top-strip" picking-mode="Ignore">
-            <ui:VisualElement class="top-group" picking-mode="Ignore">
-                <ui:Label name="own-tower" class="stat own" />
-                <ui:Label name="round" class="stat" />
-            </ui:VisualElement>
-            <ui:VisualElement class="top-group center" picking-mode="Ignore">
-                <ui:Label name="turn-banner" class="banner" />
-                <ui:Label name="event-banner" class="banner event" />
-            </ui:VisualElement>
-            <ui:VisualElement name="opp-info" class="top-group right">
-                <ui:Label name="opp-tower" class="stat opp" />
-                <ui:Label name="opp-hand" class="stat" />
-                <ui:Label name="opp-quests" class="stat" />
-            </ui:VisualElement>
+        <ui:VisualElement name="top-left" class="corner top-left" picking-mode="Ignore">
+            <ui:Label name="own-tower" class="chip-stat own" />
+            <ui:Label name="round" class="chip-stat" />
+            <ui:Label name="timer" class="chip-stat timer" />
+            <ui:Label name="timer-bank" class="chip-stat timer bank" />
         </ui:VisualElement>
+        <ui:VisualElement name="top" class="top-center" picking-mode="Ignore">
+            <ui:Label name="turn-banner" class="banner" />
+            <ui:Label name="event-banner" class="banner event" />
+        </ui:VisualElement>
+        <ui:VisualElement name="top-right" class="corner top-right" picking-mode="Ignore">
+            <ui:VisualElement name="opp-info" class="hit opp-hit">
+                <ui:VisualElement class="face opp-face" picking-mode="Ignore">
+                    <ui:Label name="opp-tower" class="chip-stat opp" picking-mode="Ignore" />
+                    <ui:Label name="opp-hand" class="chip-stat" picking-mode="Ignore" />
+                    <ui:Label name="opp-quests" class="chip-stat" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:Button name="pause-btn" class="btn hit pause" />
+        </ui:VisualElement>
+        <ui:Label name="event-log" class="event-log" picking-mode="Ignore" />
 
-        <ui:VisualElement name="left" class="side-col left-col" picking-mode="Ignore">
+        <ui:VisualElement name="left" class="corner bottom-left" picking-mode="Ignore">
+            <ui:Button name="quest-btn" class="btn hit quest" />
             <ui:VisualElement class="meter mana-meter" picking-mode="Ignore">
                 <ui:Label name="mana-icon" class="meter-icon mana-icon" />
                 <ui:Label name="mana-text" class="meter-text" />
-                <ui:Label name="mana-caption" class="meter-caption" />
                 <ui:VisualElement name="mana-pips" class="pips" />
+                <ui:Label name="mana-caption" class="meter-caption" />
             </ui:VisualElement>
             <ui:VisualElement class="meter energy-meter" picking-mode="Ignore">
                 <ui:Label name="energy-icon" class="meter-icon energy-icon" />
                 <ui:Label name="energy-text" class="meter-text" />
                 <ui:VisualElement name="energy-pips" class="pips" />
             </ui:VisualElement>
-            <ui:VisualElement class="timer-row" picking-mode="Ignore">
-                <ui:Label name="timer" class="timer" />
-                <ui:Label name="timer-bank" class="timer bank" />
-                <ui:Button name="pause-btn" class="btn pause" />
-            </ui:VisualElement>
-            <ui:Button name="quest-btn" class="btn quest" />
-            <ui:Label name="event-log" class="event-log" picking-mode="Ignore" />
         </ui:VisualElement>
 
-        <ui:VisualElement name="right" class="side-col right-col" picking-mode="Ignore">
-            <ui:Label name="market-title" class="section-title" picking-mode="Ignore" />
-            <ui:VisualElement class="market-grid" picking-mode="Ignore">
-                <ui:Button name="market-0" class="btn market" />
-                <ui:Button name="market-1" class="btn market" />
-                <ui:Button name="market-2" class="btn market" />
-                <ui:Button name="blind-btn" class="btn market blind" />
-            </ui:VisualElement>
-            <ui:VisualElement class="spacer" picking-mode="Ignore" />
+        <ui:VisualElement name="right" class="corner bottom-right" picking-mode="Ignore">
             <ui:Button name="overwatch-btn" class="btn overwatch" />
+            <ui:Label name="draw-call" class="draw-call" picking-mode="Ignore" />
+            <ui:VisualElement name="market-box" class="market-box" picking-mode="Ignore">
+                <ui:Label name="market-title" class="section-title" picking-mode="Ignore" />
+                <ui:VisualElement class="market-grid" picking-mode="Ignore">
+                    <ui:Button name="market-0" class="btn market" />
+                    <ui:Button name="market-1" class="btn market" />
+                    <ui:Button name="market-2" class="btn market" />
+                    <ui:Button name="blind-btn" class="btn market blind" />
+                </ui:VisualElement>
+            </ui:VisualElement>
             <ui:Button name="end-btn" class="btn end" />
         </ui:VisualElement>
 
@@ -63,7 +67,7 @@
             <ui:VisualElement name="hand-chars" class="hand-group chars" picking-mode="Ignore" />
             <ui:VisualElement name="hand-buffs" class="hand-group buffs" picking-mode="Ignore" />
         </ui:VisualElement>
-        <!-- UX-11 (v3.0): info panel on the left for a tapped unit, tower or card; a tap on it closes it -->
+        <!-- UX-11 (v3.0): info panel on the left for a tapped unit, tower or card (display only) -->
         <ui:VisualElement name="info-panel" class="info-panel">
             <ui:VisualElement class="info-head" picking-mode="Ignore">
                 <ui:Label name="info-icon" class="info-icon" picking-mode="Ignore" />
@@ -72,8 +76,9 @@
             <ui:Label name="info-text" class="info-text" picking-mode="Ignore" />
         </ui:VisualElement>
         <ui:Label name="toast" class="toast" picking-mode="Ignore" />
-        <ui:VisualElement name="drag-card" class="card dragging" picking-mode="Ignore" />
     </ui:VisualElement>
+    <!-- Outside the inset HUD: positioned in root panel coordinates under the finger -->
+    <ui:VisualElement name="drag-card" class="card dragging" picking-mode="Ignore" />
 
     <!-- UX-16: quests, pause and info are mutually exclusive panels with the same header layout -->
     <ui:VisualElement name="quest-panel" class="popup">

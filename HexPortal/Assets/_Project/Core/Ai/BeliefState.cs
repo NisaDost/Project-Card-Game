@@ -22,10 +22,12 @@ namespace HexPortal.Core
             var opp = me.Opponent();
 
             var map = new GameMap(0, 1);
+            var playable = new HashSet<Hex>(view.PlayableCells); // B-25, V-04 (v4.0): the shape is public, Void terrain is not in Cells
             foreach (var c in view.Cells)
             {
                 var tile = new Tile(Biome.None, Marker.None);
-                if (c.TerrainKnown) tile = c.Tile;
+                if (!playable.Contains(c.Cell)) tile = new Tile(Biome.None, Marker.Void);
+                else if (c.TerrainKnown) tile = c.Tile;
                 else
                 {
                     var mirror = view.Cells[Board.IndexOf(c.Cell.Mirror())];

@@ -18,7 +18,7 @@ namespace HexPortal.Tests
     }
 
     /// <summary>Drives AI-vs-AI matches the way a client would: setup for both players, then the active player's
-    /// decisions and, once per opponent turn, the waiting player's pre-pick (AI-06). The AI gets only
+    /// decisions (the AI-06 pre-pick was removed with T-11 in v4.0). The AI gets only
     /// PlayerView.For(state, p) and Engine.GetLegalCommands(state, p) (AI-01).</summary>
     public static class AiHelper
     {
@@ -34,7 +34,6 @@ namespace HexPortal.Tests
             var rngs = new[] { AiRng(seed, PlayerId.A), AiRng(seed, PlayerId.B) };
             var levels = new[] { levelA, levelB };
             int count = 0;
-            int prePickedTurn = -1;
 
             void Decide(PlayerId p)
             {
@@ -57,11 +56,6 @@ namespace HexPortal.Tests
                     if (s.Phase == GamePhase.Setup && !s.IsSetupFinished(p)) Decide(p);
             while (!s.IsOver && count < MaxCommands)
             {
-                if (prePickedTurn != s.TurnIndex) // AI-06: once per opponent turn, at its start
-                {
-                    prePickedTurn = s.TurnIndex;
-                    if (Engine.GetLegalCommands(s, s.ActivePlayer.Opponent()).Count > 0) Decide(s.ActivePlayer.Opponent());
-                }
                 Decide(s.ActivePlayer);
             }
             Assert.That(s.IsOver, Is.True, "seed " + seed + " did not end in " + MaxCommands + " commands");

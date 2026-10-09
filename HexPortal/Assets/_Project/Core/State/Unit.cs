@@ -29,6 +29,9 @@ namespace HexPortal.Core
         /// <summary>V-08: Visible to the opponent while RevealedUntilTurn >= GameState.TurnIndex. -1 = never.</summary>
         public int RevealedUntilTurn { get; internal set; } = -1;
 
+        /// <summary>U-31: lost Health while the opponent was the active player (since the owner's last turn start).</summary>
+        public bool DamagedOnOpponentTurn { get; internal set; }
+
         /// <summary>C-19: cannot move (may still attack or go on overwatch).</summary>
         public bool IsRooted => Debuff != null && Debuff.Kind == EffectKind.Root;
 
@@ -47,7 +50,7 @@ namespace HexPortal.Core
         {
             Health = Health, ActedThisTurn = ActedThisTurn,
             OnOverwatch = OnOverwatch, Buff = Buff == null ? null : Buff.Clone(), Debuff = Debuff == null ? null : Debuff.Clone(),
-            MoveBonus = MoveBonus, RevealedUntilTurn = RevealedUntilTurn,
+            MoveBonus = MoveBonus, RevealedUntilTurn = RevealedUntilTurn, DamagedOnOpponentTurn = DamagedOnOpponentTurn,
         };
 
         public static UnitDef DefOf(UnitClass cls)

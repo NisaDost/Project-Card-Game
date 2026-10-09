@@ -11,14 +11,8 @@ namespace HexPortal.Tests
     {
         static Hex H(int q, int r) => new Hex(q, r);
 
-        static bool IsTemplate(GameMap m, Hex h)
-        {
-            var def = Catalog.MapTemplates[m.TemplateId];
-            return def.UpperRocks.Concat(def.UpperVoids).Any(c => c == h || c.Mirror() == h);
-        }
-
         [Test]
-        public void V04_OpeningOwnHalfExplored_OpponentHalfHidden_PortalVisible()
+        public void V04_OpeningOwnHomeZoneAndSightExplored_RestHidden_PortalVisible()
         {
             var s = StartedMatch(21);
             foreach (var p in Players)
@@ -29,13 +23,12 @@ namespace HexPortal.Tests
                 {
                     var v = fog.Get(h);
                     if (visible.Contains(h)) Assert.That(v, Is.EqualTo(CellVisibility.Visible), h.ToString());
-                    else if (Board.IsInHalf(h, p)) Assert.That(v, Is.EqualTo(CellVisibility.Explored), h.ToString());
-                    else if (IsTemplate(s.Map, h)) Assert.That(v, Is.EqualTo(CellVisibility.Explored), "V-04 exception (PM, v3.3) " + h);
+                    else if (Board.IsHomeZone(h, p) && s.Map.IsPlayable(h)) Assert.That(v, Is.EqualTo(CellVisibility.Explored), h.ToString());
                     else Assert.That(v, Is.EqualTo(CellVisibility.Hidden), h.ToString());
                 }
                 Assert.That(fog.Get(Board.Portal), Is.EqualTo(CellVisibility.Visible));
-                // Own half terrain is known; enemy units and tower are never shown at the start.
-                Assert.That(Board.Cells.Where(h => Board.IsInHalf(h, p)).All(h => fog.GetLastSeen(h).Tile.Equals(s.Map.Get(h))), Is.True);
+                // Own home zone terrain is known; enemy units and tower are never shown at the start.
+                Assert.That(Board.Cells.Where(h => Board.IsHomeZone(h, p) && s.Map.IsPlayable(h)).All(h => fog.GetLastSeen(h).Tile.Equals(s.Map.Get(h))), Is.True);
                 var view = PlayerView.For(s, p);
                 Assert.That(view.EnemyUnits, Is.Empty);
                 Assert.That(view.EnemyTowerPos, Is.Null);

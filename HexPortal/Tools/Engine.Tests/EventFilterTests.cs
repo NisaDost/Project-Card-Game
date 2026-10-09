@@ -6,7 +6,7 @@ using static HexPortal.Tests.MatchHelper;
 
 namespace HexPortal.Tests
 {
-    // V-05, V-07, V-09, V-10, C-33, C-35 (v2.7), T-11: events are tagged at emission with who may see them.
+    // V-05, V-07, V-09, V-10, C-33, C-35 (v2.7): events are tagged at emission with who may see them.
     public class EventFilterTests
     {
         static Hex H(int q, int r) => new Hex(q, r);
@@ -107,17 +107,6 @@ namespace HexPortal.Tests
             s.SetDrawPending(B, true);
             var take = Engine.Apply(s, new DrawCommand(B, (int)CardPool.Buff));
             Assert.That(EventFilter.For(take, A).OfType<CardDrawn>().Single().CardId, Is.EqualTo(market));
-        }
-
-        [Test]
-        public void T11_PrePickIsOwnerOnly()
-        {
-            var b = new TestBoard();
-            b.PoolCard("C-10");
-            var s = b.Build();
-            var ev = Engine.Apply(s, new PrePickCommand(B, DrawCommand.Blind));
-            Assert.That(EventFilter.For(ev, B).OfType<PrePickSet>().Single().Slot, Is.EqualTo(DrawCommand.Blind));
-            Assert.That(EventFilter.For(ev, A), Is.Empty);
         }
 
         [Test]

@@ -28,7 +28,7 @@ namespace HexPortal.Core
     /// AI-02: every legal command is applied once to a copy of the belief state and scored (AiWeights); the turn ends
     /// when nothing scores above ending it. AI-03: Normal takes the best; Easy picks uniformly among the best
     /// Catalog.AiEasyTopMoves. Neither ends the turn while a lethal attack or a step onto the open Portal is available.
-    /// AI-04: setup (AiSetup). AI-06: the turn-start draw and the pre-pick by expected card value.
+    /// AI-04: setup (AiSetup). AI-06: the turn-start draw by expected card value.
     /// AI-05: one simulation per legal command (one ply). Never sends clock commands (it only returns legal-list members).
     /// </summary>
     public static class GreedyAi
@@ -40,7 +40,7 @@ namespace HexPortal.Core
             if (legal == null || legal.Count == 0) throw new ArgumentException("No legal command to choose from.", nameof(legal));
             if (aiRng == null) throw new ArgumentNullException(nameof(aiRng));
             if (view.Phase == GamePhase.Setup) return AiSetup.Choose(view, legal, level, aiRng);
-            if (legal[0] is PrePickCommand || legal[0] is DrawCommand) return ChooseDraw(view, legal);
+            if (legal[0] is DrawCommand) return ChooseDraw(view, legal);
 
             var ranked = Rank(view, legal);
             bool guard = false;
@@ -150,18 +150,17 @@ namespace HexPortal.Core
             return u == null ? 0 : SeatIndex(me, u.Pos);
         }
 
-        // ---------- Draw and pre-pick (T-04 step 4, T-11, AI-06) ----------
+        // ---------- Draw (T-04 step 4; T-11 and AI-06 pre-pick removed in v4.0) ----------
 
         /// <summary>The draw option with the highest card value; Blind = the expected value over the public pool counts.
-        /// Pre-pick: never None unless it is the only option. Ties: legal-list order.</summary>
+        /// Ties: legal-list order.</summary>
         static ICommand ChooseDraw(PlayerView view, IReadOnlyList<ICommand> legal)
         {
             ICommand best = null;
             int bestValue = int.MinValue;
             foreach (var c in legal)
             {
-                int slot = c is DrawCommand d ? d.Slot : ((PrePickCommand)c).Slot;
-                if (slot == PrePickCommand.None) continue;
+                int slot = ((DrawCommand)c).Slot;
                 int value = slot == DrawCommand.Blind ? BlindValue(view) : CardValue(view, view.Market[slot]);
                 if (value > bestValue)
                 {

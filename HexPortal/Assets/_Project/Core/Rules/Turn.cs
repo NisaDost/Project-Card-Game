@@ -50,7 +50,7 @@ namespace HexPortal.Core
         }
 
         /// <summary>T-04: 1. refill Mana (T-01…T-03, P-03) and Energy, reset action flags and the opponent's tower shot;
-        /// 2. heal (U-05), poison (C-17), Last Breath (P-01); 3. W-01; 4. the draw (pre-pick applied, else the player must
+        /// 2. heal (U-05), rest (U-31), poison (C-17), Last Breath (P-01); 3. W-01; 4. the draw (the player must
         /// draw first). Also used by the setup phase to start A's first turn.</summary>
         internal static void StartTurn(GameState state, List<GameEvent> events) => StartTurn(state, new EventLog(state, events));
 
@@ -66,6 +66,7 @@ namespace HexPortal.Core
             events.Add(new TurnStarted(p, state.Round));
             if (quickStart > 0) Passives.QuickStartApplied(state, p, events); // P-00
             Heal(state, p, events);
+            Rest(state, p, events);
             Cards.PoisonTicks(state, p, events);
             Passives.LastBreath(state, p, events);
             Win.CheckPortal(state, p, events);
@@ -89,6 +90,23 @@ namespace HexPortal.Core
             }
         }
 
+        // U-31 (v4.0), U-24: each own unit (never the tower) not damaged during the opponent's last turn gains RestHealAmount.
+        // Before the opponent's first turn nothing could damage it, so A rests in round 1 too (PM). The flag is then cleared.
+        static void Rest(GameState state, PlayerId p, EventLog events)
+        {
+            foreach (var u in state.Units)
+            {
+                if (u.Owner != p) continue;
+                bool damaged = u.DamagedOnOpponentTurn;
+                u.DamagedOnOpponentTurn = false;
+                if (damaged) continue;
+                int gained = Math.Min(u.Def.Health, u.Health + Catalog.RestHealAmount) - u.Health;
+                if (gained <= 0) continue;
+                u.Health += gained;
+                events.Add(new UnitHealed(u.Id, gained));
+            }
+        }
+
         /// <summary>W-02: checked immediately whenever a tower reaches 0 Health.</summary>
         internal static void TowerDestroyed(GameState state, Tower tower, EventLog events)
         {
@@ -97,8 +115,8 @@ namespace HexPortal.Core
             events.Add(new GameOver(state.Result));
         }
 
-        /// <summary>T-09 (v2.8): the active player's clocks ran out. A pending draw is made first: the pre-pick was
-        /// already used at turn start (T-11), so it is a blind draw; interim: if no blind draw is possible, the first
+        /// <summary>T-09 (v2.8): the active player's clocks ran out. A pending draw is made first:
+        /// a blind draw; interim: if no blind draw is possible, the first
         /// non-empty Market slot. Skipped when the hand is full (D-07). Then the automatic turn end is counted; the
         /// MaxConsecutiveTimeouts-th in a row loses at once (W-04, interim: before the opponent's turn starts);
         /// otherwise the turn ends as with EndTurn.</summary>

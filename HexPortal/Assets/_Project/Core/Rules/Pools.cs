@@ -3,7 +3,7 @@ using HexPortal.Core.Data;
 
 namespace HexPortal.Core
 {
-    /// <summary>§5 pools, dealing and Market (D-01…D-07), the turn-start draw (T-04 step 4), pre-pick (T-11)
+    /// <summary>§5 pools, dealing and Market (D-01…D-07), the turn-start draw (T-04 step 4)
     /// and the death draw (U-23). All randomness comes from the match Rng.</summary>
     public static class Pools
     {
@@ -93,14 +93,6 @@ namespace HexPortal.Core
             return options;
         }
 
-        /// <summary>T-11 choices: the draw options now, plus None (clear).</summary>
-        public static List<int> PrePickOptions(GameState state)
-        {
-            var options = DrawOptions(state);
-            options.Add(PrePickCommand.None);
-            return options;
-        }
-
         public static bool IsHandFull(GameState state, PlayerId p) => state.GetHand(p).Count >= Catalog.HandLimit;
 
         /// <summary>A draw option (validated by the caller).</summary>
@@ -141,38 +133,11 @@ namespace HexPortal.Core
             Passives.OnMarketBuy(state, p, events);
         }
 
-        /// <summary>T-04 step 4 and T-11. A valid pre-pick is applied; a Market pre-pick whose slot now holds another
-        /// card (or nothing) is void. Otherwise the player must choose (IsDrawPending). Skipped when the hand is full
-        /// or there is nothing to draw (D-07). The pre-pick is always cleared.</summary>
+        /// <summary>T-04 step 4: the player must draw first (IsDrawPending), unless the hand is full or there is nothing
+        /// to draw (D-07). T-11 pre-pick removed in v4.0.</summary>
         internal static void TurnStartDraw(GameState state, PlayerId p, EventLog events)
         {
-            int slot = state.GetPrePickSlot(p);
-            int cardId = state.GetPrePickCardId(p);
-            state.SetPrePick(p, PrePickCommand.None, 0);
-            state.SetDrawPending(p, false);
-            if (IsHandFull(state, p) || DrawOptions(state).Count == 0) return;
-            if (slot == DrawCommand.Blind && CanBlindDraw(state))
-            {
-                BlindDraw(state, p, events);
-                return;
-            }
-            if (slot >= 0)
-            {
-                var card = state.GetMarket((CardPool)slot);
-                if (card != null && card.Id == cardId)
-                {
-                    TakeFromMarket(state, p, (CardPool)slot, events);
-                    return;
-                }
-            }
-            state.SetDrawPending(p, true);
-        }
-
-        /// <summary>T-11: store the waiting player's choice (validated by the caller), with the Market card it saw.</summary>
-        internal static void SetPrePick(GameState state, PlayerId p, int slot)
-        {
-            var card = slot >= 0 ? state.GetMarket((CardPool)slot) : null;
-            state.SetPrePick(p, slot, card == null ? 0 : card.Id);
+            state.SetDrawPending(p, !IsHandFull(state, p) && DrawOptions(state).Count > 0);
         }
 
         /// <summary>U-23: the owner of a unit that died draws Catalog.DeathDrawCount blind cards, unless the hand is full.</summary>

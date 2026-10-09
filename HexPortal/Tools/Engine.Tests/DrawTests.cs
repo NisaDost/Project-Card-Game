@@ -6,7 +6,7 @@ using NUnit.Framework;
 
 namespace HexPortal.Tests
 {
-    // GDD T-04 step 4 (mandatory first draw), T-11 (pre-pick), D-07 (hand limit), U-23 (death draw).
+    // GDD T-04 step 4 (mandatory first draw), D-07 (hand limit), U-23 (death draw).
     public class DrawTests
     {
         static readonly PlayerId A = PlayerId.A, B = PlayerId.B;
@@ -88,119 +88,25 @@ namespace HexPortal.Tests
             Assert.That(Engine.GetLegalCommands(s, B), Is.EqualTo(new ICommand[] { new EndTurnCommand(B) }));
         }
 
+        // T-11 KALDIRILDI (v4.0): the six pre-pick tests (waiting player's command, applied at turn start, changeable,
+        // void when the Market card changed or the slot emptied, stored per player) were removed with the rule.
+
         [Test]
-        public void T11_OnlyTheWaitingPlayerPrePicks_AndOnlyThat()
+        public void T11_Removed_WaitingPlayerHasNoCommand_DrawStaysMandatoryAtTurnStart()
         {
             var b = new TestBoard();
             int g = b.Unit(UnitClass.Guardian, B, H(1, -1));
-            b.Market("C-10");
-            b.PoolCard("C-16");
-            var s = b.Build();
-            Assert.That(Engine.GetLegalCommands(s, B), Is.EqualTo(new ICommand[]
-            {
-                new PrePickCommand(B, Buff), new PrePickCommand(B, DrawCommand.Blind), new PrePickCommand(B, PrePickCommand.None),
-            }));
-            Assert.That(Engine.GetLegalCommands(s, A).OfType<PrePickCommand>(), Is.Empty);
-            ControlZoneTests.AssertRejected(s, new PrePickCommand(A, Buff));        // the active player
-            ControlZoneTests.AssertRejected(s, new PrePickCommand(B, Char));        // empty slot
-            ControlZoneTests.AssertRejected(s, new MoveCommand(B, g, H(1, 0)));     // not B's turn
-            Engine.Apply(s, new PrePickCommand(B, Buff));
-            Assert.That(s.GetPrePickSlot(B), Is.EqualTo(Buff));
-            Assert.That(s.GetPrePickSlot(A), Is.EqualTo(PrePickCommand.None));
-        }
-
-        [Test]
-        public void T11_PrePickIsAppliedAtTurnStart()
-        {
-            var b = new TestBoard();
             int m = b.Market("C-10");
             b.PoolCard("C-16");
             var s = b.Build();
-            Engine.Apply(s, new PrePickCommand(B, Buff));
-            var ev = Engine.Apply(s, new EndTurnCommand(A));
-            Assert.That(s.IsDrawPending(B), Is.False);
+            Assert.That(Engine.GetLegalCommands(s, B), Is.Empty);               // A is active: nothing for B
+            ControlZoneTests.AssertRejected(s, new MoveCommand(B, g, H(1, 0)));  // not B's turn
+            Engine.Apply(s, new EndTurnCommand(A));
+            Assert.That(s.IsDrawPending(B), Is.True);                          // T-04 step 4: B chooses now
+            Assert.That(s.GetHand(B), Is.Empty);
+            Assert.That(Engine.GetLegalCommands(s, B), Is.EqualTo(new ICommand[] { new DrawCommand(B, Buff), new DrawCommand(B, DrawCommand.Blind) }));
+            Engine.Apply(s, new DrawCommand(B, Buff));
             Assert.That(s.GetHand(B).Single().Id, Is.EqualTo(m));
-            Assert.That(ev.OfType<CardDrawn>().Single().Player, Is.EqualTo(B));
-            Assert.That(s.GetPrePickSlot(B), Is.EqualTo(PrePickCommand.None)); // cleared once applied
-
-            var b2 = new TestBoard();
-            b2.Market("C-10");
-            int pooled = b2.PoolCard("C-16");
-            var s2 = b2.Build();
-            Engine.Apply(s2, new PrePickCommand(B, DrawCommand.Blind));
-            Engine.Apply(s2, new EndTurnCommand(A));
-            Assert.That(s2.GetHand(B).Single().Id, Is.EqualTo(pooled));
-            Assert.That(s2.IsDrawPending(B), Is.False);
-        }
-
-        [Test]
-        public void T11_PrePickCanBeChangedUntilTheTurnEnds()
-        {
-            var b = new TestBoard();
-            b.Market("C-10");
-            b.PoolCard("C-16");
-            var s = b.Build();
-            Engine.Apply(s, new PrePickCommand(B, Buff));
-            Engine.Apply(s, new PrePickCommand(B, DrawCommand.Blind));
-            Engine.Apply(s, new PrePickCommand(B, PrePickCommand.None));
-            Engine.Apply(s, new EndTurnCommand(A));
-            Assert.That(s.IsDrawPending(B), Is.True); // no pre-pick left: B chooses now
-            Assert.That(s.GetHand(B), Is.Empty);
-        }
-
-        [Test]
-        public void T11_PrePickedMarketCardChanged_PlayerChoosesAgain()
-        {
-            var b = new TestBoard();
-            b.Market("C-10");
-            b.PoolCard("C-12");  // refills the Buff slot with a different card
-            b.PoolCard("C-16");
-            var s = b.Build();
-            Turn.StartTurn(s, new List<GameEvent>()); // A must draw
-            Assert.That(s.IsDrawPending(A), Is.True);
-            Engine.Apply(s, new PrePickCommand(B, Buff)); // B picks while A has not drawn yet
-            Engine.Apply(s, new DrawCommand(A, Buff));  // A takes that very card
-            Engine.Apply(s, new EndTurnCommand(A));
-            Assert.That(s.IsDrawPending(B), Is.True);
-            Assert.That(s.GetHand(B), Is.Empty);
-            Assert.That(s.GetPrePickSlot(B), Is.EqualTo(PrePickCommand.None));
-            var legal = Engine.GetLegalCommands(s, B);
-            Assert.That(legal.All(c => c is DrawCommand), Is.True);
-            Assert.That(legal, Is.EqualTo(new ICommand[] { new DrawCommand(B, Buff), new DrawCommand(B, DrawCommand.Blind) }));
-        }
-
-        [Test]
-        public void T11_PrePickedSlotEmptied_PlayerChoosesAgain()
-        {
-            var b = new TestBoard();
-            b.Market("C-10");
-            b.PoolCard("C-16"); // the Buff pool is empty: the slot stays empty after A's take
-            var s = b.Build();
-            Turn.StartTurn(s, new List<GameEvent>());
-            Engine.Apply(s, new PrePickCommand(B, Buff));
-            Engine.Apply(s, new DrawCommand(A, Buff));
-            Assert.That(s.GetMarket(CardPool.Buff), Is.Null);
-            Engine.Apply(s, new EndTurnCommand(A));
-            Assert.That(Engine.GetLegalCommands(s, B), Is.EqualTo(new ICommand[] { new DrawCommand(B, DrawCommand.Blind) }));
-        }
-
-        [Test]
-        public void T11_PrePicksAreStoredPerPlayer()
-        {
-            var b = new TestBoard();
-            int m = b.Market("C-10");
-            b.PoolCard("C-16");
-            b.PoolCard("C-17");
-            var s = b.Build();
-            Engine.Apply(s, new PrePickCommand(B, Buff));
-            Assert.That((s.GetPrePickSlot(A), s.GetPrePickSlot(B)), Is.EqualTo((PrePickCommand.None, Buff)));
-            Assert.That(s.GetPrePickCardId(B), Is.EqualTo(m));
-            Engine.Apply(s, new EndTurnCommand(A));
-            Engine.Apply(s, new PrePickCommand(A, DrawCommand.Blind));
-            Assert.That((s.GetPrePickSlot(A), s.GetPrePickSlot(B)), Is.EqualTo((DrawCommand.Blind, PrePickCommand.None)));
-            Engine.Apply(s, new EndTurnCommand(B));
-            Assert.That(s.GetHand(A).Count, Is.EqualTo(1));
-            Assert.That(s.IsDrawPending(A), Is.False);
         }
 
         [Test]

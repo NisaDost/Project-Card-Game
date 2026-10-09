@@ -61,7 +61,7 @@ namespace HexPortal.Game
         public const string Quests = "Görevler";
         public const string Close = "Kapat";
         public const string Quit = "Çıkış";
-        public const string MarketTitle = "Kart çek";
+        public const string MarketTitle = "Pazar · Kör çek";
         public const string Tower = "Kule";
         public const string Hand = "El";
         public const string Completed = "Tamamlandı";
@@ -109,6 +109,12 @@ namespace HexPortal.Game
         public const string ReasonNoAction = "Bu birim şu an bir şey yapamaz";
         public const string ReasonNoTarget = "Geçerli hedef yok";
         public const string ReasonHandFull = "El dolu";
+        // v4.0 phase 1: draw call (T-04), hand-full skip notice (D-07), compact card rows (UX-07)
+        public const string DrawCall = "Kart çek";
+        public const string HandFullDrawSkipped = "El dolu, çekiş atlandı";
+        public const string CardNoteSetupMana = "Mana yetmez";
+        public const string HealthIcon = "✚";
+        public const string MoveIcon = "➜";
         public const string ReasonSlotEmpty = "Bu Pazar slotu boş";
         public const string ReasonAlreadyDrew = "Bu tur kart çektin";
         public const string ReasonSetupNoDraw = "Hazırlıkta kart çekilmez";

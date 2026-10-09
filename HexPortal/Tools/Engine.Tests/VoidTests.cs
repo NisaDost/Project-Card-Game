@@ -34,24 +34,23 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void B25_V04_VoidIsNeverVisible_ExploredFromTheStartForBoth_ShapeOnlyInPlayerView()
+        public void B25_V04_VoidIsNeverVisible_HiddenForBoth_ShapeOnlyInPlayerView()
         {
             var b = new TestBoard().Void(H(1, 1)).Void(H(-1, -1));
             b.Unit(UnitClass.Archer, A, H(0, 1)); // Sight 3 covers both
             var s = b.Build();
             Assert.That(Visibility.VisibleCells(s, A), Does.Not.Contain(H(1, 1)).And.Not.Contain(H(-1, -1)));
-            Assert.That(s.GetFog(A).Get(H(1, 1)), Is.EqualTo(CellVisibility.Explored)); // V-04 exception (PM, v3.3)
-            Assert.That(s.GetFog(B).Get(H(-1, -1)), Is.EqualTo(CellVisibility.Explored));
-            Assert.That(s.GetFog(A).Get(H(-1, -1)), Is.EqualTo(CellVisibility.Explored)); // opponent half too
-            Assert.That(s.GetFog(B).Get(H(1, 1)), Is.EqualTo(CellVisibility.Explored));
+            // V-04 (v4.0): the v3.3 exception is removed; Void is never seen, so it stays Hidden.
+            foreach (var p in new[] { A, B })
+                foreach (var h in new[] { H(1, 1), H(-1, -1) })
+                    Assert.That(s.GetFog(p).Get(h), Is.EqualTo(CellVisibility.Hidden), p + " " + h);
 
             foreach (var p in new[] { A, B })
             {
                 var view = PlayerView.For(s, p);
                 var cell = view.Cells[Board.IndexOf(H(1, 1))];
-                Assert.That(cell.Visibility, Is.EqualTo(CellVisibility.Explored));
-                Assert.That(cell.TerrainKnown, Is.True);
-                Assert.That(cell.Tile.Marker, Is.EqualTo(Marker.Void));
+                Assert.That(cell.Visibility, Is.EqualTo(CellVisibility.Hidden));
+                Assert.That(cell.TerrainKnown, Is.False);
                 Assert.That(cell.Unit, Is.Null);
                 Assert.That(view.PlayableCells, Does.Not.Contain(H(1, 1)).And.Not.Contain(H(-1, -1)));
                 Assert.That(view.PlayableCells.Count, Is.EqualTo(Board.Cells.Count - 2));

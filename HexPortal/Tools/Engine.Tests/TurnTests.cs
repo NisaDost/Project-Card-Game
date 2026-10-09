@@ -171,10 +171,10 @@ namespace HexPortal.Tests
             Assert.That(s.ActivePlayer, Is.EqualTo(B));
             Assert.That(s.GetEnergy(B), Is.EqualTo(Catalog.EnergyPerTurn));
             Assert.That(s.GetUnit(bg).ActedThisTurn, Is.False);
-            Assert.That(s.GetUnit(bg).Health, Is.EqualTo(3 + Catalog.HealerHealAmount));
+            Assert.That(s.GetUnit(bg).Health, Is.EqualTo(3 + Catalog.HealerHealAmount + Catalog.RestHealAmount)); // U-05 + U-31
             var started = ev.OfType<TurnStarted>().Single();
             Assert.That(started.Player, Is.EqualTo(B));
-            Assert.That(ev.IndexOf(started), Is.LessThan(ev.IndexOf(ev.OfType<UnitHealed>().Single())));
+            Assert.That(ev.IndexOf(started), Is.LessThan(ev.IndexOf(ev.OfType<UnitHealed>().First())));
             Assert.That(Engine.GetLegalCommands(s, B).OfType<MoveCommand>().Any(c => c.UnitId == bh), Is.True);
         }
 

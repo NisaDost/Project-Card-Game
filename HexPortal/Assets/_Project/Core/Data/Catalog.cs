@@ -56,6 +56,7 @@ namespace HexPortal.Core.Data
         public const int MageSplashDamage = 10;       // U-04 Patlama
         public const int HealerHealAmount = 15;       // U-05 Şifa (v3.4)
         public const int DeathDrawCount = 1;         // U-23
+        public const int RestHealAmount = 10;         // U-31 Dinlenme (v4.0)
 
         //                                        hp  atk min max sight move
         public static readonly TowerDef Tower = new TowerDef(250, 30, 1, 2, 2, 0); // U-06 (v3.4)

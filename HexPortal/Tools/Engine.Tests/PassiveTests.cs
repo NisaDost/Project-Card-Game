@@ -335,14 +335,14 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void P05_WorksThroughThePrePick_AndRespectsTheHandLimit()
+        public void P05_MarketDrawThatFillsTheHand_SkipsTheExtraDraw()
         {
             var b = new TestBoard().FullPools().Round(3).Active(B).Passive(A, "P-05");
             b.Market("C-10");
             for (int i = 0; i < Catalog.HandLimit - 1; i++) b.Hand(A, "C-13");
             var s = b.Build();
-            Engine.Apply(s, new PrePickCommand(A, (int)CardPool.Buff));
-            var ev = End(s); // A's turn start applies the pre-pick (T-11)
+            End(s); // A.s turn start: A must draw (T-04; T-11 pre-pick removed in v4.0)
+            var ev = Engine.Apply(s, new DrawCommand(A, (int)CardPool.Buff));
             Assert.That(ev.OfType<CardDrawn>().Select(d => d.Source), Is.EqualTo(new[] { DrawSource.Market })); // D-07: now full
             Assert.That(s.GetHand(A).Count, Is.EqualTo(Catalog.HandLimit));
             Assert.That(ev.OfType<PassiveRevealed>().Single().PassiveId, Is.EqualTo("P-05"));

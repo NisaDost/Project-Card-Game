@@ -526,18 +526,18 @@ namespace HexPortal.Tests
             var s = b.Build();
 
             var ev = Engine.Apply(s, new EndTurnCommand(B)); // A's turn starts
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(3 + Catalog.HealerHealAmount));
-            Assert.That(s.GetUnit(far).Health, Is.EqualTo(3));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(3 + Catalog.HealerHealAmount + Catalog.RestHealAmount)); // + U-31 rest
+            Assert.That(s.GetUnit(far).Health, Is.EqualTo(3 + Catalog.RestHealAmount)); // rest only
             Assert.That(s.GetUnit(enemy).Health, Is.EqualTo(1));
             Assert.That(s.GetTower(A).Health, Is.EqualTo(5));
-            var heal = ev.OfType<UnitHealed>().Single();
-            Assert.That(heal.UnitId, Is.EqualTo(g));
-            Assert.That(heal.Amount, Is.EqualTo(Catalog.HealerHealAmount));
+            var heals = ev.OfType<UnitHealed>().Select(h => (h.UnitId, h.Amount)).ToList(); // U-05 step, then U-31
+            Assert.That(heals.Take(1), Is.EqualTo(new[] { (g, Catalog.HealerHealAmount) }));
+            Assert.That(heals.Where(h => h.Amount == Catalog.HealerHealAmount).Select(h => h.UnitId), Is.EqualTo(new[] { g }));
 
             // B's turn start: A's Healer does nothing.
             Engine.Apply(s, new EndTurnCommand(A));
-            Assert.That(s.GetUnit(enemy).Health, Is.EqualTo(1));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(3 + Catalog.HealerHealAmount));
+            Assert.That(s.GetUnit(enemy).Health, Is.EqualTo(1 + Catalog.RestHealAmount)); // only its own rest
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(3 + Catalog.HealerHealAmount + Catalog.RestHealAmount));
         }
 
         [Test]
@@ -550,10 +550,10 @@ namespace HexPortal.Tests
             int alone = b.Unit(UnitClass.Healer, A, H(-3, 0), health: 1);
             var s = b.Build();
             Engine.Apply(s, new EndTurnCommand(B));
-            Assert.That(s.GetUnit(g).Health, Is.EqualTo(2 + 2 * Catalog.HealerHealAmount));
-            Assert.That(s.GetUnit(h1).Health, Is.EqualTo(1 + Catalog.HealerHealAmount));
-            Assert.That(s.GetUnit(h2).Health, Is.EqualTo(1 + Catalog.HealerHealAmount));
-            Assert.That(s.GetUnit(alone).Health, Is.EqualTo(1));
+            Assert.That(s.GetUnit(g).Health, Is.EqualTo(2 + 2 * Catalog.HealerHealAmount + Catalog.RestHealAmount)); // + U-31
+            Assert.That(s.GetUnit(h1).Health, Is.EqualTo(1 + Catalog.HealerHealAmount + Catalog.RestHealAmount));
+            Assert.That(s.GetUnit(h2).Health, Is.EqualTo(1 + Catalog.HealerHealAmount + Catalog.RestHealAmount));
+            Assert.That(s.GetUnit(alone).Health, Is.EqualTo(1 + Catalog.RestHealAmount)); // rest only, never its own heal
             Assert.That(s.GetTower(A).Health, Is.EqualTo(5));
         }
 

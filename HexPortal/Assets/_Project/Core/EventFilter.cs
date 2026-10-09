@@ -60,7 +60,6 @@ namespace HexPortal.Core
                 case TrapTriggered x: // C-33: public; the victim only if the viewer can see it
                     return Sees(s, x.UnitId, p, vis) ? e : new TrapTriggered(x.Owner, x.CardId, x.DefId, x.Cell, 0);
                 case Revealed x: return x.Owner == p ? null : e;
-                case PrePickSet x: return x.Player == p ? e : null;  // T-11
                 case QuestsChosen x: return x.Player == p ? e : null;
                 case PassiveChosen x: return x.Player == p ? e : null;
                 case TowerPlaced x: return x.Player == p ? e : null;

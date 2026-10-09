@@ -51,9 +51,10 @@ namespace HexPortal.Core
         static int RevealEnd(GameState state, PlayerId attacker) =>
             attacker == state.ActivePlayer ? state.TurnIndex + 1 : state.TurnIndex;
 
-        /// <summary>V-04: each player starts with the own half (B-06) Explored, plus (PM, v3.3) the template's permanent terrain
-        /// (B-25: Void and template rock) on the whole board; later E-10 rock follows the normal fog rules (E-05). Explored with its current terrain, the Portal
-        /// Visible (V-06), everything else Hidden.</summary>
+        /// <summary>V-04 (v4.0): each player starts with only the own home zone (B-03) Explored with its current terrain, the
+        /// Portal Visible (V-06), everything else Hidden, incl. the rest of the own half and template rock and Void (the v3.3
+        /// exception is removed). The current sight of the own units and tower is added by UpdateMemory when round 1 starts.
+        /// Void is never Visible (V-02), so it stays Hidden for good; only PlayerView.PlayableCells (the public shape) shows it.</summary>
         internal static void InitMemory(GameState state)
         {
             foreach (var p in new[] { PlayerId.A, PlayerId.B })
@@ -63,22 +64,10 @@ namespace HexPortal.Core
                 {
                     var terrain = new LastSeen(state.Map.Get(h));
                     if (h == Board.Portal) mem.Set(h, CellVisibility.Visible, terrain);
-                    else if ((Board.IsInHalf(h, p) && state.Map.IsPlayable(h)) || IsTemplateTerrain(state.Map, h)) mem.Set(h, CellVisibility.Explored, terrain);
+                    else if (Board.IsHomeZone(h, p) && state.Map.IsPlayable(h)) mem.Set(h, CellVisibility.Explored, terrain);
                     else mem.Set(h, CellVisibility.Hidden, default(LastSeen));
                 }
             }
-        }
-
-        /// <summary>B-25: a cell the map's template made Void or permanent rock (public at match start, V-04 exception).</summary>
-        static bool IsTemplateTerrain(GameMap map, Hex h)
-        {
-            var m = map.Get(h).Marker;
-            if (m == Marker.Void) return true;
-            if (m != Marker.Rock) return false;
-            var def = Catalog.MapTemplates[map.TemplateId];
-            var upper = Board.IsInUpperHalf(h) ? h : h.Mirror();
-            foreach (var c in def.UpperRocks) if (c == upper) return true;
-            return false;
         }
 
         /// <summary>InitMemory, then UpdateMemory: the memory of a scenario that starts as placed (TestBoard).</summary>

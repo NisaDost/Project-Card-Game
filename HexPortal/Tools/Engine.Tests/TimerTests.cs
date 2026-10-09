@@ -6,7 +6,7 @@ using static HexPortal.Tests.MatchHelper;
 
 namespace HexPortal.Tests
 {
-    // T-09 and W-04 (v2.8: a timeout resolves the pending draw by pre-pick or blind draw; the counter counts only
+    // T-09 and W-04 (v2.8: a timeout resolves the pending draw by a blind draw; the counter counts only
     // consecutive automatic turn ends). Game results (W-02 now, W-01/W-03 in M4b).
     public class TimerTests
     {

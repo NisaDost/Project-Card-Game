@@ -97,15 +97,14 @@ namespace HexPortal.Tests
         [Test]
         public void Replay_CardMatchIsDeterministic()
         {
-            // Both players' commands (incl. pre-picks, draws, deploys, cards) recorded, then replayed.
+            // Both players' commands (draws, deploys, cards) recorded, then replayed.
             const ulong seed = 11;
             var rng = new Rng(3);
             var s1 = NewGame(seed);
             var commands = new List<ICommand>();
             for (int step = 0; step < 300 && !s1.IsOver; step++)
             {
-                var waiting = Engine.GetLegalCommands(s1, s1.ActivePlayer.Opponent());
-                var c = rng.NextInt(5) == 0 ? waiting[rng.NextInt(waiting.Count)] : Choose(Engine.GetLegalCommands(s1, s1.ActivePlayer), rng);
+                var c = Choose(Engine.GetLegalCommands(s1, s1.ActivePlayer), rng);
                 commands.Add(c);
                 Engine.Apply(s1, c);
             }
@@ -138,17 +137,8 @@ namespace HexPortal.Tests
                         s = NewGame(seed + (ulong)(1000 * games++));
                         continue;
                     }
-                    // T-11: the waiting player may only pre-pick.
-                    var inactive = s.ActivePlayer.Opponent();
-                    var waiting = Engine.GetLegalCommands(s, inactive);
-                    Assert.That(waiting.All(x => x is PrePickCommand), Is.True);
-                    Assert.That(waiting, Does.Contain(new PrePickCommand(inactive, PrePickCommand.None)));
-                    if (rng.NextInt(5) == 0)
-                    {
-                        var pre = waiting[rng.NextInt(waiting.Count)];
-                        Count(pre);
-                        Assert.DoesNotThrow(() => Engine.Apply(s, pre), "seed " + seed + " step " + steps + ": " + pre);
-                    }
+                    // T-11 KALDIRILDI (v4.0): the waiting player has no command.
+                    Assert.That(Engine.GetLegalCommands(s, s.ActivePlayer.Opponent()), Is.Empty);
                     var legal = Engine.GetLegalCommands(s, s.ActivePlayer);
                     Assert.That(legal, Is.Not.Empty);
                     // T-04: a pending draw means draw options only; otherwise EndTurn closes the list.
@@ -165,7 +155,7 @@ namespace HexPortal.Tests
                 Assert.That(attacks, Is.GreaterThan(0), "seed " + seed);
             }
             foreach (var kind in new[] { typeof(MoveCommand), typeof(AttackCommand), typeof(OverwatchCommand), typeof(DeployCommand),
-                         typeof(PlayCardCommand), typeof(DrawCommand), typeof(PrePickCommand), typeof(EndTurnCommand) })
+                         typeof(PlayCardCommand), typeof(DrawCommand), typeof(EndTurnCommand) })
                 Assert.That(kinds.ContainsKey(kind), Is.True, kind.Name + " never played");
             Assert.That(playedCards.Count, Is.GreaterThanOrEqualTo(10), "support cards played: " + string.Join(",", playedCards));
         }
@@ -230,8 +220,6 @@ namespace HexPortal.Tests
                         AssertRejected(s, c);
                         rejected++;
                     }
-                    var waiting = Engine.GetLegalCommands(s, s.ActivePlayer.Opponent());
-                    if (rng.NextInt(4) == 0) Engine.Apply(s, waiting[rng.NextInt(waiting.Count)]);
                     Engine.Apply(s, Choose(Engine.GetLegalCommands(s, s.ActivePlayer), rng));
                 }
             }
@@ -268,7 +256,7 @@ namespace HexPortal.Tests
             Engine.Apply(ws, new AttackCommand(A, wa, new Hex(2, -2)));
             Assert.That(ws.Winner, Is.EqualTo(A));
             AssertRejected(ws, new EndTurnCommand(A));                                 // after game over
-            AssertRejected(ws, new PrePickCommand(B, (int)CardPool.Buff));             // after game over
+            AssertRejected(ws, new DrawCommand(B, (int)CardPool.Buff));                // after game over
             Assert.That(Engine.GetLegalCommands(ws, B), Is.Empty);
         }
 
@@ -296,7 +284,7 @@ namespace HexPortal.Tests
                 case 1: return new AttackCommand(player, unitId, cell);
                 case 2: return new OverwatchCommand(player, unitId);
                 case 3: return new DrawCommand(player, slot);
-                case 4: return new PrePickCommand(player, slot);
+                case 4: return new DrawCommand(player.Opponent(), slot); // the waiting player (T-11 removed)
                 case 5: return new DeployCommand(player, cardId, cell);
                 case 6: return new PlayCardCommand(player, cardId, cell);
                 case 7: return new PlayCardCommand(player, cardId, cell, rng.NextInt(-1, 7));
@@ -343,8 +331,6 @@ namespace HexPortal.Tests
                 s => s.SetMana(B, 1),
                 s => s.SetDrawPending(A, true),
                 s => s.SetDrawPending(B, true),
-                s => s.SetPrePick(B, DrawCommand.Blind, 0),
-                s => s.SetPrePick(B, PrePickCommand.None, 5),
                 s => s.HandList(A).RemoveAt(0),
                 s => s.HandList(A).Reverse(),
                 s => s.HandList(B).Add(s.PoolList(CardPool.Buff)[0]),

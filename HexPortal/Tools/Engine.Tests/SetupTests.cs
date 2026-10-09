@@ -295,7 +295,7 @@ namespace HexPortal.Tests
             Assert.That(Engine.GetLegalCommands(s, A), Is.Empty);
             AssertRejected(s, new FinishSetupCommand(A));
             AssertRejected(s, new EndTurnCommand(A)); // not playing yet
-            AssertRejected(s, new PrePickCommand(B, DrawCommand.Blind));
+            AssertRejected(s, new DrawCommand(B, DrawCommand.Blind));
         }
 
         [Test]

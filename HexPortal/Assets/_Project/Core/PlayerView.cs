@@ -99,7 +99,7 @@ namespace HexPortal.Core
     /// <summary>
     /// Everything one player may know (V-05, V-09, V-10, S-08), as a self-contained read model. The AI (AI-01) and the
     /// client read only this. Never contains: the opponent's hand contents, active quests or quest progress, unrevealed
-    /// passive, traps, pre-pick, Mana or
+    /// passive, traps, Mana or
     /// Energy, pool order, the Rng, or enemy units/tower outside the viewer's Visible cells (ghosts excepted).
     /// </summary>
     public sealed class PlayerView
@@ -111,7 +111,7 @@ namespace HexPortal.Core
         public PlayerId ActivePlayer { get; private set; }
         public GameResult Result { get; private set; }
 
-        /// <summary>Board.Cells order. B-25: Void cells are Hidden but public (TerrainKnown, Tile = Void): the map's shape.</summary>
+        /// <summary>Board.Cells order. B-25, V-04 (v4.0): Void cells are Hidden like any never-seen cell and carry no terrain; the shape is public only through PlayableCells.</summary>
         public IReadOnlyList<CellView> Cells { get; private set; }
         /// <summary>B-25: the playable (non-Void) cells in Board.Cells order; draw and frame only these. Public.</summary>
         public IReadOnlyList<Hex> PlayableCells { get; private set; }
@@ -142,8 +142,6 @@ namespace HexPortal.Core
         /// <summary>S-05 (v3.0): the own setup budget left (the opponent's is hidden).</summary>
         public int SetupMana { get; private set; }
         public bool DrawPending { get; private set; }
-        public int PrePickSlot { get; private set; }
-        public int PrePickCardId { get; private set; }
 
         public SetupStep SetupStep { get; private set; }
         public bool OpponentSetupFinished { get; private set; }
@@ -215,11 +213,6 @@ namespace HexPortal.Core
                         SetTower(c, t.Owner, t.Health, false);
                         if (t.Owner == o) enemyTowerPos = h;
                     }
-                }
-                else if (s.Map.Get(h).Marker == Marker.Void)
-                {
-                    c.TerrainKnown = true; // B-25: the board shape is public
-                    c.Tile = s.Map.Get(h);
                 }
                 else if (c.Visibility == CellVisibility.Explored)
                 {
@@ -294,7 +287,7 @@ namespace HexPortal.Core
                 EnemyTowerPos = enemyTowerPos, EnemyTowerHealth = enemyTower.Health, EnemyTowerShotAvailable = s.IsTowerShotAvailable(o),
                 Hand = new List<CardInstance>(s.GetHand(p)), Mana = s.GetMana(p), Energy = s.GetEnergy(p),
                 TurnStartManaBonus = HexPortal.Core.Mana.WellspringBonus(s, p), TurnStartEnergyBonus = HexPortal.Core.Mana.RuneBonus(s, p), SetupMana = s.GetSetupMana(p),
-                DrawPending = s.IsDrawPending(p), PrePickSlot = s.GetPrePickSlot(p), PrePickCardId = s.GetPrePickCardId(p),
+                DrawPending = s.IsDrawPending(p),
                 SetupStep = Setup.StepOf(s, p), OpponentSetupFinished = s.IsSetupFinished(o),
                 QuestOffer = questOffer, QuestChoices = questChoices, PassiveOffer = passiveOffer,
                 PassiveChoice = s.GetPassiveChoice(p) == null ? null : s.GetPassiveChoice(p).Id,

@@ -25,9 +25,11 @@ namespace HexPortal.Game
         const float NoticeSeconds = 1.8f;
         const float TurnNoticeSeconds = 0.8f;
         const int LogLines = 4;
-        const float HandWidth = 1170f;     // .hand width at the 1920 reference (left 330, right 420)
-        const float CardStride = 196f;     // card width + margins
-        const float GroupGap = 28f;        // .hand-group horizontal margins (UX-04 three groups)
+        const float HandWidth = 1318f;     // .hand width at the 1920 reference (left 276, right 326); fallback before layout
+        const float CardStride = 154f;     // .card width + margins
+        const float GroupGap = 20f;        // .hand-group horizontal margins (UX-04 three groups)
+        const float DragOffsetX = 73f;     // half a card: the ghost is centred over the finger...
+        const float DragOffsetY = 200f;    // ...and above it, so the target cell stays visible
 
         readonly MatchController match;
         readonly VisualElement root;
@@ -37,6 +39,8 @@ namespace HexPortal.Game
 
         readonly VisualElement screenMenu, screenQuests, screenPassive, screenHandoff, screenResult, hud, questPanel, dragCard, confirmPanel, infoPanel;
         readonly VisualElement hand, handTraps, handChars, handBuffs, questOptions, passiveOptions, manaPips, energyPips, oppInfo;
+        readonly VisualElement marketBox;
+        readonly Label drawCall;
         readonly Label timerBank, ownTower, roundLabel, oppTower, oppHand, oppQuests, turnBanner, eventBanner, manaText, manaCaption, energyText,
             timer, prompt, questText, confirmText, toast, notice, eventLog, infoIcon, infoTitle, infoText;
         readonly List<VisualElement> handCards = new List<VisualElement>();
@@ -97,6 +101,10 @@ namespace HexPortal.Game
         public string ConfirmText => confirmAction != null ? confirmText.text : null;
         public string EventLogText => eventLog.text;
         public string LastNotice { get; private set; } = "";
+        /// <summary>T-04: the "Kart çek" call and the Market glow are shown (own turn, draw pending).</summary>
+        public bool DrawCallVisible { get; private set; }
+        /// <summary>Test hook: the colour a cell is highlighted with (clear = none).</summary>
+        public Color HighlightAt(Hex h) => board.HighlightAt(h);
 
         public GameUi(MatchController match, VisualElement root, BoardView board, UnitsView units, Camera cam)
         {
@@ -130,11 +138,13 @@ namespace HexPortal.Game
                 Guard(market[i], () => OnDrawSlot(slot));
             }
             root.Q<Label>("market-title").text = Strings.MarketTitle;
+            marketBox = root.Q("market-box");
+            drawCall = root.Q<Label>("draw-call"); drawCall.text = Strings.DrawCall;
             blindBtn = root.Q<Button>("blind-btn"); blindBtn.text = Strings.Blind; Guard(blindBtn, () => OnDrawSlot(DrawCommand.Blind));
             endBtn = root.Q<Button>("end-btn"); Guard(endBtn, OnEnd);
             overwatchBtn = root.Q<Button>("overwatch-btn"); overwatchBtn.text = Strings.OverwatchIcon + " " + Strings.Overwatch; Guard(overwatchBtn, OnOverwatch);
             questsConfirm = root.Q<Button>("quests-confirm"); questsConfirm.text = Strings.Confirm; Guard(questsConfirm, OnConfirmQuests);
-            var questBtn = root.Q<Button>("quest-btn"); questBtn.text = Strings.Quests; questBtn.clicked += OpenQuests;
+            var questBtn = root.Q<Button>("quest-btn"); AddFace(questBtn, Strings.Quests); questBtn.clicked += OpenQuests;
             oppInfo.RegisterCallback<PointerUpEvent>(_ => OpenQuests()); // details live in the panel
             var qc = root.Q<Button>("quest-close"); qc.text = Strings.Close; qc.clicked += CloseQuests;
             root.Q<Label>("quest-title").text = Strings.Quests;
@@ -214,10 +224,12 @@ namespace HexPortal.Game
         void TurnStartNotice(PlayerView v)
         {
             int energy = v.TurnStartEnergyBonus, mana = v.TurnStartManaBonus; // from Core (PlayerView), no rule copy
-            if (energy <= 0 && mana <= 0) return;
+            bool drawSkipped = !v.DrawPending && v.Hand.Count >= Catalog.HandLimit; // D-07: Core skipped the T-04 draw
+            if (energy <= 0 && mana <= 0 && !drawSkipped) return;
             string text = Strings.YourTurn;
             if (energy > 0) text += " · " + Strings.EnergyBonus(energy);
             if (mana > 0) text += " · " + Strings.ManaBonus(mana);
+            if (drawSkipped) text += " · " + Strings.HandFullDrawSkipped;
             ShowNotice(text, false);
         }
 
@@ -247,7 +259,7 @@ namespace HexPortal.Game
         {
             pausePanel = root.Q("pause-panel");
             root.Q<Label>("pause-title").text = Strings.PauseTitle;
-            var pb = root.Q<Button>("pause-btn"); pb.text = Strings.PauseIcon; pb.clicked += OpenPause;
+            var pb = root.Q<Button>("pause-btn"); AddFace(pb, Strings.PauseIcon); pb.clicked += OpenPause;
             var resume = root.Q<Button>("pause-resume"); resume.text = Strings.Resume; resume.clicked += ClosePause;
             pauseTimer = root.Q<Button>("pause-timer");
             pauseTimer.clicked += () => { match.SetTimer(!match.TimerEnabled); SyncPauseTexts(); };
@@ -343,6 +355,40 @@ namespace HexPortal.Game
             };
         }
 
+        /// <summary>A padded touch target (.hit, >= 48 dp) whose visible face is smaller (v4.0 compact HUD).</summary>
+        static void AddFace(Button b, string text)
+        {
+            b.text = "";
+            var face = new Label(text) { pickingMode = PickingMode.Ignore, name = b.name + "-face" };
+            face.AddToClassList("face");
+            b.Add(face);
+        }
+
+        // ---------- Safe area (notch / punch-hole camera) ----------
+
+        /// <summary>Test hook: replaces Screen.safeArea (screen pixels, origin bottom-left). Null = the device value.</summary>
+        public static Rect? SafeAreaOverride { get; set; }
+        Rect appliedSafe;
+        Vector2 appliedPanel, appliedScreen;
+
+        /// <summary>Insets the HUD root by the safe area. Re-applied whenever the safe area, the screen or the panel
+        /// size changes (orientation flip between Landscape Left and Right moves the notch side). No allocation.</summary>
+        void ApplySafeArea()
+        {
+            var size = root.layout.size;
+            if (float.IsNaN(size.x) || size.x < 1f || size.y < 1f) return;
+            float sw = UnityEngine.Screen.width, sh = UnityEngine.Screen.height;
+            if (sw < 1f || sh < 1f) return;
+            Rect sa = SafeAreaOverride ?? UnityEngine.Screen.safeArea;
+            var screen = new Vector2(sw, sh);
+            if (sa == appliedSafe && size == appliedPanel && screen == appliedScreen) return;
+            appliedSafe = sa; appliedPanel = size; appliedScreen = screen;
+            hud.style.left = Mathf.Max(0f, sa.xMin / sw * size.x);
+            hud.style.right = Mathf.Max(0f, (sw - sa.xMax) / sw * size.x);
+            hud.style.top = Mathf.Max(0f, (sh - sa.yMax) / sh * size.y);
+            hud.style.bottom = Mathf.Max(0f, sa.yMin / sh * size.y);
+        }
+
         void SetOn(VisualElement el, bool on, string reason)
         {
             offReason[el] = on ? null : (reason ?? Strings.ReasonNotNow);
@@ -395,6 +441,7 @@ namespace HexPortal.Game
                 CancelConfirm();
                 notice.style.display = DisplayStyle.None;
                 toast.style.display = DisplayStyle.None;
+                DrawCallVisible = false;
             }
         }
 
@@ -555,10 +602,12 @@ namespace HexPortal.Game
                 market[i].text = card == null ? Strings.SlotName(i) + "\n" + Strings.Empty
                     : CardIcon(card) + " " + card.Cost + "\n" + CardName(card);
                 SetOn(market[i], !setup && HasDraw(i), DrawReason(v, card == null));
-                market[i].EnableInClassList("picked", v.PrePickSlot == i);
             }
             SetOn(blindBtn, !setup && HasDraw(DrawCommand.Blind), DrawReason(v, false));
-            blindBtn.EnableInClassList("picked", v.PrePickSlot == DrawCommand.Blind);
+            // T-04 step 4: the mandatory draw is called out and the Market/blind area glows until it is done.
+            bool call = DrawCallVisible = myTurn && v.DrawPending;
+            drawCall.style.display = call ? DisplayStyle.Flex : DisplayStyle.None;
+            marketBox.EnableInClassList("call", call);
 
             bool canEnd = setup ? Find<FinishSetupCommand>() != null : Find<EndTurnCommand>() != null;
             string finishWhy = SetupFinishReason(v);
@@ -596,6 +645,7 @@ namespace HexPortal.Game
         static string DrawReason(PlayerView v, bool emptySlot)
         {
             if (v.Phase == GamePhase.Setup) return Strings.ReasonSetupNoDraw;
+            if (v.ActivePlayer != v.Viewer) return Strings.ReasonOpponentTurn; // T-11 removed (v4.0): no draw choice on the opponent's turn
             if (emptySlot) return Strings.ReasonSlotEmpty;
             if (v.Hand.Count >= Catalog.HandLimit) return Strings.ReasonHandFull;
             if (v.ActivePlayer == v.Viewer && !v.DrawPending) return Strings.ReasonAlreadyDrew;
@@ -623,6 +673,7 @@ namespace HexPortal.Game
             // UX-15: the Android back button arrives as Escape.
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.escapeKey.wasPressedThisFrame && Current == Screen.Board && match.HasMatch) { if (Paused) ClosePause(); else OpenPause(); }
+            ApplySafeArea();
             WatchdogTick();
             TickPinch();
             TickClock();
@@ -686,7 +737,8 @@ namespace HexPortal.Game
                 foreach (var c in v.Hand)
                     if (HandGroup(c) == g) { groups++; break; }
             // More cards than fit (setup deals more than the play-time limit): overlap them, keep each card full size.
-            float overlap = n > 1 ? Mathf.Max(0f, (n * CardStride + groups * GroupGap - HandWidth) / (n - 1)) : 0f;
+            float width = hand.layout.width > 1f ? hand.layout.width : HandWidth; // actual width on wide/narrow screens
+            float overlap = n > 1 ? Mathf.Max(0f, (n * CardStride + groups * GroupGap - width) / (n - 1)) : 0f;
             bool setup = v.Phase == GamePhase.Setup;
             for (int g = 0; g < 3; g++)
             {
@@ -694,18 +746,13 @@ namespace HexPortal.Game
                 foreach (var card in v.Hand)
                 {
                     if (HandGroup(card) != g) continue;
-                    var el = MakeCard(card);
+                    bool overBudget = setup && card.Cost > v.SetupMana; // S-05: does not fit the setup budget
+                    var el = MakeCard(card, overBudget ? Strings.CardNoteSetupMana : "");
                     int id = card.Id;
                     el.userData = id;
                     el.EnableInClassList("unplayable", !HasCardCommand(id));
                     el.EnableInClassList("selected", id == selectedCard);
-                    if (setup && card.Cost > v.SetupMana) // S-05: does not fit the setup budget
-                    {
-                        el.AddToClassList("over-budget");
-                        var note = new Label(Strings.ReasonSetupMana) { pickingMode = PickingMode.Ignore };
-                        note.AddToClassList("card-note");
-                        el.Add(note);
-                    }
+                    el.EnableInClassList("over-budget", overBudget);
                     if (parent.childCount > 0 && overlap > 0f) el.style.marginLeft = -overlap;
                     el.RegisterCallback<PointerDownEvent>(e => OnCardDown(id, e));
                     parent.Add(el);
@@ -730,20 +777,35 @@ namespace HexPortal.Game
             return el.parent == handTraps ? 0 : el.parent == handChars ? 1 : 2;
         }
 
-        /// <summary>UX-07 minimal card: icon, name, cost. Stats and the description are in the long-press detail.</summary>
-        static VisualElement MakeCard(CardInstance card)
+        /// <summary>UX-07 minimal card, one row per part so nothing can overlap in any state: [cost | icon], name,
+        /// stats (characters: Attack/Health/Move), note (S-05 budget). Each row has a fixed height and clips with an
+        /// ellipsis. The description is in the long-press detail (UX-11).</summary>
+        static VisualElement MakeCard(CardInstance card, string note)
         {
             var el = new VisualElement();
             el.AddToClassList("card");
             el.style.borderTopColor = el.style.borderBottomColor = el.style.borderLeftColor = el.style.borderRightColor = FrameColor(card);
-            var cost = new Label(card.Cost.ToString()) { pickingMode = PickingMode.Ignore };
+            var top = new VisualElement { pickingMode = PickingMode.Ignore };
+            top.AddToClassList("card-top");
+            var cost = new Label(card.Cost.ToString()) { pickingMode = PickingMode.Ignore, name = "card-cost" };
             cost.AddToClassList("card-cost");
             var icon = new Label(CardIcon(card)) { pickingMode = PickingMode.Ignore };
             icon.AddToClassList("card-icon");
             if (card.IsCharacter) icon.style.color = Color.Lerp(Gfx.BiomeColor(card.Character.Biome), Color.black, 0.35f);
-            var name = new Label(CardName(card)) { pickingMode = PickingMode.Ignore };
+            top.Add(cost); top.Add(icon);
+            var name = new Label(CardName(card)) { pickingMode = PickingMode.Ignore, name = "card-name" };
             name.AddToClassList("card-name");
-            el.Add(cost); el.Add(icon); el.Add(name);
+            string statText = "";
+            if (card.IsCharacter)
+            {
+                var d = Unit.DefOf(card.Character.Class);
+                statText = Strings.AttackIcon + d.Attack + " " + Strings.HealthIcon + d.Health + " " + Strings.MoveIcon + d.Move;
+            }
+            var stats = new Label(statText) { pickingMode = PickingMode.Ignore, name = "card-stats" };
+            stats.AddToClassList("card-stats");
+            var noteLabel = new Label(note) { pickingMode = PickingMode.Ignore, name = "card-note" };
+            noteLabel.AddToClassList("card-note");
+            el.Add(top); el.Add(name); el.Add(stats); el.Add(noteLabel);
             return el;
         }
 
@@ -786,7 +848,7 @@ namespace HexPortal.Game
         bool HasDraw(int slot)
         {
             foreach (var c in match.Legal)
-                if ((c is DrawCommand d && d.Slot == slot) || (c is PrePickCommand p && p.Slot == slot)) return true;
+                if (c is DrawCommand d && d.Slot == slot) return true;
             return false;
         }
 
@@ -834,7 +896,7 @@ namespace HexPortal.Game
         void OnDrawSlot(int slot)
         {
             foreach (var c in match.Legal)
-                if ((c is DrawCommand d && d.Slot == slot) || (c is PrePickCommand p && p.Slot == slot)) { ApplyCmd(c); return; }
+                if (c is DrawCommand d && d.Slot == slot) { ApplyCmd(c); return; }
         }
 
         void OnEnd()
@@ -1270,7 +1332,7 @@ namespace HexPortal.Game
                 foreach (var c in match.View.Hand)
                     if (c.Id == pressCard)
                     {
-                        var el = MakeCard(c);
+                        var el = MakeCard(c, "");
                         el.style.marginLeft = 0;
                         el.pickingMode = PickingMode.Ignore; // the ghost card must never take pointer events
                         dragCard.Add(el);
@@ -1279,8 +1341,8 @@ namespace HexPortal.Game
             }
             if (dragging)
             {
-                dragCard.style.left = e.position.x - 93;
-                dragCard.style.top = e.position.y - 230; // above the finger, so the target cell stays visible
+                dragCard.style.left = e.position.x - DragOffsetX; // root coordinates (drag-card is outside the inset HUD)
+                dragCard.style.top = e.position.y - DragOffsetY;
             }
         }
 

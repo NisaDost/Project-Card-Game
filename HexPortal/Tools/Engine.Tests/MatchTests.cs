@@ -66,7 +66,7 @@ namespace HexPortal.Tests
                 Assert.That(seenKinds, Does.Contain(k), k.Name + " never produced");
             foreach (var k in new[] { typeof(ChooseQuestsCommand), typeof(PlaceUnitCommand), typeof(FinishSetupCommand),
                          typeof(SetupTimeoutCommand), typeof(MoveCommand), typeof(AttackCommand), typeof(MoveAttackCommand), typeof(PlayCardCommand), typeof(DeployCommand),
-                         typeof(EndTurnCommand), typeof(TurnTimeoutCommand), typeof(PrePickCommand), typeof(DrawCommand) })
+                         typeof(EndTurnCommand), typeof(TurnTimeoutCommand), typeof(DrawCommand) })
                 Assert.That(kinds, Does.Contain(k), k.Name + " never played");
         }
 
@@ -80,13 +80,6 @@ namespace HexPortal.Tests
                 n += ScanEvents(before, after, ev, EventFilter.For(ev, p), p, c);
             }
             return n;
-        }
-
-        /// <summary>B-25: a Void or permanent template-rock cell of the map's template.</summary>
-        static bool IsTemplateCell(GameMap m, Hex h)
-        {
-            var def = Catalog.MapTemplates[m.TemplateId];
-            return def.UpperRocks.Concat(def.UpperVoids).Any(c => c == h || c.Mirror() == h);
         }
 
         static void ScanView(GameState s, PlayerId p)
@@ -104,7 +97,6 @@ namespace HexPortal.Tests
             Assert.That(shown.Where(id => enemyHand.Contains(id) || enemyTraps.Contains(id) || poolIds.Contains(id)), Is.Empty);
             Assert.That(v.Hand.Select(c => c.Id), Is.EqualTo(s.GetHand(p).Select(c => c.Id)));
             Assert.That(v.OwnTraps.All(t => s.Traps.Any(x => x.Owner == p && x.Card.Id == t.CardId)), Is.True);
-            Assert.That(v.PrePickSlot, Is.EqualTo(s.GetPrePickSlot(p)));
 
             // Quests/passives: own only (S-03, S-04).
             Assert.That(v.QuestOffer, Is.EqualTo(s.GetQuestOffer(p).Select(q => q.Id)));
@@ -167,10 +159,10 @@ namespace HexPortal.Tests
             foreach (var c in v.Cells)
             {
                 Assert.That(c.Visibility, Is.EqualTo(fog.Get(c.Cell)));
-                // V-04 exception (PM, v3.3): template Void/rock is Explored from the start with its exact terrain; any other
-                // cell (incl. E-10 rock on a never-seen cell, E-05) follows the normal fog rules.
-                if (IsTemplateCell(s.Map, c.Cell))
-                    Assert.That((c.Visibility != CellVisibility.Hidden, c.TerrainKnown, c.Tile.Marker), Is.EqualTo((true, true, s.Map.Get(c.Cell).Marker)), c.Cell.ToString());
+                // V-04 (v4.0): no template exception; Void is never seen (V-02), so it never carries terrain (B-25 shape is
+                // public only through PlayableCells).
+                if (s.Map.Get(c.Cell).Marker == Marker.Void)
+                    Assert.That((c.Visibility, c.TerrainKnown), Is.EqualTo((CellVisibility.Hidden, false)), c.Cell.ToString());
                 switch (c.Visibility)
                 {
                     case CellVisibility.Hidden:
@@ -240,7 +232,6 @@ namespace HexPortal.Tests
                 {
                     case TrapPlaced t: Assert.That(t.Owner, Is.EqualTo(p)); break;
                     case TrapRemoved t: Assert.That(t.Owner, Is.EqualTo(p)); break;
-                    case PrePickSet pp: Assert.That(pp.Player, Is.EqualTo(p)); break;
                     case QuestsChosen q: Assert.That(q.Player, Is.EqualTo(p)); break;
                     case PassiveChosen q: Assert.That(q.Player, Is.EqualTo(p)); break;
                     case TowerPlaced q: Assert.That(q.Player, Is.EqualTo(p)); break;
@@ -495,7 +486,6 @@ namespace HexPortal.Tests
             var actorSpec = new ScrambleSpec
             {
                 Full = false,      // the actor's own blind draws and public Market refills come from the pools and the Rng
-                PrePick = !turnEnd, // T-11: at a turn end the opponent's pre-picked draw follows (a Market draw is public)
                 // Q-02, Q-14, Q-16: only the round end judges the observer's quests during the actor's command.
                 Quests = !roundEnd,
                 Passive = !ObserverPassiveCanMatter(before, c, observer, obsTraps, obsTower, isPush, turnEnd, lastBreath),
@@ -580,8 +570,7 @@ namespace HexPortal.Tests
         /// <summary>P-00: can the observer's (hidden) passive take effect during the actor's command c? Only then is it kept
         /// in the actor-side scramble. P-02: the actor's unit stops on an observer trap (move, deploy, C-15 teleport;
         /// a Mirror chain starts there). P-06: it stops on the Portal. P-04: an attack or Mage splash can reach the observer's
-        /// tower. C-18 pushes (reviewer rule). Turn ends: the observer's turn start (P-01 return pending, P-03 in its round,
-        /// P-05 through a Market pre-pick).</summary>
+        /// tower. C-18 pushes (reviewer rule). Turn ends: the observer's turn start (P-01 return pending, P-03 in its round).</summary>
         static bool ObserverPassiveCanMatter(GameState s, ICommand c, PlayerId observer, HashSet<Hex> obsTraps, Tower obsTower,
             bool isPush, bool turnEnd, bool lastBreath)
         {
@@ -605,7 +594,7 @@ namespace HexPortal.Tests
             if (!turnEnd) return false;
             int round = observer == PlayerId.B ? s.Round : s.Round + 1; // the round of the observer's next turn start
             var quick = Catalog.Passives.First(p => p.Id == "P-03");
-            return lastBreath || round == quick.Round || s.GetPrePickSlot(observer) >= 0;
+            return lastBreath || round == quick.Round;
         }
 
         static HashSet<int> CardsOf(ICommand c)
@@ -770,8 +759,10 @@ namespace HexPortal.Tests
             {
                 var rng = new Rng(seed + 50);
                 var s = Match.Create(seed);
-                for (int step = 0; step < 200 && !s.IsOver; step++)
+                for (int step = 0, games = 1; step < 200; step++)
                 {
+                    // A game that ends early (random W-04 timeouts, W-03) is followed by a new one, so the step budget holds.
+                    if (s.IsOver) s = Match.Create(seed + 1000UL * (ulong)games++);
                     for (int k = 0; k < 15; k++)
                     {
                         var c = RandomCommand(s, rng);

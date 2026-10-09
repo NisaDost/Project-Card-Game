@@ -38,11 +38,11 @@ namespace HexPortal.Tests
                     Assert.That(st.PortalOpenRound > 0, Is.EqualTo(st.QuestsCompleted.Count >= Core.Data.Catalog.PortalQuestsRequired));
                     if (g.ResultKey == "W-01" && g.Winner == (seat == 0 ? "A" : "B"))
                         Assert.That(st.PortalOpenRound, Is.InRange(1, g.Rounds - 1), "a Portal win needs the Portal open a round before");
-                    // Every turn start draws (explicitly or by pre-pick) unless the hand is full or there is nothing to draw.
-                    Assert.That(st.Draws.Keys.All(k => k.StartsWith("explicit ") || k.StartsWith("pre-picked ")));
+                    // Every turn start draws (explicitly; T-11 pre-pick removed in v4.0) unless the hand is full or there is nothing to draw.
+                    Assert.That(st.Draws.Keys.All(k => k.StartsWith("explicit ")));
                 }
-            Assert.That(g1.Sum(g => g.Seats.Sum(x => x.Draws.Where(kv => kv.Key.StartsWith("pre-picked ")).Sum(kv => kv.Value))),
-                Is.GreaterThan(0), "pre-picked draws are counted");
+            Assert.That(g1.Sum(g => g.Seats.Sum(x => x.Draws.Where(kv => kv.Key.StartsWith("explicit ")).Sum(kv => kv.Value))),
+                Is.GreaterThan(0), "turn-start draws are counted");
             Assert.That(j1, Does.Not.Contain("timing"));
             // v3b report additions: CI, round-limit share, W-01 share, kills, hits to kill per class.
             foreach (var key in new[] { "A win rate 95% CI", "reached round limit share", "W-01 share", "units killed per game", "hits to kill" })
