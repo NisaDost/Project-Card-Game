@@ -120,7 +120,7 @@ Altıgen tahtada her karonun 6 komşusu vardır, yani birimler zaten her yöne g
 
 - **U-20 Hasar:** Saldırı hasarı = Saldırı statı + biyom bonusu + buff'lar − debuff'lar, en az 0. Biyom bonusu, **saldıran birim** kendi biyomundaki bir karodayken geçerlidir. **"Hasar"**, Can'ı düşüren her etkidir: saldırı, Patlama, kule atışı, nöbet, tuzak ve Zehir. Kalkan (C-12) ve Kalın Duvar (P-04) bunların hepsine uygulanır.
 - **U-30 Dayanıklılık ilkesi (v3.1):** Buff'sız tek bir saldırı (biyom bonusu ve Hücum dahil) ya da tek bir kart veya tuzak, **Canı tam hiçbir birimi öldüremez**. Bir birimi öldürmek normalde en az 2 vuruş ya da vuruş + kart gerektirir. Sayılar bu ilkeye göre seçilir; Catalog testi en yüksek buff'sız vuruşun (Süvari 30 + 5 + 10 = 45), kule atışının (30) ve en yüksek tek kart/tuzak hasarının (Diken 30) en düşük Candan (80) küçük olduğunu doğrular. **Hedef vuruş sayıları (v3.4):** Hafif birimler (Okçu, Büyücü, Şifacı) buff'sız ortalama **3–4** vuruşta, Süvari **3–4**, Muhafız **5–7** vuruşta, kule **8–10** vuruşta yıkılır (temel hasar ≈ Can ÷ hedef vuruş sayısı).
-- **U-31 Dinlenme (v4.0):** Rakibin son turunda hiç hasar almamış bir birim, kendi tur başında **+10 Can** kazanır (U-24 tavanı geçerli). Kule dinlenmez.
+- **U-31 Dinlenme (v4.0):** Rakibin son turunda hiç hasar almamış bir birim, kendi tur başında **+10 Can** kazanır (U-24 tavanı geçerli). Kule dinlenmez. Rakibin henüz turu olmadıysa (A'nın 1. turu) birim hasar almamış sayılır.
 - **U-21** Karşı saldırı yoktur. (Nöbet ve kule atışı karşı saldırı değildir; kendi tetik kuralları vardır, U-27 ve U-28.)
 - **U-22** Can 0'a inen birim ölür ve tahtadan kalkar. Üzerindeki tüm etkiler silinir.
 - **U-23 Ölüm çekişi:** Birimi ölen oyuncu hemen 1 kör kart çeker (el doluysa çekmez).
@@ -236,7 +236,7 @@ Kopya toplamı: 6 sıradan × 4 + 4 nadir × 2 + 2 epik × 1 = **34 kart**.
   1. Mana ve Enerji doldurulur (T-01…T-03, T-05).
   2. Tur başı etkileri uygulanır: Şifa (U-05), Zehir (C-17), Son Nefes (P-01).
   3. Kazanma kontrolü yapılır (W-01).
-  4. Kart çekilir: Oyuncu Pazar'dan 1 kart alır **veya** 1 kör kart çeker (D-07 geçerli). Seçim rakibin turunda önceden yapıldıysa (T-11) o uygulanır. Çekim **zorunludur** ve turun diğer işlemlerinden önce yapılır. El doluysa ya da çekilecek kart yoksa atlanır. A da 1. rauntta çeker.
+  4. Kart çekilir: Oyuncu Pazar'dan 1 kart alır **veya** 1 kör kart çeker (D-07 geçerli). Pazar bu adımdan hemen önce yenilenir (D-05). Çekim **zorunludur** ve turun diğer işlemlerinden önce yapılır. El doluysa ya da çekilecek kart yoksa atlanır. A da 1. rauntta çeker.
 - **T-05 Enerji ve aksiyon:** Tur başında Enerji **3**'e doldurulur (Catalog'da `EnergyPerTurn`). Üzerinde kendi Toplayıcısı olan her Kaynak için **+1 Enerji** eklenir (B-12, v4.0). Harcanmayan Enerji aktarılmaz. Tahtadaki her birim kendi turunda şunlardan **birini** yapar, her biri **1 Enerji**: **hareket** (U-07), **saldırı** veya **nöbet** (U-28). **İlerle-saldır (v3.2):** Dördüncü bir aksiyon türüdür ve **tek hamlede** yapılır, **2 Enerji** harcar. Birim, **başlangıç konumundan** Hareket değeri içinde ulaşabileceği bir karoya ilerler ve oradan saldırı menzilindeki bir hedefe hemen saldırır. Hedef, bu ilerleme + menzil ile ulaşılabilir olmalıdır. Hareket ile saldırı **ayrı hamleler olarak birleştirilemez**: Hareket eden birim o tur artık saldıramaz, saldıran birim hareket edemez. Oyuncu yalnızca hedefi seçer; ilerleme karosu **otomatik** seçilir (v3.4): hedefe saldırı menzilinde kalan ulaşılabilir karolar arasından **birimin başlangıç konumuna yol olarak en yakın** olanı, eşitlikte birimin kendi biyomundaki karo, sonra sabit karo sırası. Hedefin geçerliliği **komut anında**, oyuncunun o anki görünür bilgisiyle kilitlenir (V-11). İlerleme sırasında yeni görünen bir Muhafız saldırıyı iptal etmez; saldırıyı yalnızca birimin ölmesi, başka bir karoya taşınması ya da hedefin ölmesi iptal eder. Nöbet her zaman tek başına bir aksiyondur.
 - **T-06 Kart oynama:** Mana yettiği sürece turda istenen sayıda kart oynanabilir (C-01, C-02). Kart oynamak Enerji harcamaz.
 - **T-07 Karakter çıkarma:** Eldeki bir karakter, kartın **Maliyeti** (§3.1) kadar Mana ödenerek tahtaya çıkarılır. Enerji ve aksiyon harcamaz. Kontrol Alanında (C-02) Portal hariç boş bir karoya konur. Çıktığı tur aksiyon yapamaz.
@@ -349,7 +349,7 @@ Amaç: Turunu bitiren oyuncu boş beklemesin. Rakibin turu hem izlenecek hem de 
 - **AI-03 Zorluk:** **Kolay** (en iyi 3 hamleden rastgele seçer) ve **Normal** (en iyi hamleyi seçer).
 - **AI-04 Yerleşim:** Kuleyi arka sıraya koyar, Muhafız'ı kulenin yanına koyar, diğerlerini dağıtır.
 - **AI-05** Hamle süresi, mobilde akıcı his için en fazla 1 saniye/hamle. Gerekirse animasyon arkasında hesaplar.
-- **AI-06** Yapay zekâ da rakibin turunda ön seçimini (T-11) yapar. İnsanın turunda "düşünme" gecikmesi yaratmaz.
+- ~~**AI-06**~~ **KALDIRILDI (v4.0):** T-11 ön seçimiyle birlikte kalktı.
 
 ---
 
@@ -376,7 +376,7 @@ Amaç: Turunu bitiren oyuncu boş beklemesin. Rakibin turu hem izlenecek hem de 
 - **UX-07** Kart görünümü minimal: ikon, isim, Maliyet (Mana), karakterlerde 3 sayı (Saldırı/Can/Hareket), tek satır açıklama. Destek kartlarında çerçeve rengi **nadirlik** rengidir. Karakter kartlarının nadirliği **yoktur**; çerçeve rengi **biyom** rengidir (A-02).
 - **UX-08 Öğretici (Faz 2):** 4 adım: hareket ve saldırı (Enerji) → kart oynama (Mana, Kontrol Alanı) → sis ve keşif → görev ve portal.
 - **UX-09 Sis görünümü:** Keşfedilmemiş karolar koyu bulutla kaplıdır. Keşfedilmiş karolar gri/soluk renkte, son görülen rakip birimleri yarı saydam "hayalet" olarak gösterilir. Görünür karolar tam renklidir.
-- **UX-10 Rakibin turu:** Ekranın üstünde "Rakibin turu" şeridi. Pazar ve kör çekme butonu ön seçim (T-11) için aktiftir. Oyuncu kendi birimlerine dokunarak menzilleri görebilir ve tahtaya plan okları çizebilir (tur başında silinir). Nöbet ve kule atışları vurgulu animasyonla oynatılır.
+- **UX-10 Rakibin turu:** Ekranın üstünde "Rakibin turu" şeridi. Pazar ve kör çekme pasiftir (T-11 kaldırıldı). Oyuncu kendi birimlerine dokunarak menzilleri görebilir ve tahtaya plan okları çizebilir (tur başında silinir). Nöbet ve kule atışları vurgulu animasyonla oynatılır.
 
 ---
 
