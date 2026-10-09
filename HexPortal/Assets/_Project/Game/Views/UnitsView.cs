@@ -36,6 +36,7 @@ namespace HexPortal.Game
             // M7 tweens: 1 = idle, negative = waiting (delay). Purely visual; finished at once when new events arrive.
             public float LungeT = 1f, ShakeT = 1f, DieT = 1f, PopT = 1f;
             public Vector3 LungeDir;
+            public float LungeDist = 0.4f, LungeDur = LungeSeconds; // U-42: an Assassin leaps the whole way to the target
             public bool Animating;
             public bool Dying => DieT < 1f;
             // Overlay tag (UX "stat bars"): big Health bar + number, small Attack chip, buff/debuff/overwatch chips.
@@ -202,7 +203,9 @@ namespace HexPortal.Game
             if (vis.ShownRangeClass != (int)u.Class) // UX-13: compact range chip, rebuilt only when the class changes
             {
                 vis.ShownRangeClass = (int)u.Class;
-                vis.Range.text = Strings.RangeChip(def.Range, def.MinRange, def.MaxRange);
+                int towerAtk = ArtCatalog.Unit(u.Class).TowerAttack; // U-41: tower damage next to the range
+                vis.Range.text = towerAtk > 0 ? Strings.RangeChip(def.Range, def.MinRange, def.MaxRange) + Strings.TowerAttackChip(towerAtk)
+                    : Strings.RangeChip(def.Range, def.MinRange, def.MaxRange);
             }
             vis.Range.style.display = DisplayStyle.Flex;
             SetSpot(vis, ArtCatalog.MarkerOf(spot).Icon, spot);
@@ -369,7 +372,7 @@ namespace HexPortal.Game
             // A-01/A-02: the model and its scale come from the theme (ArtCatalog), keyed by the class; biome = colour.
             var art = kind == 100 ? ArtCatalog.Tower : ArtCatalog.Unit((UnitClass)kind);
             vis.BodyMesh.sharedMesh = kind == 100 ? ArtCatalog.TowerMesh : ArtCatalog.UnitMesh((UnitClass)kind);
-            vis.Body.transform.localPosition = Vector3.zero;
+            vis.Body.transform.localPosition = new Vector3(0f, art.Hover, 0f); // U-43: a Flyer floats above the tile
             vis.Body.transform.localRotation = Quaternion.identity;
             vis.Body.transform.localScale = Vector3.one * art.ModelScale;
             vis.BodyKind = kind;
@@ -439,7 +442,7 @@ namespace HexPortal.Game
                 {
                     v.From = HexLayout.ToWorld(from, BoardView.TileHeight);
                     v.Root.transform.localPosition = v.From;
-                    v.T = 0f;
+                    v.T = v.LungeT < 1f ? -(1f - v.LungeT) * v.LungeDur / MoveSeconds : 0f; // U-42: hop to the landing after the leap
                     v.Animating = true;
                 }
         }
@@ -452,7 +455,7 @@ namespace HexPortal.Game
         }
 
         /// <summary>Seconds until the piece's current move tween ends (a move-attack lunges after the hop).</summary>
-        static float Busy(Visual v) => v == null ? 0f : (1f - v.T) * MoveSeconds + (v.LungeT < 1f ? (1f - v.LungeT) * LungeSeconds : 0f);
+        static float Busy(Visual v) => v == null ? 0f : (1f - v.T) * MoveSeconds + (v.LungeT < 1f ? (1f - v.LungeT) * v.LungeDur : 0f);
 
         void AnimateDamage(DamageDealt d)
         {
@@ -467,9 +470,13 @@ namespace HexPortal.Game
                     var dir = HexLayout.ToWorld(d.Target, BoardView.TileHeight) - a.To;
                     dir.y = 0f;
                     a.LungeDir = dir.sqrMagnitude > 0.0001f ? dir.normalized : Vector3.zero;
-                    a.LungeT = -wait / LungeSeconds;
+                    bool leap = a.BodyKind >= 0 && a.BodyKind < 100 && Unit.DefOf((UnitClass)a.BodyKind).Range == RangeKind.Leap;
+                    float dist = new Vector2(dir.x, dir.z).magnitude;
+                    a.LungeDist = leap ? Mathf.Max(0.4f, dist - 0.75f) : 0.4f;
+                    a.LungeDur = leap ? LungeSeconds * 2.5f : LungeSeconds;
+                    a.LungeT = -wait / a.LungeDur;
                     a.Animating = true;
-                    hitDelay = wait + LungeSeconds * 0.5f;
+                    hitDelay = wait + a.LungeDur * 0.5f;
                 }
             }
             else if (shot)
@@ -581,13 +588,13 @@ namespace HexPortal.Game
                 v.T = Mathf.Min(1f, v.T + dt / MoveSeconds);
                 float k = Mathf.SmoothStep(0f, 1f, v.T);
                 pos = Vector3.Lerp(v.From, v.To, k);
-                pos.y += Mathf.Sin(v.T * Mathf.PI) * 0.45f; // hop
+                pos.y += Mathf.Sin(Mathf.Max(0f, v.T) * Mathf.PI) * 0.45f; // hop (T < 0: waiting)
                 running |= v.T < 1f;
             }
             if (v.LungeT < 1f)
             {
-                v.LungeT = Mathf.Min(1f, v.LungeT + dt / LungeSeconds);
-                if (v.LungeT > 0f) pos += v.LungeDir * (Mathf.Sin(v.LungeT * Mathf.PI) * 0.4f);
+                v.LungeT = Mathf.Min(1f, v.LungeT + dt / v.LungeDur);
+                if (v.LungeT > 0f) pos += v.LungeDir * (Mathf.Sin(v.LungeT * Mathf.PI) * v.LungeDist);
                 running |= v.LungeT < 1f;
             }
             if (v.ShakeT < 1f)

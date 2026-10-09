@@ -14,18 +14,18 @@ namespace HexPortal.Core
         {
             foreach (var p in new[] { PlayerId.A, PlayerId.B })
             {
-                // D-03: one character per class; the biome variant is chosen uniformly among the variants left.
-                foreach (var def in Catalog.Units)
+                // D-03 (v4.0): one character per dealt class (incl. the Gatherer); the biome variant is chosen uniformly among the variants left.
+                foreach (var cls in Catalog.DealtClasses)
                     for (int k = 0; k < Catalog.DealCharactersPerClass; k++)
                     {
                         var pool = state.PoolList(CardPool.Character);
                         var biomes = new List<Biome>();
                         foreach (var c in pool)
-                            if (c.Character.Class == def.Class && !biomes.Contains(c.Character.Biome)) biomes.Add(c.Character.Biome);
+                            if (c.Character.Class == cls && !biomes.Contains(c.Character.Biome)) biomes.Add(c.Character.Biome);
                         if (biomes.Count == 0) continue;
                         var biome = biomes[state.Rng.NextInt(biomes.Count)];
                         foreach (var c in pool)
-                            if (c.Character.Class == def.Class && c.Character.Biome == biome)
+                            if (c.Character.Class == cls && c.Character.Biome == biome)
                             {
                                 pool.Remove(c);
                                 state.HandList(p).Add(c);

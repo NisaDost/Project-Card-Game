@@ -64,8 +64,16 @@ namespace HexPortal.Core
         /// <summary>The one target check shared by attacks, overwatch shots and tower shots:
         /// an enemy is there, it is Visible to the attacking player (V-07), and it is not covered by a Guardian
         /// that player can see (U-11, V-11).</summary>
-        internal static bool IsValidTarget(GameState state, PlayerId attacker, Hex target, ISet<Hex> visible) =>
-            HoldsEnemy(state, attacker, target) && visible.Contains(target) && !IsCovered(state, target, visible);
+        /// U-43 (v4.0): a melee attacker (UnitDef.IsMelee, §3.4) never targets a Flyer; towers (attackerDef null) do.
+        internal static bool IsValidTarget(GameState state, PlayerId attacker, Hex target, ISet<Hex> visible, UnitDef attackerDef = null) =>
+            HoldsEnemy(state, attacker, target) && visible.Contains(target) && !IsCovered(state, target, visible)
+            && !(attackerDef != null && attackerDef.IsMelee && IsFlyerAt(state, target));
+
+        static bool IsFlyerAt(GameState state, Hex h)
+        {
+            var u = state.UnitAt(h);
+            return u != null && u.Class == UnitClass.Flyer;
+        }
 
         /// <summary>Cells the unit may attack now, in Board.Cells order.</summary>
         public static List<Hex> LegalTargets(GameState state, Unit unit) =>
@@ -81,7 +89,7 @@ namespace HexPortal.Core
             var result = new List<Hex>();
             // Only the ball of radius MaxRange around from, walked in Board.Cells order (hot path: every approach cell).
             foreach (var c in Board.CellsWithin(from, unit.Def.MaxRange))
-                if (InRange(unit.Def, from, c) && IsValidTarget(state, unit.Owner, c, visible)) result.Add(c);
+                if (InRange(unit.Def, from, c) && IsValidTarget(state, unit.Owner, c, visible, unit.Def)) result.Add(c);
             return result;
         }
 
@@ -89,25 +97,36 @@ namespace HexPortal.Core
         public static int Damage(int attack, int bonuses, int penalties) => Math.Max(0, attack + bonuses - penalties);
 
         /// <summary>U-20 biome bonus (attacker on a tile of its own biome), U-02 Charge (Riders, move-attack only, v3.2),
-        /// the buff (C-10, C-11) and the debuff (C-16).</summary>
-        public static int AttackDamage(GameState state, Unit attacker, bool moveAttack)
+        /// the buff (C-10, C-11) and the debuff (C-16). U-41 (v4.0): a Besieger's base against a tower is
+        /// Catalog.BesiegerTowerAttack instead of its Attack (bonuses apply the same way, U-20).</summary>
+        public static int AttackDamage(GameState state, Unit attacker, bool moveAttack, bool targetIsTower = false)
         {
             int bonus = 0, penalty = 0;
             if (state.Map.Get(attacker.Pos).Biome == attacker.Biome) bonus += Catalog.BiomeAttackBonus;
             if (moveAttack && attacker.Class == UnitClass.Rider) bonus += Catalog.RiderChargeBonus; // U-02 (v3.2)
             if (attacker.Buff != null && attacker.Buff.Kind == EffectKind.AttackBonus) bonus += attacker.Buff.Def.Amount;
             if (attacker.Debuff != null && attacker.Debuff.Kind == EffectKind.AttackPenalty) penalty += attacker.Debuff.Def.Amount;
-            return Damage(attacker.Def.Attack, bonus, penalty);
+            int baseAttack = targetIsTower && attacker.Class == UnitClass.Besieger ? Catalog.BesiegerTowerAttack : attacker.Def.Attack;
+            return Damage(baseAttack, bonus, penalty);
         }
 
-        /// <summary>A normal attack or an overwatch shot on a validated target, then the Mage splash (U-04).
-        /// U-21: no counter-attack. V-08: the attacker is revealed to the opponent first; splash victims are not.</summary>
+        /// <summary>A normal attack or an overwatch shot on a validated target, then the Mage splash (U-04) or the
+        /// Assassin's landing (U-42). U-21: no counter-attack. V-08: the attacker is revealed to the opponent first;
+        /// splash victims are not.</summary>
         internal static void ResolveAttack(GameState state, Unit attacker, Hex target, DamageKind kind, bool moveAttack,
             EventLog events)
         {
             Visibility.Reveal(state, attacker, events);
-            int amount = AttackDamage(state, attacker, moveAttack);
+            var victim = state.UnitAt(target);
+            int amount = AttackDamage(state, attacker, moveAttack, victim == null);
             DealDamage(state, attacker.Owner, attacker.Id, target, amount, kind, events);
+            if (attacker.Class == UnitClass.Assassin)
+            {
+                // U-42: a kill sends it back to its own cell (it never left in the state). Otherwise it stays next to the target.
+                bool killed = victim != null && state.GetUnit(victim.Id) == null;
+                if (!killed && !state.IsOver) Land(state, attacker, target, events);
+                return;
+            }
             if (attacker.Class != UnitClass.Mage) return;
             // U-04: every enemy unit and the enemy tower next to the target cell. Ignores cover; not an attack.
             for (int d = 0; d < 6; d++)
@@ -117,6 +136,40 @@ namespace HexPortal.Core
                 if (Board.IsOnBoard(n) && HoldsEnemy(state, attacker.Owner, n))
                     DealDamage(state, attacker.Owner, attacker.Id, n, Catalog.MageSplashDamage, DamageKind.Splash, events);
             }
+        }
+
+        /// <summary>U-42: the Assassin did not kill. If it already stands next to the target it stays. Otherwise it lands on
+        /// the empty cell next to the target nearest to its own cell (ties: lowest Board.Cells index as the owner sees the board,
+        /// B-05). "Empty" is physical (V-11 exception: a hidden unit also blocks). The landing is an arrival: trap first, then
+        /// tower and overwatch (U-29, U-27). No empty cell: it stays on its own cell.</summary>
+        static void Land(GameState state, Unit assassin, Hex target, EventLog events)
+        {
+            if (state.GetUnit(assassin.Id) == null || Hex.Distance(assassin.Pos, target) <= 1) return;
+            Hex? best = LandingCell(state, assassin, target);
+            if (best == null) return;
+            var from = assassin.Pos;
+            assassin.Pos = best.Value;
+            events.Add(new UnitMoved(assassin.Id, from, best.Value));
+            Defense.ResolveArrivalTriggers(state, assassin, ArrivalKind.Move, events);
+        }
+
+        /// <summary>U-42 landing cell (null = none), see Land. Also used by Preview.</summary>
+        public static Hex? LandingCell(GameState state, Unit assassin, Hex target)
+        {
+            Hex? best = null;
+            int bestDist = 0, bestIndex = 0;
+            for (int d = 0; d < 6; d++)
+            {
+                var n = target.Neighbor(d);
+                if (!Board.IsOnBoard(n) || !Movement.IsEmpty(state, n)) continue;
+                int dist = Hex.Distance(assassin.Pos, n);
+                int index = Board.IndexOf(assassin.Owner == PlayerId.A ? n : n.Mirror());
+                if (best == null || dist < bestDist || dist == bestDist && index < bestIndex)
+                {
+                    best = n; bestDist = dist; bestIndex = index;
+                }
+            }
+            return best;
         }
 
         /// <summary>Damages the unit or tower on <paramref name="target"/> (every damage source, U-20 v2.6).

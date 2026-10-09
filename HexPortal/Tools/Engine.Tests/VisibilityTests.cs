@@ -58,9 +58,10 @@ namespace HexPortal.Tests
         [Test]
         public void V07_CannotTargetNonVisible()
         {
-            // With the current Catalog every MaxRange <= Sight, so a target in range is always Visible to the
-            // attacker itself; the rule is checked through the explicit-visibility overload.
-            foreach (var d in Catalog.Units) Assert.That(d.MaxRange, Is.LessThanOrEqualTo(d.Sight), d.Id);
+            // Every MaxRange <= Sight except the Assassin (U-42, v4.0: leap 4, Sight 3), so a target in range is usually
+            // Visible to the attacker itself; the rule is checked through the explicit-visibility overload.
+            foreach (var d in Catalog.Units.Where(u => u.Class != UnitClass.Assassin))
+                Assert.That(d.MaxRange, Is.LessThanOrEqualTo(d.Sight), d.Id);
 
             var b = new TestBoard();
             int a = b.Unit(UnitClass.Archer, A, H(0, 0));

@@ -61,7 +61,7 @@ namespace HexPortal.Core
                 if (u.Owner == side && u.OnOverwatch) watchers.Add(u);
             foreach (var w in watchers)
             {
-                if (!Combat.InRange(w.Def, w.Pos, target.Pos) || !Combat.IsValidTarget(state, side, target.Pos, visible)) continue;
+                if (!Combat.InRange(w.Def, w.Pos, target.Pos) || !Combat.IsValidTarget(state, side, target.Pos, visible, w.Def)) continue;
                 w.OnOverwatch = false;
                 Visibility.Reveal(state, w, events); // V-08: before OverwatchFired, so the target's owner sees the shot
                 events.Add(new OverwatchFired(w.Id, target.Id));

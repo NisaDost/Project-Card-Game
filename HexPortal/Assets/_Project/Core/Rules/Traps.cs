@@ -41,7 +41,12 @@ namespace HexPortal.Core
         {
             if (state.IsOver || state.GetUnit(unit.Id) == null) return;
             var cell = unit.Pos;
-            Torches.OnArrival(state, unit, events); // V-12 (v4.0): an enemy torch here goes out
+            if (unit.Class == UnitClass.Flyer) // U-43: not a ground unit; torches (V-12), traps and Lava do not react to it
+            {
+                Passives.PortalWarden(state, unit, events);
+                return;
+            }
+            Torches.OnArrival(state, unit, events); // V-12 (v4.0): a ground unit puts out an enemy torch here
             TriggerTrap(state, unit, events);
             if (state.IsOver || state.GetUnit(unit.Id) == null || unit.Pos != cell) return;
             if (state.Map.IsLava(cell)) // B-16 (v4.0), C-18: entering Lava. No killer credit (the owner is the source).
@@ -57,7 +62,7 @@ namespace HexPortal.Core
         {
             var burning = new List<Unit>();
             foreach (var u in state.Units)
-                if (u.Owner == p && state.Map.IsLava(u.Pos)) burning.Add(u);
+                if (u.Owner == p && u.Class != UnitClass.Flyer && state.Map.IsLava(u.Pos)) burning.Add(u); // U-43
             foreach (var u in burning)
                 if (!state.IsOver && state.GetUnit(u.Id) != null)
                     Combat.DealDamage(state, p, DamageDealt.NoUnit, u.Pos, Catalog.LavaDamage, DamageKind.Lava, events);

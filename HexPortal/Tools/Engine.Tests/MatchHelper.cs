@@ -51,7 +51,7 @@ namespace HexPortal.Tests
 
         /// <summary>D-03 + D-04: the size of a freshly dealt hand.</summary>
         public static int DealtHandSize =>
-            Catalog.Units.Count * Catalog.DealCharactersPerClass + Catalog.DealCommonSupport + Catalog.DealRareSupport;
+            Catalog.DealtClasses.Count * Catalog.DealCharactersPerClass + Catalog.DealCommonSupport + Catalog.DealRareSupport;
 
         /// <summary>First legal choice at every setup step; places <paramref name="units"/> characters, no traps. S-05 (v3.0):
         /// only affordable placements are legal; it fails if fewer than <paramref name="units"/> fit the setup budget.</summary>

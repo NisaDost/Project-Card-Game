@@ -6,6 +6,8 @@
     <LangVersion>9</LangVersion>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
+    <!-- AI-05 timing with the parallel option: server GC keeps stop-the-world pauses out of per-decision times. -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
 
   <ItemGroup>

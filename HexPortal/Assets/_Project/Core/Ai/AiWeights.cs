@@ -51,10 +51,25 @@ namespace HexPortal.Core
 
         // ---- Position ----
         public const int Biome = 30;                // own unit on its own biome (U-20)
-        public const int Wellspring = 80;           // own unit on a Wellspring (T-03)
+        // (v4.0: the old "any unit on a Wellspring" weight is replaced by GathererOnResource, U-40)
         public const int Explore = 12;              // per Hidden cell now Visible
         public const int TorchForward = 30;         // V-12: per own torch away from the own tower and other own torches
         public const int TorchMinTowerDistance = 4; // V-12: "forward" = at least this far from the own tower
+
+        // ---- v4.0 classes (§3.4) ----
+        public const int GathererOnResource = 400;  // U-40: own Gatherer on a Rune (+1 Mana) or Wellspring (+1 Energy) per turn
+        public const int GathererApproach = 40;     // U-40: per step from a Gatherer to the closest resource no own Gatherer holds
+        public const int BesiegerTowerApproach = 25; // U-41: per step from a Besieger to the known enemy tower
+
+        // ---- Bearer escort (W-01, PM phase 3) ----
+        public const int BearerPathOwn = 400;       // own non-Bearer unit on the Bearer's way to the open Portal
+        public const int BearerPathEnemy = 600;     // known enemy unit on that way (attack or push it)
+        public const int PortalGuard = 150;         // own unit next to the own open Portal (at most PortalGuards)
+        public const int PortalGuards = 2;
+        public const int EnemyNearOwnOpenPortal = 150; // per known enemy unit and per step closer than 3 to the own open Portal
+        public const int EnemyBearerStep = 200;     // per step the enemy Bearer stands closer than EnemyBearerRange to its open Portal
+        public const int EnemyBearerRange = 6;
+        public const int EnemyBearerHealth = 30;    // per Health of the enemy Bearer while its Portal is open
 
         // ---- Efficiency (unspent Mana and Energy are lost at the turn end, T-01, T-05) ----
         public const int ManaSpent = 20;
@@ -138,7 +153,7 @@ namespace HexPortal.Core
         public const int SetupMinSpend = 7; // PM Q2: Normal only picks combinations spending at least this much setup Mana
         public const int SetupSpikeValue = 2;
         public static int SetupValue(Data.UnitClass c) =>
-            c == Data.UnitClass.Guardian ? 6 : c == Data.UnitClass.Rider ? 5 : c == Data.UnitClass.Mage ? 5 : c == Data.UnitClass.Archer ? 4 : 3;
+            c == Data.UnitClass.Guardian ? 6 : c == Data.UnitClass.Rider ? 5 : c == Data.UnitClass.Mage ? 5 : c == Data.UnitClass.Archer ? 4 : c == Data.UnitClass.Assassin ? 5 : c == Data.UnitClass.Gatherer ? 4 : 3;
         public const int SpreadCap = 3;                    // unit placement: min distance to own pieces, capped
     }
 }

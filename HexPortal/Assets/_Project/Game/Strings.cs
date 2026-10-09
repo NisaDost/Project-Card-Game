@@ -23,6 +23,9 @@ namespace HexPortal.Game
         public const string PortalOpenedOpp = "Portal rakip için açıldı!";
         public static string EnergyBonus(int n) => "+" + n + " Enerji";
         public static string ManaBonus(int n) => "+" + n + " Mana";
+        /// <summary>U-41: the Attack against a tower when it differs (info panel and unit tag).</summary>
+        public static string TowerAttack(int n) => "(kuleye " + n + ")";
+        public static string TowerAttackChip(int n) => " ♜" + n;
         // UX-08 tutorial
         public const string Tutorial = "Öğretici";
         public const string TutorialSkip = "Atla";
@@ -175,6 +178,7 @@ namespace HexPortal.Game
             {
                 case RangeKind.Adjacent: return "Komşu";
                 case RangeKind.StraightLine: return "Düz hatta " + min + "–" + max;
+                case RangeKind.Leap: return "Atılma " + min + "–" + max;
                 default: return "Mesafe " + min + "–" + max;
             }
         }

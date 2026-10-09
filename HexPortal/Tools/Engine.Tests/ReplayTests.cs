@@ -176,9 +176,9 @@ namespace HexPortal.Tests
                 if (u.Buff != null) Assert.That(u.Buff.Def.Pool, Is.EqualTo(SupportPool.Buff));
                 if (u.Debuff != null) Assert.That(u.Debuff.Def.Pool, Is.EqualTo(SupportPool.DebuffTrap));
             }
-            // T-05 + B-11: at most the base Energy plus one per rune stone on the board.
-            int runes = Board.Cells.Count(h => s.Map.Get(h).Marker == Marker.RuneStone);
-            Assert.That(s.GetEnergy(s.ActivePlayer), Is.InRange(0, Catalog.EnergyPerTurn + runes * Catalog.RuneEnergyBonus));
+            // T-05 + B-12 (v4.0): at most the base Energy plus one per wellspring on the board.
+            int runes = Board.Cells.Count(h => s.Map.Get(h).Marker == Marker.Wellspring);
+            Assert.That(s.GetEnergy(s.ActivePlayer), Is.InRange(0, Catalog.EnergyPerTurn + runes * Catalog.WellspringEnergyBonus));
 
             // Cards: every instance is in exactly one place; Mana never negative; C-31 trap limit.
             var ids = new HashSet<int>();

@@ -1,7 +1,8 @@
 namespace HexPortal.Core.Data
 {
-    /// <summary>PortalBearer (U-44, v4.0) is not a card class: Catalog.PortalBearer, never in Catalog.Units.</summary>
-    public enum UnitClass { Guardian, Rider, Archer, Mage, Healer, PortalBearer }
+    /// <summary>PortalBearer (U-44, v4.0) is not a card class: Catalog.PortalBearer, never in Catalog.Units.
+    /// v4.0 §3.4 card classes are appended after it so existing values stay stable.</summary>
+    public enum UnitClass { Guardian, Rider, Archer, Mage, Healer, PortalBearer, Gatherer, Besieger, Assassin, Flyer }
 
     public enum Biome { None, Forest, Desert, Snow }
 
@@ -16,8 +17,9 @@ namespace HexPortal.Core.Data
     /// <summary>C-03 duration types. Timed lasts Catalog.TimedEffectTurns turns (C-04).</summary>
     public enum DurationKind { Instant, Timed, Permanent }
 
-    /// <summary>Adjacent = distance 1; StraightLine = along one of 6 directions; Distance = any cell within range.</summary>
-    public enum RangeKind { Adjacent, StraightLine, Distance }
+    /// <summary>Adjacent = distance 1; StraightLine = along one of 6 directions; Distance = any cell within range;
+    /// Leap (U-42, v4.0) = any cell within range, a melee attack that moves the attacker (Assassin).</summary>
+    public enum RangeKind { Adjacent, StraightLine, Distance, Leap }
 
     public enum EffectKind
     {
@@ -54,6 +56,10 @@ namespace HexPortal.Core.Data
             Id = id; Class = cls; Cost = cost; Attack = attack; Health = health; Move = move; Sight = sight;
             Range = range; MinRange = minRange; MaxRange = maxRange;
         }
+
+        /// <summary>§3.4 (v4.0): "melee" = the classes with an Adjacent range plus the Assassin's leap (U-42).
+        /// A Flyer (U-43) takes no damage from melee attacks.</summary>
+        public bool IsMelee => Range == RangeKind.Adjacent || Range == RangeKind.Leap;
     }
 
     public sealed class TowerDef

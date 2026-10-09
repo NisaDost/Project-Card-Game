@@ -318,6 +318,7 @@ namespace HexPortal.Core
             }
             else if (lead != int.MaxValue)
                 score -= lead * (ctx.Completed > 0 ? AiWeights.PortalLeadOneQuest : AiWeights.PortalLead);
+            if (ctx.PortalOpen) score += EscortScore(s, ctx, own, enemies, bearerDist != int.MaxValue);
             var onPortal = s.UnitAt(Board.Portal);
             if (onPortal != null && onPortal.Owner == me && ctx.PortalOpen)
                 score += onPortal.Class == UnitClass.PortalBearer ? AiWeights.PortalHoldOpen : -AiWeights.OwnBlockerOnOpenPortal;
@@ -339,6 +340,9 @@ namespace HexPortal.Core
                 {
                     int d = Hex.Distance(e.Pos, Board.Portal);
                     if (d >= 1 && d < 3) score -= AiWeights.EnemyNearOpenPortal * (3 - d);
+                    if (e.Class == UnitClass.PortalBearer) // W-01: the enemy Bearer is the one that can win
+                        score -= AiWeights.EnemyBearerHealth * e.Health
+                            + AiWeights.EnemyBearerStep * Math.Max(0, AiWeights.EnemyBearerRange - d);
                 }
             }
 
@@ -358,7 +362,13 @@ namespace HexPortal.Core
             {
                 var tile = s.Map.Get(u.Pos);
                 if (tile.Biome == u.Biome) score += AiWeights.Biome;
-                if (tile.Marker == Marker.Wellspring) score += AiWeights.Wellspring;
+                if (u.Class == UnitClass.Gatherer) // U-40: only a Gatherer collects
+                {
+                    if (tile.Marker == Marker.Wellspring || tile.Marker == Marker.RuneStone) score += AiWeights.GathererOnResource;
+                    else score -= AiWeights.GathererApproach * GathererApproach(s, ctx, u);
+                }
+                else if (u.Class == UnitClass.Besieger && enemyTower.IsPlaced) // U-41: head for the known enemy tower
+                    score -= AiWeights.BesiegerTowerApproach * Hex.Distance(u.Pos, enemyTower.Pos);
             }
             score -= AiWeights.ManaSpent * s.GetMana(me) + AiWeights.EnergySpent * s.GetEnergy(me);
             score += AiWeights.CardInHand * s.GetHand(me).Count;
@@ -371,7 +381,7 @@ namespace HexPortal.Core
                 {
                     int d = Hex.Distance(e.Pos, u.Pos);
                     if (u.OnOverwatch && d <= e.Def.Move + u.Def.MaxRange) watch++;
-                    if (d <= e.Def.Move + e.Def.MaxRange)
+                    if (d <= e.Def.Move + e.Def.MaxRange && !(u.Class == UnitClass.Flyer && e.Def.IsMelee)) // U-43
                     {
                         int r = ThreatDamage(e, Combat.AttackDamage(s, e, false)) * AiWeights.RiskPerDamage;
                         risk += ctx.Ghosts.Contains(e.Id) ? r * AiWeights.GhostRiskPercent / 100 : r;
@@ -385,7 +395,8 @@ namespace HexPortal.Core
                     if (d >= Catalog.Tower.MinRange && d <= Catalog.Tower.MaxRange) score -= AiWeights.EnemyTowerRange;
                 }
                 // Caution (interim reading of "next to Hidden cells"): never-seen cells just beyond the unit's sight.
-                // Walks only the ring at distance Sight + 1 (hot path: runs for every candidate).
+                // Walks only the ring at distance Sight + 1 (hot path: runs for every candidate). The Flyer is the scout (U-43).
+                if (u.Class == UnitClass.Flyer) continue;
                 int k = u.Def.Sight + 1;
                 var h = u.Pos + new Hex(-k, k); // Directions[4] * k
                 for (int side = 0; side < 6; side++)
@@ -395,6 +406,56 @@ namespace HexPortal.Core
                         if (i >= 0 && ctx.Hidden[i] && !visible.Contains(h)) score -= AiWeights.HiddenNeighbour;
                         h = h.Neighbor(side);
                     }
+            }
+            return score;
+        }
+
+        /// <summary>U-40: steps from the Gatherer to the closest Rune or Wellspring no own Gatherer stands on (0 if none).</summary>
+        static int GathererApproach(GameState s, Context ctx, Unit g)
+        {
+            int best = int.MaxValue;
+            foreach (var list in new[] { ctx.Runes, ctx.Wellsprings })
+                foreach (var h in list)
+                {
+                    var on = s.UnitAt(h);
+                    if (on != null && on.Owner == ctx.Me && on.Class == UnitClass.Gatherer) continue;
+                    best = Math.Min(best, Hex.Distance(g.Pos, h));
+                }
+            return best == int.MaxValue ? 0 : best;
+        }
+
+        /// <summary>W-01 Bearer escort (PM phase 3), while the own Portal is open: keep the Bearer's way clear (own units off it,
+        /// known enemies on it hit or pushed away) and guard the Portal (own units next to it, known enemies kept away).</summary>
+        static int EscortScore(GameState s, Context ctx, List<Unit> own, List<Unit> enemies, bool hasBearer)
+        {
+            int score = 0, guards = 0;
+            foreach (var u in own)
+                if (u.Class != UnitClass.PortalBearer && Hex.Distance(u.Pos, Board.Portal) == 1 && guards < AiWeights.PortalGuards)
+                {
+                    guards++;
+                    score += AiWeights.PortalGuard;
+                }
+            foreach (var e in enemies)
+            {
+                int d = Hex.Distance(e.Pos, Board.Portal);
+                if (d < 3) score -= AiWeights.EnemyNearOwnOpenPortal * (3 - d);
+            }
+            if (!hasBearer) return score;
+            Unit bearer = null;
+            foreach (var u in own)
+                if (u.Class == UnitClass.PortalBearer) bearer = u;
+            // The way: greedy steps toward the Portal (first direction in Hex.Directions order that gets closer).
+            var c = bearer.Pos;
+            while (c != Board.Portal)
+            {
+                for (int dir = 0; dir < 6; dir++)
+                {
+                    var n = c.Neighbor(dir);
+                    if (Hex.Distance(n, Board.Portal) < Hex.Distance(c, Board.Portal)) { c = n; break; }
+                }
+                var on = s.UnitAt(c);
+                if (on == null || on.Id == bearer.Id || c == Board.Portal) continue; // the Portal itself is scored above
+                score -= on.Owner == ctx.Me ? AiWeights.BearerPathOwn : AiWeights.BearerPathEnemy;
             }
             return score;
         }

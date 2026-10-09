@@ -45,5 +45,21 @@ namespace HexPortal.Game.Tests
                     Assert.That(ArtCatalog.MarkerOf(m).Mesh().vertexCount, Is.GreaterThan(0), m + " prop");
             }
         }
+
+        /// <summary>B-15 river tile must not read as Player A (blue) or B (red): clearly different hue and visible contrast.</summary>
+        [Test]
+        public void Theme_RiverDistinctFromOwnerColours()
+        {
+            var river = ArtCatalog.MarkerOf(Marker.River).TileColor;
+            UnityEngine.Color.RGBToHSV(river, out float hr, out _, out _);
+            foreach (var owner in new[] { ArtCatalog.OwnerA, ArtCatalog.OwnerB })
+            {
+                UnityEngine.Color.RGBToHSV(owner, out float ho, out _, out _);
+                float d = UnityEngine.Mathf.Abs(hr - ho); d = UnityEngine.Mathf.Min(d, 1f - d);
+                Assert.That(d * 360f, Is.GreaterThan(35f), "hue distance to " + owner);
+                float rgb = UnityEngine.Mathf.Abs(river.r - owner.r) + UnityEngine.Mathf.Abs(river.g - owner.g) + UnityEngine.Mathf.Abs(river.b - owner.b);
+                Assert.That(rgb, Is.GreaterThan(0.5f), "RGB distance to " + owner);
+            }
+        }
     }
 }

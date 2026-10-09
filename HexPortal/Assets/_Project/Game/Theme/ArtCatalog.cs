@@ -25,6 +25,8 @@ namespace HexPortal.Game
             public string Ability;         // UX-11 ability line
             public Action<LowPoly.Builder> Model; // model recipe (a prefab reference can replace it later)
             public float ModelScale = 1.35f;
+            public float Hover;            // model lift above the tile (U-43 Flyer reads as flying)
+            public int TowerAttack;        // shown next to Attack when the class hits towers harder (U-41); 0 = same
             public string SoundId;         // future, unused
         }
 
@@ -56,6 +58,19 @@ namespace HexPortal.Game
             // U-44 (v4.0): not a card; spawned when the Portal opens. Numbers come from Catalog.PortalBearer.
             [UnitClass.PortalBearer] = new UnitArt { Name = "Portal Taşıyıcı", OwnRef = "Portal Taşıyıcın", Letter = "T", Icon = "◎",
                 Ability = "Portal açılınca gelir. Kart değildir, biyomu yoktur", Model = GrayboxModels.PortalBearer },
+            // §3.4 (v4.0) new classes. Names and models are temporary (M8); numbers come from Catalog.
+            [UnitClass.Gatherer] = new UnitArt { Name = "Toplayıcı", OwnRef = "Toplayıcın", Letter = "P", Icon = "⛏",
+                Ability = "Toplama: Kaynak toplayan tek sınıf. Tur başında Rün Taşı'nda +" + Catalog.RuneManaBonus + " Mana, Kaynak'ta +"
+                    + Catalog.WellspringEnergyBonus + " Enerji", Model = GrayboxModels.Gatherer },
+            [UnitClass.Besieger] = new UnitArt { Name = "Kuşatmacı", OwnRef = "Kuşatmacın", Letter = "K", Icon = "⚒",
+                Ability = "Kuşatma: Kuleye " + Catalog.BesiegerTowerAttack + " hasar verir, birimlere yalnızca " + HexPortal.Core.Unit.DefOf(UnitClass.Besieger).Attack,
+                Model = GrayboxModels.Besieger, TowerAttack = Catalog.BesiegerTowerAttack },
+            [UnitClass.Assassin] = new UnitArt { Name = "Suikastçı", OwnRef = "Suikastçın", Letter = "U", Icon = "†",
+                Ability = "Suikast: " + HexPortal.Core.Unit.DefOf(UnitClass.Assassin).MaxRange + " karoya kadar atılıp vurur. Öldürürse yerine döner, öldüremezse hedefin yanında kalır. Yakın dövüşçü: Uçan'a vuramaz",
+                Model = GrayboxModels.Assassin },
+            [UnitClass.Flyer] = new UnitArt { Name = "Uçan", OwnRef = "Uçanın", Letter = "Ç", Icon = "♠",
+                Ability = "Uçuş: Dağ, Nehir, Lav ve birimlerin üstünden geçer, Nehir'de durabilir. Lav ve tuzaktan etkilenmez. Yakın dövüş saldırılarından hasar almaz",
+                Model = GrayboxModels.Flyer, Hover = 0.45f },
         };
 
         public static readonly UnitArt Tower = new UnitArt { Name = "Kule", Icon = "♜", Model = GrayboxModels.Tower, ModelScale = 1f,
@@ -119,12 +134,13 @@ namespace HexPortal.Game
         public static readonly Dictionary<Marker, MarkerArt> Markers = new Dictionary<Marker, MarkerArt>
         {
             [Marker.None] = new MarkerArt { Color = Color.clear, Mesh = null },
-            [Marker.RuneStone] = new MarkerArt { Color = new Color(0.55f, 0.25f, 0.85f), Mesh = () => LowPoly.Rune, Icon = Strings.EnergyIcon },
-            [Marker.Wellspring] = new MarkerArt { Color = new Color(0.1f, 0.85f, 0.95f), Mesh = () => LowPoly.Wellspring, Icon = Strings.ManaIcon },
+            [Marker.RuneStone] = new MarkerArt { Color = new Color(0.55f, 0.25f, 0.85f), Mesh = () => LowPoly.Rune, Icon = Strings.ManaIcon },
+            [Marker.Wellspring] = new MarkerArt { Color = new Color(0.1f, 0.85f, 0.95f), Mesh = () => LowPoly.Wellspring, Icon = Strings.EnergyIcon },
             [Marker.Portal] = new MarkerArt { Color = new Color(0.95f, 0.3f, 0.9f), Mesh = () => LowPoly.Portal },
             [Marker.Mountain] = new MarkerArt { Color = new Color(0.35f, 0.33f, 0.32f), Mesh = () => LowPoly.Rock, TileColor = new Color(0.52f, 0.50f, 0.49f) },
-            // B-15 / B-16 (v4.0): no biome; the tile itself is the terrain. River = blue water, Lava = glowing orange.
-            [Marker.River] = new MarkerArt { Color = new Color(0.55f, 0.85f, 1.00f), Mesh = () => LowPoly.River, TileColor = new Color(0.12f, 0.42f, 0.90f) },
+            // B-15 / B-16 (v4.0): no biome; the tile itself is the terrain. River = teal-green water (hue ~170°, far from
+            // OwnerA blue ~222° and the Snow biome), Lava = glowing orange.
+            [Marker.River] = new MarkerArt { Color = new Color(0.70f, 1.00f, 0.88f), Mesh = () => LowPoly.River, TileColor = new Color(0.05f, 0.60f, 0.50f) },
             [Marker.Lava] = new MarkerArt { Color = new Color(1.00f, 0.85f, 0.20f), Mesh = () => LowPoly.Lava, TileColor = new Color(1.00f, 0.38f, 0.05f), Glow = true },
             [Marker.Void] = new MarkerArt { Color = Color.clear, Mesh = null }, // B-25: never drawn
         };

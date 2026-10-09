@@ -40,6 +40,9 @@ namespace HexPortal.Game
         public int TrapsShown { get; private set; }
         public bool PortalOpenShown => portalOpen;
         readonly Renderer[] highlights = new Renderer[Board.Cells.Count];
+        readonly GameObject[] landingHints = new GameObject[Board.Cells.Count];
+        /// <summary>U-42: cells shown as the Assassin's landing hint while it is selected (tests).</summary>
+        public int LandingHintCount { get; private set; }
         readonly Color[] highlightColor = new Color[Board.Cells.Count];
         readonly bool[] eventCell = new bool[Board.Cells.Count];
         readonly float[] flashUntil = new float[Board.Cells.Count];
@@ -111,6 +114,12 @@ namespace HexPortal.Game
 
                 var hl = Gfx.Hex("Highlight", transform, pos + new Vector3(0f, TileHeight + 0.01f, 0f), 0.7f, 0.08f, true);
                 highlights[i] = hl.GetComponent<Renderer>();
+                var lh = Prop("LandingHint", top + new Vector3(0f, 0.05f, 0f), LowPoly.MarkerRing, 0); // U-42 landing hint: a white ring
+                lh.transform.localRotation = Quaternion.identity;
+                lh.transform.localScale = new Vector3(0.75f, 3f, 0.75f);
+                Gfx.SetColor(lh.GetComponent<Renderer>(), Gfx.LandingHl);
+                lh.SetActive(false);
+                landingHints[i] = lh;
                 hl.SetActive(false);
             }
         }
@@ -204,6 +213,22 @@ namespace HexPortal.Game
         }
 
         /// <summary>The highlight colour of a cell (clear when none); tests read the UX-02 highlights through it.</summary>
+        /// <summary>U-42: marks where the selected Assassin would land after a hit that does not kill (Preview.AssassinLanding).
+        /// Cleared with the highlights.</summary>
+        public void LandingHint(Hex h)
+        {
+            int i = Board.IndexOf(h);
+            if (i < 0 || voidCell[i] || landingHints[i].activeSelf) return;
+            landingHints[i].SetActive(true);
+            LandingHintCount++;
+        }
+
+        public bool LandingHintAt(Hex h)
+        {
+            int i = Board.IndexOf(h);
+            return i >= 0 && landingHints[i].activeSelf;
+        }
+
         public Color HighlightAt(Hex h)
         {
             int i = Board.IndexOf(h);
@@ -214,6 +239,8 @@ namespace HexPortal.Game
         {
             for (int i = 0; i < highlightColor.Length; i++) highlightColor[i] = Color.clear;
             HighlightCount = 0;
+            for (int i = 0; i < landingHints.Length; i++) if (landingHints[i] != null) landingHints[i].SetActive(false);
+            LandingHintCount = 0;
             ApplyHighlights();
         }
 

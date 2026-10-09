@@ -53,7 +53,14 @@ namespace HexPortal.Core.Data
             new UnitDef("U-03", UnitClass.Archer,   2,   25, 80, 2, 3,    RangeKind.StraightLine, 1,  3),
             new UnitDef("U-04", UnitClass.Mage,     3,   25, 80, 2, 2,    RangeKind.Distance,     1,  2),
             new UnitDef("U-05", UnitClass.Healer,   2,   10, 90, 1, 2,    RangeKind.Adjacent,     1,  1),
+            // v4.0 §3.4
+            new UnitDef("U-40", UnitClass.Gatherer, 2,   10, 70, 2, 2,    RangeKind.Adjacent,     1,  1),
+            new UnitDef("U-41", UnitClass.Besieger, 3,   10, 110, 1, 2,   RangeKind.Adjacent,     1,  1), // tower: BesiegerTowerAttack
+            new UnitDef("U-42", UnitClass.Assassin, 3,   40, 50, 2, 3,    RangeKind.Leap,         1,  4),
+            new UnitDef("U-43", UnitClass.Flyer,    2,   15, 60, 3, 3,    RangeKind.Adjacent,     1,  1),
         };
+
+        public const int BesiegerTowerAttack = 50;    // U-41 Kuşatma (v4.0): Attack against a tower instead of 10
 
         public const int RiderChargeBonus = 10;       // U-02 Hücum (v3.0: attack after a move in the same turn)
         public const int MageSplashDamage = 10;       // U-04 Patlama
@@ -102,6 +109,9 @@ namespace HexPortal.Core.Data
 
         // ---------- Pools, dealing, market (D) ----------
         public const int DealCharactersPerClass = 1; // D-03
+        /// <summary>D-03 (v4.0): the dealt classes, incl. the guaranteed Gatherer. Besieger, Assassin and Flyer come only from the pool.</summary>
+        public static readonly IReadOnlyList<UnitClass> DealtClasses = new[]
+            { UnitClass.Guardian, UnitClass.Rider, UnitClass.Archer, UnitClass.Mage, UnitClass.Healer, UnitClass.Gatherer };
         public const int DealCommonSupport = 3;      // D-04
         public const int DealRareSupport = 1;        // D-04
         public const int MarketSlots = 3;            // D-05
@@ -124,8 +134,8 @@ namespace HexPortal.Core.Data
         // ---------- Turn: Mana (T-01…T-03) ----------
         public const int ManaCap = 6;                // T-01: Mana = min(round, ManaCap)
         public const int ManaFirstRoundBonusB = 1;   // T-02
-        public const int WellspringManaBonus = 1;    // T-03, may exceed ManaCap
-        public const int RuneEnergyBonus = 1;        // B-11 / T-05 (v3.3), per held rune stone
+        public const int RuneManaBonus = 1;          // B-11 / T-03 (v4.0): per rune held by an own Gatherer, may exceed ManaCap
+        public const int WellspringEnergyBonus = 1;  // B-12 / T-05 (v4.0): per wellspring held by an own Gatherer
 
         // ---------- Turn: Energy (T-05) ----------
         public const int EnergyPerTurn = 3;          // T-05

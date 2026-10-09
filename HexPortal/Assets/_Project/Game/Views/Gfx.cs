@@ -25,6 +25,7 @@ namespace HexPortal.Game
         public static readonly Color PreviewMoveHl = new Color(0.05f, 0.25f, 1.00f, 0.45f); // UX-10 preview (no command)
         public static readonly Color PreviewAttackHl = new Color(1.00f, 0.05f, 0.05f, 0.45f);
         public static readonly Color TargetHl = new Color(1.00f, 0.95f, 0.10f, 0.8f);
+        public static readonly Color LandingHl = new Color(1.00f, 1.00f, 1.00f, 1.00f); // U-42 Assassin landing ring
         public static readonly Color ZoneHl = new Color(0.55f, 0.95f, 1.00f, 0.35f);
         public static readonly Color EventHl = new Color(1.00f, 1.00f, 1.00f, 0.55f); // white pulse: orange is the move-attack colour
         public static readonly Color FlashHl = new Color(1.00f, 1.00f, 1.00f, 0.8f);

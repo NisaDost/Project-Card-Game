@@ -66,12 +66,12 @@ namespace HexPortal.Tests
         [Test]
         public void P03_MayExceedTheManaCap_OwnerOnly()
         {
-            var b = new TestBoard().Round(3).Passive(B, "P-03").Wellspring(H(0, -2)).Wellspring(H(1, -2));
-            b.Unit(UnitClass.Guardian, B, H(0, -2));
-            b.Unit(UnitClass.Guardian, B, H(1, -2));
+            var b = new TestBoard().Round(3).Passive(B, "P-03").Rune(H(0, -2)).Rune(H(1, -2));
+            b.Unit(UnitClass.Gatherer, B, H(0, -2));
+            b.Unit(UnitClass.Gatherer, B, H(1, -2));
             var s = b.Build();
             End(s); // B's turn in round 3
-            Assert.That(s.GetMana(B), Is.EqualTo(3 + 2 * Catalog.WellspringManaBonus + 2));
+            Assert.That(s.GetMana(B), Is.EqualTo(3 + 2 * Catalog.RuneManaBonus + 2));
             Assert.That(s.GetMana(B), Is.GreaterThan(Catalog.ManaCap));
             End(s);
             Assert.That(s.GetMana(A), Is.EqualTo(4)); // A has no passive

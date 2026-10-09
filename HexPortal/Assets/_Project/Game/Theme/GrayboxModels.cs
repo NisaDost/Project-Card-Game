@@ -90,5 +90,56 @@ namespace HexPortal.Game
             b.Box(new Vector3(0.24f, 0.95f, 0f), new Vector3(0.06f, 0.6f, 0.06f));  // arms up to the ring
             b.Box(new Vector3(-0.24f, 0.95f, 0f), new Vector3(0.06f, 0.6f, 0.06f));
         }
+
+        /// <summary>U-40 Gatherer: a short worker with a big sack on the back and a pickaxe over the shoulder.</summary>
+        public static void Gatherer(LowPoly.Builder b)
+        {
+            b.Prism(6, 0.26f, 0.2f, 0f, 0.7f, Vector3.zero, 30f);               // body
+            b.Ball(new Vector3(0f, 0.84f, 0f), new Vector3(0.15f, 0.15f, 0.15f));
+            b.Prism(6, 0.19f, 0.19f, 0.9f, 0.96f, Vector3.zero, 30f);           // cap brim
+            b.Ball(new Vector3(0f, 0.6f, -0.32f), new Vector3(0.28f, 0.3f, 0.24f), 6, 4); // sack
+            b.Box(new Vector3(0f, 0.93f, -0.3f), new Vector3(0.12f, 0.08f, 0.12f));      // sack knot
+            b.Box(new Vector3(0.27f, 0.75f, 0.08f), new Vector3(0.05f, 0.75f, 0.05f), Quaternion.Euler(20f, 0f, 0f)); // handle
+            b.Box(new Vector3(0.27f, 1.1f, 0.21f), new Vector3(0.06f, 0.07f, 0.5f), Quaternion.Euler(20f, 0f, 0f));  // pick head
+        }
+
+        /// <summary>U-41 Besieger: a low wheeled battering ram with a pointed head.</summary>
+        public static void Besieger(LowPoly.Builder b)
+        {
+            b.Box(new Vector3(0f, 0.3f, 0f), new Vector3(0.5f, 0.14f, 0.8f));     // chassis
+            for (int i = 0; i < 4; i++)                                              // wheels
+                b.Ball(new Vector3(i % 2 == 0 ? -0.3f : 0.3f, 0.17f, i < 2 ? -0.26f : 0.26f), new Vector3(0.05f, 0.16f, 0.16f), 8, 3);
+            b.Box(new Vector3(0f, 0.5f, 0f), new Vector3(0.2f, 0.2f, 0.9f));       // ram log
+            b.Box(new Vector3(0f, 0.5f, 0.5f), new Vector3(0.22f, 0.22f, 0.22f), Quaternion.Euler(0f, 0f, 45f)); // iron head
+            b.Prism(4, 0.38f, 0.05f, 0.62f, 1.05f, Vector3.zero, 45f);              // roof
+        }
+
+        /// <summary>U-42 Assassin: slim, hooded, crouched forward with two daggers.</summary>
+        public static void Assassin(LowPoly.Builder b)
+        {
+            b.Prism(5, 0.15f, 0.11f, 0f, 0.78f, Vector3.zero);                     // slim body
+            b.Ball(new Vector3(0f, 0.9f, 0.04f), new Vector3(0.12f, 0.13f, 0.12f));
+            b.Prism(5, 0.15f, 0f, 0.9f, 1.25f, new Vector3(0f, 0f, -0.03f));       // pointed hood
+            b.Box(new Vector3(0f, 0.55f, -0.16f), new Vector3(0.3f, 0.5f, 0.04f), Quaternion.Euler(-10f, 0f, 0f)); // cape
+            for (int s = -1; s <= 1; s += 2)
+            {
+                b.Box(new Vector3(0.2f * s, 0.5f, 0.12f), new Vector3(0.05f, 0.05f, 0.12f));                    // grip
+                b.Box(new Vector3(0.2f * s, 0.55f, 0.32f), new Vector3(0.03f, 0.1f, 0.3f), Quaternion.Euler(-20f, 0f, 0f)); // blade
+            }
+        }
+
+        /// <summary>U-43 Flyer: a round bird-like body with wide wings and a tail. Lifted by ArtCatalog Hover.</summary>
+        public static void Flyer(LowPoly.Builder b)
+        {
+            b.Ball(new Vector3(0f, 0.42f, 0f), new Vector3(0.22f, 0.22f, 0.3f), 6, 4); // body
+            b.Ball(new Vector3(0f, 0.62f, 0.25f), new Vector3(0.13f, 0.13f, 0.13f));     // head
+            b.Box(new Vector3(0f, 0.6f, 0.4f), new Vector3(0.07f, 0.06f, 0.14f));        // beak
+            for (int s = -1; s <= 1; s += 2)
+            {
+                b.Box(new Vector3(0.36f * s, 0.55f, 0f), new Vector3(0.5f, 0.04f, 0.3f), Quaternion.Euler(0f, 0f, 25f * s)); // inner wing
+                b.Box(new Vector3(0.76f * s, 0.78f, -0.04f), new Vector3(0.36f, 0.03f, 0.22f), Quaternion.Euler(0f, 0f, 40f * s)); // wing tip
+            }
+            b.Box(new Vector3(0f, 0.45f, -0.36f), new Vector3(0.26f, 0.03f, 0.2f), Quaternion.Euler(15f, 0f, 0f)); // tail
+        }
     }
 }

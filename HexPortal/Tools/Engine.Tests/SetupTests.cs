@@ -49,7 +49,7 @@ namespace HexPortal.Tests
             foreach (var p in Players)
             {
                 var hand = s.GetHand(p);
-                Assert.That(hand.Where(c => c.IsCharacter).Select(c => c.Character.Class), Is.EquivalentTo(Catalog.Units.Select(u => u.Class)));
+                Assert.That(hand.Where(c => c.IsCharacter).Select(c => c.Character.Class), Is.EquivalentTo(Catalog.DealtClasses)); // D-03 (v4.0)
                 Assert.That(hand.Count(c => !c.IsCharacter && c.Support.Rarity == Rarity.Common), Is.EqualTo(Catalog.DealCommonSupport));
                 Assert.That(hand.Count(c => !c.IsCharacter && c.Support.Rarity == Rarity.Rare), Is.EqualTo(Catalog.DealRareSupport));
             }
@@ -312,9 +312,9 @@ namespace HexPortal.Tests
         public void S07_BothFinished_Round1StartsWithAsTurnAndDraw()
         {
             var s = Match.Create(14);
-            // v3.0: 3 characters fit the setup budget (hand 9 - 3 = 6); one support card less makes the hand 5 < 6: A draws.
+            // v4.0: 3 characters fit the setup budget (hand 10 - 3 = 7); two support cards less make the hand 5 < 6: A draws.
             SetupPlayer(s, A, 3, finish: false);
-            s.HandList(A).Remove(s.GetHand(A).First(c => !c.IsCharacter));
+            for (int i = 0; i < 2; i++) s.HandList(A).Remove(s.GetHand(A).First(c => !c.IsCharacter));
             Engine.Apply(s, new FinishSetupCommand(A));
             var ev = SetupPlayer(s, B, 3);
             Assert.That(s.Phase, Is.EqualTo(GamePhase.Playing));
@@ -420,7 +420,7 @@ namespace HexPortal.Tests
         public void S08_OpponentHandCountIsTheDealtCountUntilBothFinished()
         {
             var s = Match.Create(20);
-            Assert.That(DealtHandSize, Is.EqualTo(9));
+            Assert.That(DealtHandSize, Is.EqualTo(10));
             Assert.That(s.GetDealtHandCount(A), Is.EqualTo(DealtHandSize));
             var seen = new List<int> { PlayerView.For(s, B).OpponentHandCount };
             var events = new List<GameEvent>();

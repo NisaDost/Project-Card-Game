@@ -51,14 +51,14 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void T03_EachHeldWellspringGivesOneMana_CanExceedCap()
+        public void T03_EachRuneHeldByAnOwnGathererGivesOneMana_CanExceedCap()
         {
-            var b = new TestBoard().Wellspring(H(-1, 2)).Wellspring(H(1, -2)).Wellspring(H(2, 0)).Round(8);
-            b.Unit(UnitClass.Guardian, A, H(-1, 2));
-            b.Unit(UnitClass.Guardian, A, H(1, -2));
-            b.Unit(UnitClass.Guardian, B, H(2, 0)); // the enemy's Wellspring gives A nothing
+            var b = new TestBoard().Rune(H(-1, 2)).Rune(H(1, -2)).Rune(H(2, 0)).Round(8);
+            b.Unit(UnitClass.Gatherer, A, H(-1, 2));
+            b.Unit(UnitClass.Gatherer, A, H(1, -2));
+            b.Unit(UnitClass.Gatherer, B, H(2, 0)); // the enemy's rune gives A nothing
             var s = b.Build();
-            Assert.That(Mana.TurnStartMana(s, A), Is.EqualTo(Catalog.ManaCap + 2 * Catalog.WellspringManaBonus));
+            Assert.That(Mana.TurnStartMana(s, A), Is.EqualTo(Catalog.ManaCap + 2 * Catalog.RuneManaBonus));
             Assert.That(Mana.TurnStartMana(s, B), Is.EqualTo(Catalog.ManaCap + 1));
 
             Engine.Apply(s, new EndTurnCommand(A));
@@ -67,25 +67,25 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void T03_EmptyWellspringGivesNothing()
+        public void T03_EmptyRuneGivesNothing()
         {
-            var b = new TestBoard().Wellspring(H(-1, 2)).Round(2);
-            b.Unit(UnitClass.Guardian, A, H(-1, 1));
+            var b = new TestBoard().Rune(H(-1, 2)).Round(2);
+            b.Unit(UnitClass.Gatherer, A, H(-1, 1));
             Assert.That(Mana.TurnStartMana(b.Build(), A), Is.EqualTo(2));
         }
 
         [Test]
-        public void B11_T05_EachHeldRuneStoneGivesOneEnergy()
+        public void B12_T05_EachWellspringHeldByAnOwnGathererGivesOneEnergy()
         {
-            var b = new TestBoard().Rune(H(-1, 2)).Rune(H(1, -2)).Rune(H(2, 0));
-            b.Unit(UnitClass.Guardian, A, H(-1, 2));
-            b.Unit(UnitClass.Guardian, A, H(1, -2));
-            b.Unit(UnitClass.Guardian, B, H(2, 0)); // the enemy's rune gives A nothing
+            var b = new TestBoard().Wellspring(H(-1, 2)).Wellspring(H(1, -2)).Wellspring(H(2, 0));
+            b.Unit(UnitClass.Gatherer, A, H(-1, 2));
+            b.Unit(UnitClass.Gatherer, A, H(1, -2));
+            b.Unit(UnitClass.Gatherer, B, H(2, 0)); // the enemy's wellspring gives A nothing
             var s = b.Build();
-            Assert.That(Mana.TurnStartEnergy(s, A), Is.EqualTo(Catalog.EnergyPerTurn + 2 * Catalog.RuneEnergyBonus));
+            Assert.That(Mana.TurnStartEnergy(s, A), Is.EqualTo(Catalog.EnergyPerTurn + 2 * Catalog.WellspringEnergyBonus));
 
             Engine.Apply(s, new EndTurnCommand(A));
-            Assert.That(s.GetEnergy(B), Is.EqualTo(Catalog.EnergyPerTurn + Catalog.RuneEnergyBonus));
+            Assert.That(s.GetEnergy(B), Is.EqualTo(Catalog.EnergyPerTurn + Catalog.WellspringEnergyBonus));
             Engine.Apply(s, new EndTurnCommand(B));
             Assert.That(s.GetEnergy(A), Is.EqualTo(Catalog.EnergyPerTurn + 2));
         }
@@ -95,25 +95,25 @@ namespace HexPortal.Tests
         [Test]
         public void UX13_PlayerViewShowsOwnTurnStartBonuses()
         {
-            var b = new TestBoard().Rune(H(-1, 2)).Wellspring(H(1, -2)).Wellspring(H(2, 0));
-            b.Unit(UnitClass.Guardian, A, H(-1, 2));
-            b.Unit(UnitClass.Guardian, A, H(1, -2));
-            b.Unit(UnitClass.Guardian, B, H(2, 0));
+            var b = new TestBoard().Wellspring(H(-1, 2)).Rune(H(1, -2)).Rune(H(2, 0));
+            b.Unit(UnitClass.Gatherer, A, H(-1, 2));
+            b.Unit(UnitClass.Gatherer, A, H(1, -2));
+            b.Unit(UnitClass.Gatherer, B, H(2, 0));
             var s = b.Build();
             var va = PlayerView.For(s, A);
-            Assert.That(va.TurnStartEnergyBonus, Is.EqualTo(Catalog.RuneEnergyBonus));
-            Assert.That(va.TurnStartManaBonus, Is.EqualTo(Catalog.WellspringManaBonus), "the enemy's wellspring is not counted");
+            Assert.That(va.TurnStartEnergyBonus, Is.EqualTo(Catalog.WellspringEnergyBonus));
+            Assert.That(va.TurnStartManaBonus, Is.EqualTo(Catalog.RuneManaBonus), "the enemy's rune is not counted");
             Assert.That(va.TurnStartEnergyBonus, Is.EqualTo(Mana.TurnStartEnergy(s, A) - Catalog.EnergyPerTurn));
             var vb = PlayerView.For(s, B);
-            Assert.That(vb.TurnStartManaBonus, Is.EqualTo(Catalog.WellspringManaBonus));
+            Assert.That(vb.TurnStartManaBonus, Is.EqualTo(Catalog.RuneManaBonus));
             Assert.That(vb.TurnStartEnergyBonus, Is.EqualTo(0));
         }
 
         [Test]
-        public void B11_EmptyRuneStoneGivesNothing()
+        public void B12_EmptyWellspringGivesNothing()
         {
-            var b = new TestBoard().Rune(H(-1, 2));
-            b.Unit(UnitClass.Guardian, A, H(-1, 1));
+            var b = new TestBoard().Wellspring(H(-1, 2));
+            b.Unit(UnitClass.Gatherer, A, H(-1, 1));
             Assert.That(Mana.TurnStartEnergy(b.Build(), A), Is.EqualTo(Catalog.EnergyPerTurn));
         }
 

@@ -41,7 +41,7 @@ namespace HexPortal.Core
                 BuffId = u.Buff == null ? null : u.Buff.Def.Id, BuffTurnsLeft = u.Buff == null ? 0 : u.Buff.TurnsLeft,
                 DebuffId = u.Debuff == null ? null : u.Debuff.Def.Id, DebuffTurnsLeft = u.Debuff == null ? 0 : u.Debuff.TurnsLeft,
                 OnOverwatch = u.OnOverwatch,
-                EffectiveAttack = Combat.AttackDamage(s, u, false),
+                EffectiveAttack = Combat.AttackDamage(s, u, false), // U-41: against units; vs towers see Catalog.BesiegerTowerAttack
                 ChargeBonus = u.Class == UnitClass.Rider ? Catalog.RiderChargeBonus : 0,
             };
             if (own)
@@ -314,7 +314,7 @@ namespace HexPortal.Core
                 OwnTowerShotAvailable = s.IsTowerShotAvailable(p), OwnTowerRevealedUntilTurn = ownTower.RevealedUntilTurn,
                 EnemyTowerPos = enemyTowerPos, EnemyTowerHealth = enemyTower.Health, EnemyTowerShotAvailable = s.IsTowerShotAvailable(o),
                 Hand = new List<CardInstance>(s.GetHand(p)), Mana = s.GetMana(p), Energy = s.GetEnergy(p),
-                TurnStartManaBonus = HexPortal.Core.Mana.WellspringBonus(s, p), TurnStartEnergyBonus = HexPortal.Core.Mana.RuneBonus(s, p), SetupMana = s.GetSetupMana(p),
+                TurnStartManaBonus = HexPortal.Core.Mana.RuneBonus(s, p), TurnStartEnergyBonus = HexPortal.Core.Mana.WellspringBonus(s, p), SetupMana = s.GetSetupMana(p),
                 DrawPending = s.IsDrawPending(p),
                 SetupStep = Setup.StepOf(s, p), OpponentSetupFinished = s.IsSetupFinished(o),
                 QuestOffer = questOffer, QuestChoices = questChoices, PassiveOffer = passiveOffer,

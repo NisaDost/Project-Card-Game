@@ -39,6 +39,18 @@ namespace HexPortal.Core
             return result;
         }
 
+        /// <summary>U-42: where the viewer's Assassin would land after hitting <paramref name="target"/> without killing it,
+        /// as the viewer sees the board (a hidden unit may change it); its own cell if it is already adjacent or nothing is
+        /// free. Null if the unit is not the viewer's Assassin.</summary>
+        public static Hex? AssassinLanding(PlayerView view, int unitId, Hex target)
+        {
+            var belief = BeliefState.From(view);
+            var u = belief.GetUnit(unitId);
+            if (u == null || u.Owner != view.Viewer || u.Class != Data.UnitClass.Assassin) return null;
+            if (Hex.Distance(u.Pos, target) <= 1) return u.Pos;
+            return Combat.LandingCell(belief, u, target) ?? u.Pos;
+        }
+
         /// <summary>UX-10: the viewer's own unit's move cells and attack ranges; null if the unit is not the viewer's.</summary>
         public static RangePreview Ranges(PlayerView view, int unitId)
         {

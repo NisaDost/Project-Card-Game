@@ -64,10 +64,10 @@ namespace HexPortal.Tests
         [Test]
         public void V10_OwnTurnResourcesAndDraw()
         {
-            // v3.0: at most 3 characters fit the setup budget; one support card less so that A must draw (hand < 6).
+            // v4.0: at most 3 characters fit the setup budget (hand 10 - 3 = 7); two support cards less so that A must draw.
             var s = Match.Create(32);
             SetupPlayer(s, A, 3, finish: false);
-            s.HandList(A).Remove(s.GetHand(A).First(c => !c.IsCharacter));
+            for (int i = 0; i < 2; i++) s.HandList(A).Remove(s.GetHand(A).First(c => !c.IsCharacter));
             Engine.Apply(s, new FinishSetupCommand(A));
             SetupPlayer(s, B, 3);
             var a = PlayerView.For(s, A);

@@ -27,7 +27,7 @@ namespace HexPortal.Tests
             ids.AddRange(Catalog.CharacterCards.Select(c => c.Id));
 
             Assert.That(ids, Is.Unique);
-            foreach (var u in Catalog.Units) Assert.That(u.Id, Does.Match(@"^U-0[1-5]$"));
+            foreach (var u in Catalog.Units) Assert.That(u.Id, Does.Match(@"^U-(0[1-5]|4[0-3])$"));
             foreach (var c in Catalog.SupportCards) Assert.That(c.Id, Does.Match(@"^C-(1\d|2[01])$"));
             foreach (var q in Catalog.Quests) Assert.That(q.Id, Does.Match(@"^Q-1\d$"));
             foreach (var p in Catalog.Passives) Assert.That(p.Id, Does.Match(@"^P-0[1-6]$"));
@@ -37,7 +37,7 @@ namespace HexPortal.Tests
         [Test]
         public void Catalog_IdSetsMatchGdd()
         {
-            Assert.That(Catalog.Units.Select(u => u.Id), Is.EqualTo(new[] { "U-01", "U-02", "U-03", "U-04", "U-05" }));
+            Assert.That(Catalog.Units.Select(u => u.Id), Is.EqualTo(new[] { "U-01", "U-02", "U-03", "U-04", "U-05", "U-40", "U-41", "U-42", "U-43" }));
             Assert.That(Catalog.SupportCards.Select(c => c.Id),
                 Is.EqualTo(Enumerable.Range(10, 12).Select(n => "C-" + n)));
             Assert.That(Catalog.Quests.Select(q => q.Id),
@@ -48,11 +48,11 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void D01_CharacterPoolIs30_FiveClassesTimesThreeBiomesTimesTwo()
+        public void D01_CharacterPoolIs54_NineClassesTimesThreeBiomesTimesTwo()
         {
-            Assert.That(Catalog.CharacterCards.Count, Is.EqualTo(15));
+            Assert.That(Catalog.CharacterCards.Count, Is.EqualTo(27));
             Assert.That(Catalog.CharacterCards.Select(c => c.Copies).Distinct(), Is.EqualTo(new[] { 2 }));
-            Assert.That(Catalog.CharacterCards.Sum(c => c.Copies), Is.EqualTo(30));
+            Assert.That(Catalog.CharacterCards.Sum(c => c.Copies), Is.EqualTo(54));
 
             var biomes = new[] { Biome.Forest, Biome.Desert, Biome.Snow };
             foreach (var u in Catalog.Units)
@@ -104,13 +104,31 @@ namespace HexPortal.Tests
         }
 
         [Test]
-        public void D03_DealsOneCharacterPerClass_FiveTotal()
+        public void D03_DealsFiveBaseClassesPlusAGuaranteedGatherer_SixTotal()
         {
             Assert.That(Catalog.DealCharactersPerClass, Is.EqualTo(1));
-            Assert.That(Catalog.DealCharactersPerClass * Catalog.Units.Count, Is.EqualTo(5));
-            int dealt = 2 * Catalog.DealCharactersPerClass * Catalog.Units.Count; // both players
+            Assert.That(Catalog.DealtClasses, Is.EqualTo(new[] { UnitClass.Guardian, UnitClass.Rider, UnitClass.Archer,
+                UnitClass.Mage, UnitClass.Healer, UnitClass.Gatherer }));
+            int dealt = 2 * Catalog.DealCharactersPerClass * Catalog.DealtClasses.Count; // both players
             int left = Catalog.CharacterCards.Sum(c => c.Copies) - dealt;
-            Assert.That(left, Is.EqualTo(20));
+            Assert.That(left, Is.EqualTo(42));
+        }
+
+        [Test]
+        public void U40_U43_NewClassStats()
+        {
+            void Check(string id, UnitClass c, int cost, int atk, int hp, int mv, int sight, RangeKind range, int min, int max)
+            {
+                var d = Catalog.Units.Single(u => u.Id == id);
+                Assert.That(new object[] { d.Class, d.Cost, d.Attack, d.Health, d.Move, d.Sight, d.Range, d.MinRange, d.MaxRange },
+                    Is.EqualTo(new object[] { c, cost, atk, hp, mv, sight, range, min, max }), id);
+                Assert.That(Catalog.CharacterCards.Count(x => x.Class == c), Is.EqualTo(3), id + ": three biome variants");
+            }
+            Check("U-40", UnitClass.Gatherer, 2, 10, 70, 2, 2, RangeKind.Adjacent, 1, 1);
+            Check("U-41", UnitClass.Besieger, 3, 10, 110, 1, 2, RangeKind.Adjacent, 1, 1);
+            Check("U-42", UnitClass.Assassin, 3, 40, 50, 2, 3, RangeKind.Leap, 1, 4);
+            Check("U-43", UnitClass.Flyer, 2, 15, 60, 3, 3, RangeKind.Adjacent, 1, 1);
+            Assert.That(Catalog.BesiegerTowerAttack, Is.EqualTo(50));
         }
 
         [Test]
@@ -215,9 +233,11 @@ namespace HexPortal.Tests
         public void U30_NoSingleUnbuffedHitCardOrTrapKillsAFullHealthUnit()
         {
             int lowest = Catalog.Units.Min(u => u.Health);
-            Assert.That(lowest, Is.EqualTo(80));
+            Assert.That(lowest, Is.EqualTo(50)); // v4.0: Assassin (§3.4)
+            Assert.That(Catalog.PortalBearer.Health, Is.GreaterThanOrEqualTo(lowest));
+            // Hits on units (the Besieger's 50 is only against towers).
             int hit = Catalog.Units.Max(u => u.Attack + Catalog.BiomeAttackBonus + (u.Class == UnitClass.Rider ? Catalog.RiderChargeBonus : 0));
-            Assert.That(hit, Is.EqualTo(45)); // Rider 30 + 5 + 10
+            Assert.That(hit, Is.EqualTo(45)); // Rider 30 + 5 + 10, Assassin 40 + 5
             Assert.That(hit, Is.LessThan(lowest));
             int card = Catalog.SupportCards.Where(c => c.Effect == EffectKind.TrapDamage || c.Effect == EffectKind.Poison)
                 .Max(c => c.Amount);
@@ -338,7 +358,11 @@ namespace HexPortal.Tests
         public void T02_PlayerBFirstRoundBonusIsOne() => Assert.That(Catalog.ManaFirstRoundBonusB, Is.EqualTo(1));
 
         [Test]
-        public void T03_WellspringBonusIsOne() => Assert.That(Catalog.WellspringManaBonus, Is.EqualTo(1));
+        public void B11_B12_RuneManaAndWellspringEnergyBonusesAreOne()
+        {
+            Assert.That(Catalog.RuneManaBonus, Is.EqualTo(1));
+            Assert.That(Catalog.WellspringEnergyBonus, Is.EqualTo(1));
+        }
 
         [Test]
         public void T05_EnergyPerTurnIsThree_ActionCostsOne()

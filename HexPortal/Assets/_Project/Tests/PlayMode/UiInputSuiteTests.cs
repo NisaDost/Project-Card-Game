@@ -709,5 +709,135 @@ namespace HexPortal.Game.Tests
             Assert.That(GameApp.Instance.Units.BearerSpawnEffects, Is.GreaterThan(effects), "spawn effect played");
             Assert.That(GameApp.Instance.Units.TryGetSeen(view.OwnBearerId, out var s) && s.Class == UnitClass.PortalBearer, Is.True, "Bearer drawn");
         }
+
+        // ---------- GDD v4.0 phase 3: new classes (§3.4) ----------
+
+        static bool IsClass(PlayerView v, int cardId, UnitClass cls)
+        {
+            foreach (var h in v.Hand) if (h.Id == cardId) return h.IsCharacter && h.Character.Class == cls;
+            return false;
+        }
+
+        /// <summary>vs AI (human A), legal commands only: setup keeps cards of <paramref name="want"/> in the hand, the T-04
+        /// draw takes the Market character slot when it holds <paramref name="want"/> (else D-05 refresh while Mana lasts,
+        /// else blind), a <paramref name="want"/> card is deployed when legal, otherwise GreedyAi plays A. Stops on A's turn
+        /// after the draw when <paramref name="stop"/> holds.</summary>
+        static bool Drive(ulong seed, UnitClass want, System.Func<PlayerView, bool> stop, int maxSteps = 3000)
+        {
+            var m = M;
+            m.NewAiMatch(seed, PlayerId.A, AiLevel.Normal, timer: false);
+            var rng = new Rng(seed + 11);
+            for (int i = 0; i < maxSteps && !m.IsOver; i++)
+            {
+                var v = m.View;
+                if (v.Phase == GamePhase.Playing && v.ActivePlayer == v.Viewer && !v.DrawPending && stop(v)) return true;
+                if (m.AiToAct) { m.StepAi(); continue; }
+                var legal = m.Legal;
+                if (legal.Count == 0) return false;
+                ICommand pick = null;
+                if (v.Phase != GamePhase.Playing)
+                    pick = legal.FirstOrDefault(c => c is FinishSetupCommand) ?? legal.FirstOrDefault(c => c is PlaceTowerCommand)
+                        ?? legal.OfType<PlaceUnitCommand>().FirstOrDefault(c => !IsClass(v, c.CardId, want));
+                else if (v.DrawPending)
+                {
+                    var slot = v.Market.Count > 0 ? v.Market[0] : null;
+                    if (slot != null && slot.IsCharacter && slot.Character.Class == want) pick = legal.OfType<DrawCommand>().FirstOrDefault(d => d.Slot == 0);
+                    pick = pick ?? legal.OfType<RefreshMarketCommand>().FirstOrDefault()
+                        ?? (ICommand)legal.OfType<DrawCommand>().FirstOrDefault(d => d.Slot == DrawCommand.Blind) ?? legal.OfType<DrawCommand>().FirstOrDefault();
+                }
+                else pick = legal.OfType<DeployCommand>().FirstOrDefault(d => IsClass(v, d.CardId, want));
+                m.Apply(pick ?? GreedyAi.Choose(v, legal, AiLevel.Normal, rng));
+            }
+            return false;
+        }
+
+        IEnumerator DriveOrIgnore(UnitClass want, System.Func<PlayerView, bool> stop, string what, params ulong[] seeds)
+        {
+            foreach (var s in seeds)
+                if (Drive(s, want, stop)) { yield return Settle(); yield break; }
+            Assert.Ignore("no " + what + " in the sampled seeds");
+        }
+
+        /// <summary>U-42 / T-05: selecting an own Assassin marks the landing cell of each non-kill hit (Preview.AssassinLanding);
+        /// one tap on the red target attacks; the Assassin ends on its own cell (kill) or on the landing cell.</summary>
+        [UnityTest]
+        public IEnumerator V40_AssassinAttackShowsLandingHint()
+        {
+            System.Func<AttackCommand, bool> ok = a =>
+            {
+                var u = M.View.OwnUnits.FirstOrDefault(x => x.Id == a.UnitId);
+                if (u == null || u.Class != UnitClass.Assassin || !Tappable(u.Pos) || !Tappable(a.Target)) return false;
+                var land = Preview.AssassinLanding(M.View, a.UnitId, a.Target);
+                return land.HasValue && land.Value != u.Pos;
+            };
+            yield return DriveOrIgnore(UnitClass.Assassin, v => M.Legal.OfType<AttackCommand>().Any(ok), "Assassin attack", 1, 2, 3, 4, 5, 6, 7, 8);
+            var atk = M.Legal.OfType<AttackCommand>().First(ok);
+            var from = OwnUnit(atk.UnitId).Pos;
+            var landing = Preview.AssassinLanding(M.View, atk.UnitId, atk.Target).Value;
+            int energy = M.View.Energy;
+            yield return drv.TapCell(from);
+            Assert.That(Ui.SelectedUnit, Is.EqualTo(atk.UnitId), "Assassin selected " + drv.Log);
+            Assert.That(Ui.HighlightAt(atk.Target), Is.EqualTo(Gfx.AttackHl), "target red");
+            Assert.That(Ui.LandingHintAt(landing), Is.True, "landing hint on " + landing);
+            Assert.That(Ui.LandingHintAt(from), Is.False, "no hint on its own cell");
+            yield return drv.TapCell(atk.Target);
+            Assert.That(M.View.Energy, Is.EqualTo(energy - 1), "attacked by tap " + drv.Log);
+            Assert.That(Ui.Mode, Is.EqualTo(GameUi.InputMode.Idle));
+            Assert.That(Ui.LandingHintCount, Is.EqualTo(0), "hints cleared after the attack");
+            var after = M.View.OwnUnits.FirstOrDefault(u => u.Id == atk.UnitId);
+            if (after != null) Assert.That(after.Pos == from || after.Pos == landing, Is.True, "Assassin at " + after.Pos);
+            yield return Settle();
+        }
+
+        /// <summary>U-43 / B-15: an own Flyer gets a blue cell on a river and moves there by tap.</summary>
+        [UnityTest]
+        public IEnumerator V40_FlyerHighlightedOntoRiver()
+        {
+            System.Func<MoveCommand, bool> ok = mv =>
+            {
+                var v = M.View;
+                var u = v.OwnUnits.FirstOrDefault(x => x.Id == mv.UnitId);
+                return u != null && u.Class == UnitClass.Flyer && v.Cells[Board.IndexOf(mv.Dest)].Tile.Marker == Marker.River
+                    && Tappable(u.Pos) && Tappable(mv.Dest);
+            };
+            yield return DriveOrIgnore(UnitClass.Flyer, v => M.Legal.OfType<MoveCommand>().Any(ok), "Flyer next to a river", 3, 7, 11, 15, 19, 23, 27, 31);
+            var move = M.Legal.OfType<MoveCommand>().First(ok);
+            yield return drv.TapCell(OwnUnit(move.UnitId).Pos);
+            Assert.That(Ui.SelectedUnit, Is.EqualTo(move.UnitId), "Flyer selected " + drv.Log);
+            Assert.That(Ui.HighlightAt(move.Dest), Is.EqualTo(Gfx.MoveHl), "river cell is blue for the Flyer");
+            yield return drv.TapCell(move.Dest);
+            Assert.That(OwnUnit(move.UnitId).Pos, Is.EqualTo(move.Dest), "Flyer on the river");
+            Assert.That(Ui.Mode, Is.EqualTo(GameUi.InputMode.Idle));
+        }
+
+        /// <summary>T-07 for each §3.4 card class: tap the card, then a legal cell; the unit of that class is on the board.</summary>
+        [UnityTest]
+        public IEnumerator V40_DeployEachNewClassByTap()
+        {
+            var missing = new List<UnitClass>();
+            foreach (var cls in new[] { UnitClass.Gatherer, UnitClass.Besieger, UnitClass.Assassin, UnitClass.Flyer })
+            {
+                System.Func<DeployCommand, bool> ok = d => IsClass(M.View, d.CardId, cls) && Tappable(d.Cell);
+                bool found = false;
+                foreach (ulong seed in new ulong[] { 1, 2, 3, 4, 5, 6 })
+                    if (Drive(seed, cls, v => M.Legal.OfType<DeployCommand>().Any(ok))) { found = true; break; }
+                if (!found) { missing.Add(cls); continue; }
+                yield return Settle();
+                var dep = M.Legal.OfType<DeployCommand>().First(ok);
+                int units = M.View.OwnUnits.Count;
+                yield return drv.TapElement(Ui.CardElement(dep.CardId));
+                Assert.That(Ui.Mode, Is.EqualTo(GameUi.InputMode.CardSelected), cls + " card selected " + drv.Log);
+                yield return Settle();
+                Assert.That(Tappable(dep.Cell), Is.True, "deploy cell not under the hand");
+                yield return drv.TapCell(dep.Cell);
+                Assert.That(M.View.OwnUnits.Count, Is.EqualTo(units + 1), cls + " deployed by tap " + drv.Log);
+                Assert.That(M.View.OwnUnits.Any(u => u.Class == cls && u.Pos == dep.Cell), Is.True, cls + " on " + dep.Cell);
+                Assert.That(GameApp.Instance.Units.TryGetSeen(M.View.OwnUnits.First(u => u.Pos == dep.Cell).Id, out var seen) && seen.Class == cls, Is.True, cls + " drawn");
+                Assert.That(Ui.Mode, Is.EqualTo(GameUi.InputMode.Idle));
+                M.Close();
+                yield return null;
+            }
+            Assert.That(missing, Is.Empty, "no deployable card in the sampled seeds for " + string.Join(", ", missing));
+        }
     }
 }

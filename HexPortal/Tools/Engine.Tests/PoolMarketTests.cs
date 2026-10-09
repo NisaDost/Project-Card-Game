@@ -11,7 +11,7 @@ namespace HexPortal.Tests
     {
         static readonly PlayerId A = PlayerId.A, B = PlayerId.B;
         static readonly UnitClass[] Classes =
-            { UnitClass.Guardian, UnitClass.Rider, UnitClass.Archer, UnitClass.Mage, UnitClass.Healer };
+            { UnitClass.Guardian, UnitClass.Rider, UnitClass.Archer, UnitClass.Mage, UnitClass.Healer, UnitClass.Gatherer };
 
         static GameState NewState(ulong seed) =>
             new GameState(new TestBoard().State.Map, TestBoard.DefaultTowerA, TestBoard.DefaultTowerB, seed);
@@ -23,7 +23,7 @@ namespace HexPortal.Tests
         public void D01_D02_NewGameHasFullPools()
         {
             var s = NewState(1);
-            Assert.That(s.GetPool(CardPool.Character).Count, Is.EqualTo(30));
+            Assert.That(s.GetPool(CardPool.Character).Count, Is.EqualTo(54));
             Assert.That(s.GetPool(CardPool.Buff).Count, Is.EqualTo(19));
             Assert.That(s.GetPool(CardPool.DebuffTrap).Count, Is.EqualTo(15));
             foreach (var d in Catalog.CharacterCards)
@@ -49,7 +49,7 @@ namespace HexPortal.Tests
                 var chars = s.GetHand(p).Where(c => c.IsCharacter).Select(c => c.Character.Class).ToList();
                 Assert.That(chars, Is.EquivalentTo(Classes));
             }
-            Assert.That(s.GetPool(CardPool.Character).Count, Is.EqualTo(20));
+            Assert.That(s.GetPool(CardPool.Character).Count, Is.EqualTo(42));
         }
 
         [Test]
@@ -95,7 +95,7 @@ namespace HexPortal.Tests
         {
             var s = NewState(2);
             Pools.Deal(s);
-            Assert.That(s.GetHand(A).Count, Is.EqualTo(9));
+            Assert.That(s.GetHand(A).Count, Is.EqualTo(10));
             Assert.That(s.GetHand(A).Count, Is.GreaterThan(Catalog.HandLimit));
         }
 
@@ -110,7 +110,7 @@ namespace HexPortal.Tests
             Assert.That(s.GetMarket(CardPool.Buff).Support.Pool, Is.EqualTo(SupportPool.Buff));
             Assert.That(s.GetMarket(CardPool.DebuffTrap).Support.Pool, Is.EqualTo(SupportPool.DebuffTrap));
             Assert.That(ev.OfType<MarketRefilled>().Count(), Is.EqualTo(3));
-            Assert.That(s.GetPool(CardPool.Character).Count, Is.EqualTo(19));
+            Assert.That(s.GetPool(CardPool.Character).Count, Is.EqualTo(41));
             Assert.That(AllPoolCards(s).Any(c => c.Id == s.GetMarket(CardPool.Buff).Id), Is.False);
         }
 

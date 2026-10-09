@@ -289,6 +289,8 @@ namespace HexPortal.Sim
                 {
                     ["all decisions ms"] = Stats(games.SelectMany(g => g.DecisionMs)),
                     ["action decisions ms"] = Stats(games.SelectMany(g => g.ActionDecisionMs)),
+                    // AI-05: decisions over Catalog.AiMaxSecondsPerMove (must stay 0).
+                    ["decisions over AI-05 limit"] = games.SelectMany(g => g.DecisionMs).Count(ms => ms > Catalog.AiMaxSecondsPerMove * 1000.0),
                     ["wall seconds"] = Math.Round(wallSeconds, 1),
                 };
             return root;

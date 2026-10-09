@@ -111,6 +111,9 @@ namespace HexPortal.Game
         public bool DrawCallVisible { get; private set; }
         /// <summary>Test hook: the colour a cell is highlighted with (clear = none).</summary>
         public Color HighlightAt(Hex h) => board.HighlightAt(h);
+        /// <summary>Test hook: U-42 landing hint on a cell / count.</summary>
+        public bool LandingHintAt(Hex h) => board.LandingHintAt(h);
+        public int LandingHintCount => board.LandingHintCount;
 
         public GameUi(MatchController match, VisualElement root, BoardView board, UnitsView units, Camera cam)
         {
@@ -229,7 +232,7 @@ namespace HexPortal.Game
         public bool Paused => match.Paused;
         public static bool VibrationOn => PlayerPrefs.GetInt(VibrationPref, 1) == 1;
 
-        /// <summary>UX-13: "+n Enerji" / "+n Mana" from held rune stones / wellsprings (PlayerView bonuses), with the turn notice.</summary>
+        /// <summary>UX-13 (v4.0): "+n Enerji" from Wellsprings / "+n Mana" from Rune Stones held by own Gatherers (PlayerView bonuses), with the turn notice.</summary>
         void TurnStartNotice(PlayerView v)
         {
             int energy = v.TurnStartEnergyBonus, mana = v.TurnStartManaBonus; // from Core (PlayerView), no rule copy
@@ -1018,12 +1021,26 @@ namespace HexPortal.Game
                 if (n > 0 && !anyMoveAttack && v.Energy < Catalog.MoveAttackEnergy)
                     foreach (var o in Preview.MoveAttackTargets(v, unitId))
                         if (!redCells.Contains(o.Target)) { board.Highlight(o.Target, Gfx.MoveAttackOffHl); previewOnly.Add(o.Target); }
+                ShowLandingHints(v, unitId);
                 if (n == 0) ShowToast(UnitReason(unitId));
             }
             foreach (var u in v.OwnUnits)
                 if (u.Id == unitId) ShowUnitInfo(u, v);
             SyncSelectionMode();
             UpdatePrompt();
+        }
+
+        /// <summary>U-42: for each direct attack target of an own Assassin, the cell it would land on without a kill
+        /// (Core Preview; its own cell is not marked, it stays there).</summary>
+        void ShowLandingHints(PlayerView v, int unitId)
+        {
+            foreach (var t in redCells)
+            {
+                var land = Preview.AssassinLanding(v, unitId, t);
+                if (!land.HasValue) return; // not an Assassin
+                foreach (var u in v.OwnUnits)
+                    if (u.Id == unitId && u.Pos != land.Value) board.LandingHint(land.Value);
+            }
         }
 
         /// <summary>UX-10: the own unit's ranges from Core's Preview (move blue, reach orange, attack-from-here red). No commands.</summary>
@@ -1580,6 +1597,7 @@ namespace HexPortal.Game
             if (u.IsGhost) s.Append('\n').Append(Strings.InfoGhost);
             s.Append('\n').Append(Strings.InfoHealth).Append(' ').Append(u.Health).Append('/').Append(d.Health)
                 .Append("   ").Append(Strings.InfoAttack).Append(' ').Append(u.EffectiveAttack);
+            AppendTowerAttack(s, u.Class);
             if (u.ChargeBonus > 0) s.Append(ArtCatalog.ChargeNote);
             s.Append('\n').Append(Strings.InfoMove).Append(' ').Append(d.Move);
             if (own && u.MoveBonus > 0) s.Append(" (+").Append(u.MoveBonus).Append(')');
@@ -1598,6 +1616,10 @@ namespace HexPortal.Game
             OpenInfo(ArtCatalog.UnitIcon(u.Class), Gfx.BiomeColor(u.Biome), ArtCatalog.UnitName(u.Class), s.ToString());
         }
 
+        /// <summary>U-41: a class that hits towers with a different number shows it next to Attack (number from Catalog via the theme).</summary>
+        static string TowerAttackText(UnitClass c) { int n = ArtCatalog.Unit(c).TowerAttack; return n > 0 ? " " + Strings.TowerAttack(n) : ""; }
+        static void AppendTowerAttack(System.Text.StringBuilder s, UnitClass c) => s.Append(TowerAttackText(c));
+
         static void AppendEffect(System.Text.StringBuilder s, string kind, string id, int turns)
         {
             if (id == null) return;
@@ -1615,6 +1637,7 @@ namespace HexPortal.Game
                 var d = Unit.DefOf(c.Character.Class);
                 s.Append(" · ").Append(ArtCatalog.BiomeName(c.Character.Biome));
                 s.Append('\n').Append(Strings.InfoHealth).Append(' ').Append(d.Health).Append("   ").Append(Strings.InfoAttack).Append(' ').Append(d.Attack)
+                    .Append(TowerAttackText(c.Character.Class))
                     .Append("\n").Append(Strings.InfoMove).Append(' ').Append(d.Move).Append("   ").Append(Strings.InfoSight).Append(' ').Append(d.Sight)
                     .Append('\n').Append(Strings.InfoRange).Append(": ").Append(Strings.RangeText(d.Range, d.MinRange, d.MaxRange))
                     .Append('\n').Append(ArtCatalog.Ability(c.Character.Class));
